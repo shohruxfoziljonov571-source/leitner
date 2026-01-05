@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, PartyPopper, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useWords } from '@/hooks/useWords';
+import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
+import { useWordsDB } from '@/hooks/useWordsDB';
 import FlashCard from '@/components/learning/FlashCard';
 
 const Learn: React.FC = () => {
   const { t } = useLanguage();
-  const { getWordsForReview, reviewWord, isLoading } = useWords();
+  const { activeLanguage } = useLearningLanguage();
+  const { getWordsForReview, reviewWord, isLoading } = useWordsDB();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
@@ -21,9 +23,9 @@ const Learn: React.FC = () => {
   const totalToReview = getWordsForReview().length;
   const reviewedCount = reviewedIds.size;
 
-  const handleAnswer = (isCorrect: boolean) => {
+  const handleAnswer = async (isCorrect: boolean) => {
     if (currentWord) {
-      reviewWord(currentWord.id, isCorrect);
+      await reviewWord(currentWord.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWord.id]));
       setCurrentIndex((prev) => prev + 1);
     }
@@ -33,6 +35,19 @@ const Learn: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  if (!activeLanguage) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh]">
+          <p className="text-muted-foreground">Avval tilni tanlang</p>
+          <Link to="/">
+            <Button className="mt-4">Bosh sahifaga</Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -100,6 +115,23 @@ const Learn: React.FC = () => {
     );
   }
 
+  // Transform word for FlashCard component
+  const transformedWord = currentWord ? {
+    id: currentWord.id,
+    originalWord: currentWord.original_word,
+    translatedWord: currentWord.translated_word,
+    sourceLanguage: currentWord.source_language as 'ru' | 'en',
+    targetLanguage: currentWord.target_language as 'uz' | 'ru' | 'en',
+    exampleSentences: currentWord.example_sentences || [],
+    boxNumber: currentWord.box_number as 1 | 2 | 3 | 4 | 5,
+    nextReviewTime: new Date(currentWord.next_review_time),
+    timesReviewed: currentWord.times_reviewed,
+    timesCorrect: currentWord.times_correct,
+    timesIncorrect: currentWord.times_incorrect,
+    createdAt: new Date(currentWord.created_at),
+    lastReviewed: currentWord.last_reviewed ? new Date(currentWord.last_reviewed) : null,
+  } : null;
+
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <div className="container mx-auto px-4 py-6">
@@ -131,10 +163,10 @@ const Learn: React.FC = () => {
 
         {/* Flash Card */}
         <AnimatePresence mode="wait">
-          {currentWord && (
+          {transformedWord && (
             <FlashCard
-              key={currentWord.id}
-              word={currentWord}
+              key={transformedWord.id}
+              word={transformedWord}
               onAnswer={handleAnswer}
             />
           )}

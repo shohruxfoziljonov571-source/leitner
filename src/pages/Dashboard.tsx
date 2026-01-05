@@ -4,21 +4,47 @@ import { motion } from 'framer-motion';
 import { BookOpen, Flame, Target, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useWords } from '@/hooks/useWords';
+import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
+import { useWordsDB } from '@/hooks/useWordsDB';
 import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
+import LanguageSelector from '@/components/LanguageSelector';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
-  const { stats, getBoxCounts, getWordsForReview, isLoading } = useWords();
+  const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
+  const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
   const boxCounts = getBoxCounts();
   const wordsForReview = getWordsForReview();
   const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
 
-  if (isLoading) {
+  if (isLoading || langLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  // Show language selector if no active language
+  if (!activeLanguage) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 text-center"
+          >
+            <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
+              {t('welcomeMessage')} 👋
+            </h1>
+            <p className="text-muted-foreground">
+              Avval o'rganish tilini tanlang
+            </p>
+          </motion.div>
+          <LanguageSelector />
+        </div>
       </div>
     );
   }
@@ -30,7 +56,7 @@ const Dashboard: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
           <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
             {t('welcomeMessage')} 👋
@@ -40,6 +66,16 @@ const Dashboard: React.FC = () => {
               ? `${wordsForReview.length} so'z takrorlashni kutmoqda`
               : "Bugun uchun barcha so'zlar takrorlandi!"}
           </p>
+        </motion.div>
+
+        {/* Language Selector */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <LanguageSelector />
         </motion.div>
 
         {/* Quick Stats */}
@@ -53,7 +89,7 @@ const Dashboard: React.FC = () => {
           <StatCard
             icon={Target}
             label={t('todayProgress')}
-            value={stats.todayReviewed}
+            value={stats.today_reviewed}
             subtext={t('words')}
             delay={0.15}
           />
@@ -61,8 +97,8 @@ const Dashboard: React.FC = () => {
             icon={TrendingUp}
             label={t('accuracy')}
             value={
-              stats.todayReviewed > 0
-                ? `${Math.round((stats.todayCorrect / stats.todayReviewed) * 100)}%`
+              stats.today_reviewed > 0
+                ? `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`
                 : '—'
             }
             delay={0.2}

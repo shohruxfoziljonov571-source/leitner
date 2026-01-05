@@ -1,13 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Languages, Moon, Bell, Info, Trash2 } from 'lucide-react';
+import { Languages, Bell, Info, Trash2, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const Settings: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
+  const { user, signOut } = useAuth();
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
@@ -15,12 +17,10 @@ const Settings: React.FC = () => {
     { code: 'en', name: 'English', flag: '🇬🇧' },
   ];
 
-  const handleClearData = () => {
-    if (confirm("Barcha ma'lumotlarni o'chirmoqchimisiz? Bu amalni qaytarib bo'lmaydi!")) {
-      localStorage.removeItem('leitner-words');
-      localStorage.removeItem('leitner-stats');
-      toast.success("Ma'lumotlar o'chirildi");
-      window.location.reload();
+  const handleSignOut = async () => {
+    if (confirm("Hisobdan chiqmoqchimisiz?")) {
+      await signOut();
+      toast.success("Hisobdan chiqdingiz");
     }
   };
 
@@ -37,6 +37,24 @@ const Settings: React.FC = () => {
             {t('settings')} ⚙️
           </h1>
           <p className="text-muted-foreground">Ilovani sozlash</p>
+        </motion.div>
+
+        {/* User Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-card rounded-2xl shadow-card p-5 mb-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
+              <User className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium">{user?.email}</h3>
+              <p className="text-sm text-muted-foreground">Shaxsiy hisob</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Language Selection */}
@@ -108,12 +126,12 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <h3 className="font-medium">Leitner App</h3>
-              <p className="text-sm text-muted-foreground">Versiya 1.0.0 • MVP</p>
+              <p className="text-sm text-muted-foreground">Versiya 2.0.0 • Cloud Edition</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Clear Data */}
+        {/* Sign Out */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -122,22 +140,22 @@ const Settings: React.FC = () => {
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <Trash2 className="w-5 h-5 text-destructive" />
+              <LogOut className="w-5 h-5 text-destructive" />
             </div>
             <div>
-              <h3 className="font-medium text-destructive">Ma'lumotlarni tozalash</h3>
+              <h3 className="font-medium text-destructive">Hisobdan chiqish</h3>
               <p className="text-sm text-muted-foreground">
-                Barcha so'zlar va statistikani o'chirish
+                Ilovadan chiqish
               </p>
             </div>
           </div>
           <Button
             variant="outline"
-            onClick={handleClearData}
+            onClick={handleSignOut}
             className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            O'chirish
+            <LogOut className="w-4 h-4 mr-2" />
+            Chiqish
           </Button>
         </motion.div>
 

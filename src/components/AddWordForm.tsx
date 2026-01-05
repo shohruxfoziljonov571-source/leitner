@@ -5,32 +5,41 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
+const languageFlags: Record<string, string> = {
+  uz: '🇺🇿',
+  ru: '🇷🇺',
+  en: '🇬🇧',
+};
+
+const languageNames: Record<string, Record<string, string>> = {
+  uz: { uz: "O'zbekcha", ru: 'Узбекский', en: 'Uzbek' },
+  ru: { uz: 'Ruscha', ru: 'Русский', en: 'Russian' },
+  en: { uz: 'Inglizcha', ru: 'Английский', en: 'English' },
+};
+
 interface AddWordFormProps {
+  sourceLanguage: string;
+  targetLanguage: string;
   onAddWord: (word: {
     originalWord: string;
     translatedWord: string;
-    sourceLanguage: 'ru' | 'en';
-    targetLanguage: 'uz' | 'ru' | 'en';
+    sourceLanguage: string;
+    targetLanguage: string;
     exampleSentences: string[];
-  }) => void;
+  }) => Promise<void>;
 }
 
-const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
-  const { t } = useLanguage();
+const AddWordForm: React.FC<AddWordFormProps> = ({ 
+  sourceLanguage, 
+  targetLanguage, 
+  onAddWord 
+}) => {
+  const { t, language } = useLanguage();
   const [originalWord, setOriginalWord] = useState('');
   const [translatedWord, setTranslatedWord] = useState('');
-  const [sourceLanguage, setSourceLanguage] = useState<'ru' | 'en'>('en');
-  const [targetLanguage, setTargetLanguage] = useState<'uz' | 'ru' | 'en'>('uz');
   const [examples, setExamples] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,26 +53,31 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
 
     setIsSubmitting(true);
 
-    const exampleSentences = examples
-      .split('\n')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    try {
+      const exampleSentences = examples
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
-    onAddWord({
-      originalWord: originalWord.trim(),
-      translatedWord: translatedWord.trim(),
-      sourceLanguage,
-      targetLanguage,
-      exampleSentences,
-    });
+      await onAddWord({
+        originalWord: originalWord.trim(),
+        translatedWord: translatedWord.trim(),
+        sourceLanguage,
+        targetLanguage,
+        exampleSentences,
+      });
 
-    // Reset form
-    setOriginalWord('');
-    setTranslatedWord('');
-    setExamples('');
-    setIsSubmitting(false);
+      // Reset form
+      setOriginalWord('');
+      setTranslatedWord('');
+      setExamples('');
 
-    toast.success(t('wordAdded'));
+      toast.success(t('wordAdded'));
+    } catch (error) {
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -73,74 +87,27 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
       onSubmit={handleSubmit}
       className="space-y-6"
     >
-      {/* Language Selection */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">{t('selectLanguage')} (asl)</Label>
-          <Select
-            value={sourceLanguage}
-            onValueChange={(value: 'ru' | 'en') => setSourceLanguage(value)}
-          >
-            <SelectTrigger className="bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">
-                <span className="flex items-center gap-2">
-                  🇬🇧 {t('english')}
-                </span>
-              </SelectItem>
-              <SelectItem value="ru">
-                <span className="flex items-center gap-2">
-                  🇷🇺 {t('russian')}
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">{t('translation')}</Label>
-          <Select
-            value={targetLanguage}
-            onValueChange={(value: 'uz' | 'ru' | 'en') => setTargetLanguage(value)}
-          >
-            <SelectTrigger className="bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="uz">
-                <span className="flex items-center gap-2">
-                  🇺🇿 {t('uzbek')}
-                </span>
-              </SelectItem>
-              <SelectItem value="ru">
-                <span className="flex items-center gap-2">
-                  🇷🇺 {t('russian')}
-                </span>
-              </SelectItem>
-              <SelectItem value="en">
-                <span className="flex items-center gap-2">
-                  🇬🇧 {t('english')}
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Language Direction */}
+      <div className="flex items-center justify-center gap-3 p-4 bg-muted rounded-xl">
+        <span className="text-2xl">{languageFlags[sourceLanguage]}</span>
+        <span className="font-medium">{languageNames[sourceLanguage][language]}</span>
+        <span className="text-muted-foreground">→</span>
+        <span className="text-2xl">{languageFlags[targetLanguage]}</span>
+        <span className="font-medium">{languageNames[targetLanguage][language]}</span>
       </div>
 
       {/* Word Input */}
       <div className="space-y-2">
         <Label htmlFor="originalWord" className="text-sm font-medium">
-          {t('enterWord')}
+          {t('enterWord')} ({languageNames[sourceLanguage][language]})
         </Label>
         <div className="relative">
           <Input
             id="originalWord"
             value={originalWord}
             onChange={(e) => setOriginalWord(e.target.value)}
-            placeholder={sourceLanguage === 'en' ? 'Hello' : 'Привет'}
-            className="bg-card text-lg h-12"
+            placeholder={sourceLanguage === 'en' ? 'Hello' : sourceLanguage === 'ru' ? 'Привет' : 'Salom'}
+            className="bg-background text-lg h-12"
           />
           <Languages className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         </div>
@@ -149,14 +116,14 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
       {/* Translation Input */}
       <div className="space-y-2">
         <Label htmlFor="translatedWord" className="text-sm font-medium">
-          {t('translation')}
+          {t('translation')} ({languageNames[targetLanguage][language]})
         </Label>
         <Input
           id="translatedWord"
           value={translatedWord}
           onChange={(e) => setTranslatedWord(e.target.value)}
           placeholder={targetLanguage === 'uz' ? 'Salom' : targetLanguage === 'ru' ? 'Привет' : 'Hello'}
-          className="bg-card text-lg h-12"
+          className="bg-background text-lg h-12"
         />
       </div>
 
@@ -171,7 +138,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
           value={examples}
           onChange={(e) => setExamples(e.target.value)}
           placeholder="Har bir misolni yangi qatorga yozing..."
-          className="bg-card min-h-[100px]"
+          className="bg-background min-h-[100px]"
         />
       </div>
 
@@ -183,7 +150,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ onAddWord }) => {
         className="w-full gap-2 gradient-primary text-primary-foreground h-12"
       >
         <Plus className="w-5 h-5" />
-        {t('add')}
+        {isSubmitting ? 'Qo\'shilmoqda...' : t('add')}
       </Button>
     </motion.form>
   );
