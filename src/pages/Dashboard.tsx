@@ -138,7 +138,7 @@ const Dashboard: React.FC = () => {
             transition={{ delay: 0.35 }}
             className="mb-6"
           >
-            <Link to="/statistics" className="block">
+            <Link to="/stats" className="block">
               <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 flex items-center justify-between hover:from-primary/20 hover:to-secondary/20 transition-colors">
                 <div className="flex items-center gap-3">
                   <Trophy className="w-6 h-6 text-primary" />
