@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Save, Send, Check, X, Loader2 } from 'lucide-react';
+import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,8 @@ const Profile: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
+  const [showTelegramCommand, setShowTelegramCommand] = useState(false);
+  const [telegramCommand, setTelegramCommand] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -86,13 +88,33 @@ const Profile: React.FC = () => {
   const generateTelegramLink = () => {
     // Create a unique token for linking
     const linkToken = btoa(`${user?.id}:${Date.now()}`);
-    return `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${linkToken}`;
+    return { 
+      url: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${linkToken}`,
+      command: `/start ${linkToken}`
+    };
   };
 
   const handleConnectTelegram = () => {
-    const link = generateTelegramLink();
-    window.open(link, '_blank');
-    toast.info('Telegram bot ochildi. /start bosing va hisobingiz bog\'lanadi.');
+    const { url, command } = generateTelegramLink();
+    setTelegramCommand(command);
+    setShowTelegramCommand(true);
+    window.open(url, '_blank');
+    toast.info('Telegram bot ochildi. Quyidagi buyruqni botga yuboring.');
+  };
+
+  const handleCopyCommand = () => {
+    navigator.clipboard.writeText(telegramCommand);
+    toast.success('Nusxalandi! Endi Telegram botga yuboring.');
+  };
+
+  const handleRefreshStatus = async () => {
+    await fetchProfile();
+    if (profile?.telegram_chat_id) {
+      toast.success('Telegram ulandi!');
+      setShowTelegramCommand(false);
+    } else {
+      toast.info('Hali ulanmagan. Buyruqni botga yubordingizmi?');
+    }
   };
 
   const handleDisconnectTelegram = async () => {
@@ -258,13 +280,54 @@ const Profile: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <Button
-              onClick={handleConnectTelegram}
-              className="w-full gap-2 bg-[#0088cc] hover:bg-[#0088cc]/90 text-white"
-            >
-              <Send className="w-4 h-4" />
-              Telegram bot bilan ulash
-            </Button>
+            <div className="space-y-3">
+              {showTelegramCommand ? (
+                <>
+                  <div className="p-3 bg-muted rounded-xl">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Bu buyruqni Telegram botga yuboring:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-background p-2 rounded text-xs font-mono break-all">
+                        {telegramCommand}
+                      </code>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={handleCopyCommand}
+                        className="shrink-0"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTelegramCommand(false)}
+                      className="flex-1"
+                    >
+                      Bekor qilish
+                    </Button>
+                    <Button
+                      onClick={handleRefreshStatus}
+                      className="flex-1 gap-2 bg-[#0088cc] hover:bg-[#0088cc]/90 text-white"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Tekshirish
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Button
+                  onClick={handleConnectTelegram}
+                  className="w-full gap-2 bg-[#0088cc] hover:bg-[#0088cc]/90 text-white"
+                >
+                  <Send className="w-4 h-4" />
+                  Telegram bot bilan ulash
+                </Button>
+              )}
+            </div>
           )}
         </motion.div>
 
