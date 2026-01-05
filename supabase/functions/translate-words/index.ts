@@ -1,7 +1,6 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,8 +36,8 @@ serve(async (req) => {
 
     console.log(`Translating ${words.length} words to ${targetLanguage}`);
 
-    // Batch words into chunks of 20 for efficiency
-    const batchSize = 20;
+    // Batch words into larger chunks (50) for efficiency - saves API calls
+    const batchSize = 50;
     const results: TranslatedWord[] = [];
 
     for (let i = 0; i < words.length; i += batchSize) {
@@ -47,49 +46,39 @@ serve(async (req) => {
       const languageName = targetLanguage === 'uz' ? "O'zbek" : 
                           targetLanguage === 'ru' ? 'Русский' : 'English';
       
-      const prompt = `Translate these English words to ${languageName} and provide 2 example sentences for each.
+      // Minimal prompt to save tokens
+      const prompt = `Translate to ${languageName}. Return JSON array only:
+[{"original":"word","translation":"tarjima","examples":["Sentence - Tarjima"]}]
 
-Words: ${batch.join(', ')}
+Words: ${batch.join(', ')}`;
 
-Return ONLY a valid JSON array in this exact format, no other text:
-[
-  {
-    "original": "word",
-    "translation": "tarjima",
-    "examples": ["Example sentence 1 in English - Tarjimasi", "Example sentence 2 in English - Tarjimasi"]
-  }
-]
+      console.log(`Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(words.length / batchSize)}`);
 
-Important:
-- translation should be a single word or short phrase in ${languageName}
-- examples should show the word in context, with ${languageName} translation after dash
-- Keep examples simple and practical (A1-B1 level)`;
-
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(words.length / batchSize)}`);
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'google/gemini-2.5-flash-lite', // Fastest & cheapest model
           messages: [
-            { 
-              role: 'system', 
-              content: `You are a professional translator specializing in English to ${languageName} translations. Always respond with valid JSON only.` 
-            },
+            { role: 'system', content: `Translator. JSON only. 1 short example per word.` },
             { role: 'user', content: prompt }
           ],
-          temperature: 0.3,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('OpenAI API error:', response.status, errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
+        console.error('AI API error:', response.status, errorText);
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded');
+        }
+        if (response.status === 402) {
+          throw new Error('Payment required');
+        }
+        throw new Error(`AI API error: ${response.status}`);
       }
 
       const data = await response.json();
