@@ -1,20 +1,29 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Languages, Bell, Info, Trash2, LogOut, User } from 'lucide-react';
+import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const Settings: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const { user, signOut } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
     { code: 'ru', name: 'Русский', flag: '🇷🇺' },
     { code: 'en', name: 'English', flag: '🇬🇧' },
+  ];
+
+  const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: React.ElementType }[] = [
+    { value: 'light', label: 'Yorug\'', icon: Sun },
+    { value: 'dark', label: 'Qorong\'i', icon: Moon },
+    { value: 'system', label: 'Tizim', icon: Monitor },
   ];
 
   const handleSignOut = async () => {
@@ -39,21 +48,65 @@ const Settings: React.FC = () => {
           <p className="text-muted-foreground">Ilovani sozlash</p>
         </motion.div>
 
-        {/* User Info */}
+        {/* User Info / Profile Link */}
+        <Link to="/profile">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-card rounded-2xl shadow-card p-5 mb-4 hover:shadow-elevated transition-shadow cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
+                <User className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium">{user?.email}</h3>
+                <p className="text-sm text-muted-foreground">Profilni ko'rish →</p>
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+
+        {/* Theme Selection */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
+          transition={{ delay: 0.1 }}
           className="bg-card rounded-2xl shadow-card p-5 mb-4"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
-              <User className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+              {resolvedTheme === 'dark' ? (
+                <Moon className="w-5 h-5 text-secondary" />
+              ) : (
+                <Sun className="w-5 h-5 text-secondary" />
+              )}
             </div>
-            <div className="flex-1">
-              <h3 className="font-medium">{user?.email}</h3>
-              <p className="text-sm text-muted-foreground">Shaxsiy hisob</p>
+            <div>
+              <h3 className="font-medium">Mavzu</h3>
+              <p className="text-sm text-muted-foreground">Ilova ko'rinishini tanlang</p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {themes.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => setTheme(t.value)}
+                  className={`p-3 rounded-xl text-center transition-all flex flex-col items-center gap-2 ${
+                    theme === t.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/80'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-medium">{t.label}</span>
+                </button>
+              );
+            })}
           </div>
         </motion.div>
 
@@ -61,7 +114,7 @@ const Settings: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.15 }}
           className="bg-card rounded-2xl shadow-card p-5 mb-4"
         >
           <div className="flex items-center gap-3 mb-4">
@@ -92,37 +145,16 @@ const Settings: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Notifications */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-card rounded-2xl shadow-card p-5 mb-4"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-accent" />
-              </div>
-              <div>
-                <h3 className="font-medium">{t('notifications')}</h3>
-                <p className="text-sm text-muted-foreground">Eslatmalarni yoqish</p>
-              </div>
-            </div>
-            <Switch />
-          </div>
-        </motion.div>
-
         {/* About */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.25 }}
           className="bg-card rounded-2xl shadow-card p-5 mb-4"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-              <Info className="w-5 h-5 text-secondary" />
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+              <Info className="w-5 h-5 text-accent" />
             </div>
             <div>
               <h3 className="font-medium">Leitner App</h3>
@@ -135,7 +167,7 @@ const Settings: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.3 }}
           className="bg-destructive/5 border border-destructive/20 rounded-2xl p-5"
         >
           <div className="flex items-center gap-3 mb-4">
@@ -163,7 +195,7 @@ const Settings: React.FC = () => {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.35 }}
           className="text-center text-sm text-muted-foreground mt-8"
         >
           Leitner tizimi bilan samarali o'rganing 🚀

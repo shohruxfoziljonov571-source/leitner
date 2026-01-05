@@ -6,12 +6,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LearningLanguageProvider } from "@/contexts/LearningLanguageContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Navigation from "@/components/layout/Navigation";
 import Dashboard from "@/pages/Dashboard";
 import AddWord from "@/pages/AddWord";
 import Learn from "@/pages/Learn";
 import Statistics from "@/pages/Statistics";
 import Settings from "@/pages/Settings";
+import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 
@@ -56,6 +58,7 @@ const AppRoutes = () => {
         <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
         <Route path="/stats" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
@@ -64,19 +67,21 @@ const AppRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <LanguageProvider>
-        <LearningLanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner position="top-center" />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </TooltipProvider>
-        </LearningLanguageProvider>
-      </LanguageProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <LanguageProvider>
+          <LearningLanguageProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner position="top-center" />
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </TooltipProvider>
+          </LearningLanguageProvider>
+        </LanguageProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
