@@ -186,22 +186,24 @@ const Settings: React.FC = () => {
         </motion.div>
 
         {/* About */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="bg-card rounded-2xl shadow-card p-5 mb-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Info className="w-5 h-5 text-accent" />
+        <Link to="/about">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="bg-card rounded-2xl shadow-card p-5 mb-4 hover:shadow-elevated transition-shadow cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+                <Info className="w-5 h-5 text-accent" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium">Leitner tizimi haqida</h3>
+                <p className="text-sm text-muted-foreground">Qanday ishlaydi, qanday foydalanish →</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-medium">Leitner App</h3>
-              <p className="text-sm text-muted-foreground">Versiya 2.0.0 • Cloud Edition</p>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </Link>
 
         {/* Sign Out */}
         <motion.div
