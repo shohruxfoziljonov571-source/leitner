@@ -1,22 +1,29 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Target, TrendingUp, Flame, Award, Calendar } from 'lucide-react';
+import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
+import { useGamification, ACHIEVEMENTS } from '@/hooks/useGamification';
 import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
+import XpBar from '@/components/gamification/XpBar';
+import AchievementBadge from '@/components/gamification/AchievementBadge';
+import WeeklyChart from '@/components/statistics/WeeklyChart';
+import AccuracyChart from '@/components/statistics/AccuracyChart';
 
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, words, isLoading } = useWordsDB();
+  const { achievements, level, xp } = useGamification();
   const boxCounts = getBoxCounts();
   const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
 
   // Calculate additional stats
   const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0);
   const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0);
+  const totalIncorrect = words.reduce((acc, w) => acc + w.times_incorrect, 0);
   const overallAccuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
   const masteredWords = boxCounts[5];
 
@@ -65,11 +72,21 @@ const Statistics: React.FC = () => {
           <p className="text-muted-foreground">Sizning o'rganish natijalaringiz</p>
         </motion.div>
 
-        {/* Language Selector */}
+        {/* XP Bar */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <XpBar />
+        </motion.div>
+
+        {/* Language Selector */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
           className="mb-6"
         >
           <LanguageSelector showAddNew={false} />
@@ -81,32 +98,32 @@ const Statistics: React.FC = () => {
             icon={BookOpen}
             label={t('totalWords')}
             value={totalWords}
-            delay={0.1}
+            delay={0.15}
           />
           <StatCard
             icon={Award}
             label="O'zlashtirilgan"
             value={masteredWords}
             subtext={`(${t('box')} 5)`}
-            delay={0.15}
+            delay={0.2}
           />
           <StatCard
             icon={TrendingUp}
             label={t('accuracy')}
             value={`${overallAccuracy}%`}
-            delay={0.2}
+            delay={0.25}
           />
           <StatCard
             icon={Target}
             label={t('reviewsToday')}
             value={stats.today_reviewed}
-            delay={0.25}
+            delay={0.3}
           />
           <StatCard
             icon={Calendar}
             label="Jami takrorlar"
             value={totalReviews}
-            delay={0.3}
+            delay={0.35}
           />
           <StatCard
             icon={Flame}
@@ -114,15 +131,21 @@ const Statistics: React.FC = () => {
             value={stats.streak}
             subtext="kun"
             gradient
-            delay={0.35}
+            delay={0.4}
           />
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <WeeklyChart />
+          <AccuracyChart correct={totalCorrect} incorrect={totalIncorrect} />
         </div>
 
         {/* Box Distribution */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.45 }}
           className="bg-card rounded-3xl shadow-card p-6 mb-8"
         >
           <h3 className="font-display font-semibold text-lg mb-6">
@@ -155,17 +178,45 @@ const Statistics: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Today's Summary */}
+        {/* Achievements */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
+          className="bg-card rounded-3xl shadow-card p-6 mb-8"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display font-semibold text-lg">
+              Yutuqlar 🏆
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              {achievements.length}/{ACHIEVEMENTS.length} ochilgan
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {ACHIEVEMENTS.map((achievement, index) => (
+              <AchievementBadge
+                key={achievement.id}
+                achievement={achievement}
+                unlocked={achievements.includes(achievement.id)}
+                delay={0.05 * index}
+              />
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Today's Summary */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
           className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl p-6"
         >
           <h3 className="font-display font-semibold text-lg mb-4">
             Bugungi natija
           </h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-4 bg-card/50 rounded-2xl">
               <p className="font-display font-bold text-3xl text-primary">
                 {stats.today_reviewed}
@@ -179,6 +230,12 @@ const Statistics: React.FC = () => {
                   : '—'}
               </p>
               <p className="text-sm text-muted-foreground">aniqlik</p>
+            </div>
+            <div className="text-center p-4 bg-card/50 rounded-2xl">
+              <p className="font-display font-bold text-3xl text-primary">
+                {level}
+              </p>
+              <p className="text-sm text-muted-foreground">daraja</p>
             </div>
           </div>
         </motion.div>

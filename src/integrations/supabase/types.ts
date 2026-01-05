@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_stats: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          user_id: string
+          user_language_id: string
+          words_correct: number | null
+          words_reviewed: number | null
+          xp_earned: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          user_id: string
+          user_language_id: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+          xp_earned?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          user_id?: string
+          user_language_id?: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+          xp_earned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_stats_user_language_id_fkey"
+            columns: ["user_language_id"]
+            isOneToOne: false
+            referencedRelation: "user_languages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -115,37 +156,46 @@ export type Database = {
       }
       user_stats: {
         Row: {
+          achievements: string[] | null
           id: string
           last_active_date: string
           learned_words: number
+          level: number | null
           streak: number
           today_correct: number
           today_reviewed: number
           total_words: number
           user_id: string
           user_language_id: string
+          xp: number | null
         }
         Insert: {
+          achievements?: string[] | null
           id?: string
           last_active_date?: string
           learned_words?: number
+          level?: number | null
           streak?: number
           today_correct?: number
           today_reviewed?: number
           total_words?: number
           user_id: string
           user_language_id: string
+          xp?: number | null
         }
         Update: {
+          achievements?: string[] | null
           id?: string
           last_active_date?: string
           learned_words?: number
+          level?: number | null
           streak?: number
           today_correct?: number
           today_reviewed?: number
           total_words?: number
           user_id?: string
           user_language_id?: string
+          xp?: number | null
         }
         Relationships: [
           {

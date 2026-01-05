@@ -6,14 +6,20 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
+import { useGamification } from '@/hooks/useGamification';
 import FlashCard from '@/components/learning/FlashCard';
+import XpPopup from '@/components/gamification/XpPopup';
+import XpBar from '@/components/gamification/XpBar';
 
 const Learn: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
-  const { getWordsForReview, reviewWord, isLoading } = useWordsDB();
+  const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
+  const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, XP_PER_INCORRECT, level } = useGamification();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+  const [showXpPopup, setShowXpPopup] = useState(false);
+  const [lastXpGain, setLastXpGain] = useState(0);
 
   const wordsForReview = useMemo(() => {
     return getWordsForReview().filter((w) => !reviewedIds.has(w.id));
@@ -28,6 +34,23 @@ const Learn: React.FC = () => {
       await reviewWord(currentWord.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWord.id]));
       setCurrentIndex((prev) => prev + 1);
+
+      // Add XP
+      const xpGain = isCorrect ? XP_PER_CORRECT : XP_PER_INCORRECT;
+      setLastXpGain(xpGain);
+      setShowXpPopup(true);
+      await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
+      
+      setTimeout(() => setShowXpPopup(false), 1500);
+
+      // Check achievements
+      const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
+      await checkAndUnlockAchievements({
+        totalWords: words.length,
+        streak: stats.streak,
+        totalReviews,
+        level,
+      });
     }
   };
 
@@ -101,9 +124,12 @@ const Learn: React.FC = () => {
             </motion.div>
             <h2 className="font-display font-bold text-2xl mb-2">{t('congratulations')}</h2>
             <p className="text-muted-foreground mb-2">{t('allDone')}</p>
-            <p className="text-lg font-medium text-primary mb-8">
+            <p className="text-lg font-medium text-primary mb-4">
               {reviewedCount} so'z takrorlandi!
             </p>
+            <div className="mb-8">
+              <XpBar />
+            </div>
             <Link to="/">
               <Button size="lg" variant="outline" className="gap-2">
                 {t('back')}
@@ -134,19 +160,28 @@ const Learn: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+      <XpPopup amount={lastXpGain} show={showXpPopup} />
+      
       <div className="container mx-auto px-4 py-6">
         {/* Header with progress */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h1 className="font-display font-bold text-2xl text-foreground">
               {t('learn')}
             </h1>
-            <span className="text-muted-foreground font-medium">
-              {reviewedCount + 1} / {totalToReview}
+            <XpBar compact />
+          </div>
+          
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">
+              {reviewedCount + 1} / {totalToReview} so'z
+            </span>
+            <span className="text-sm text-primary font-medium">
+              +{XP_PER_CORRECT} XP to'g'ri javob uchun
             </span>
           </div>
 
