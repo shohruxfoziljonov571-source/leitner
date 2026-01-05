@@ -58,54 +58,72 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
         
         const allWords: DictionaryWord[] = [];
         
-        console.log('Sheet names:', workbook.SheetNames);
-        
-        // Parse each sheet (each level has its own sheet)
-        workbook.SheetNames.forEach(sheetName => {
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
-          
-          console.log(`Sheet ${sheetName}: ${jsonData.length} rows`);
-          if (jsonData.length > 0) {
-            console.log('First row keys:', Object.keys(jsonData[0]));
-            console.log('First row:', jsonData[0]);
-          }
+        // Parse the main A1-C2 sheet which has proper structure
+        const mainSheet = workbook.Sheets['A1-C2'];
+        if (mainSheet) {
+          const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(mainSheet);
           
           jsonData.forEach(row => {
-            // Try multiple column name variations
-            const headword = row['headword'] || row['Headword'] || row['HEADWORD'] || 
-                           row['word'] || row['Word'] || row['WORD'] || 
-                           row['__EMPTY'] || Object.values(row)[0];
-            const pos = row['pos'] || row['PoS'] || row['POS'] || row['Part of Speech'] || 
-                       row['part_of_speech'] || '';
-            const level = row['CEFR level'] || row['CEFR Level'] || row['level'] || 
-                         row['Level'] || row['LEVEL'] || sheetName;
-            const guideword = row['guideword'] || row['Guideword'] || row['Guide Word'] || 
-                             row['definition'] || row['Definition'] || '';
-            const topic = row['Topic (for verbs in the EVP)'] || row['topic'] || row['Topic'] || '';
+            const headword = row['Base Word'] || row['Word'] || row['__EMPTY'];
+            const level = row['Level'] || row['__EMPTY_1'] || row['__EMPTY_2'];
             
             const wordValue = typeof headword === 'string' ? headword.trim() : String(headword || '').trim();
+            const levelValue = typeof level === 'string' ? level.toUpperCase().trim() : '';
             
-            if (wordValue && wordValue.length > 0 && !wordValue.startsWith('headword')) {
+            // Only include valid words with valid CEFR levels
+            if (wordValue && wordValue.length > 0 && LEVELS.includes(levelValue)) {
               allWords.push({
                 headword: wordValue,
-                pos: String(pos || '').trim(),
-                level: String(level || 'A1').toUpperCase().trim(),
-                guideword: guideword ? String(guideword).trim() : undefined,
-                topic: topic ? String(topic).trim() : undefined,
+                pos: '',
+                level: levelValue,
+                guideword: undefined,
+                topic: undefined,
               });
             }
           });
+        }
+        
+        // Also parse level-specific sheets (A1+, A2+, B1+, B2+, C1+)
+        const levelSheets = ['A1+', 'A2+', 'B1+', 'B2+', 'C1+'];
+        levelSheets.forEach(sheetName => {
+          const sheet = workbook.Sheets[sheetName];
+          if (sheet) {
+            const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+            
+            jsonData.forEach(row => {
+              const headword = row['Base Word'] || row['__EMPTY'] || Object.values(row)[0];
+              const level = row['Level'] || row['__EMPTY_2'] || row['__EMPTY_1'];
+              
+              const wordValue = typeof headword === 'string' ? headword.trim() : String(headword || '').trim();
+              let levelValue = typeof level === 'string' ? level.toUpperCase().trim() : '';
+              
+              // Extract level from sheet name if not in data
+              if (!LEVELS.includes(levelValue)) {
+                levelValue = sheetName.replace('+', '');
+              }
+              
+              if (wordValue && wordValue.length > 0 && LEVELS.includes(levelValue)) {
+                allWords.push({
+                  headword: wordValue,
+                  pos: '',
+                  level: levelValue,
+                  guideword: undefined,
+                  topic: undefined,
+                });
+              }
+            });
+          }
         });
         
         console.log('Total words parsed:', allWords.length);
         
-        // Remove duplicates by headword
+        // Remove duplicates by headword, keeping the first occurrence (usually lowest level)
         const uniqueWords = Array.from(
           new Map(allWords.map(w => [w.headword.toLowerCase(), w])).values()
         );
         
         console.log('Unique words:', uniqueWords.length);
+        console.log('Level counts:', LEVELS.map(l => `${l}: ${uniqueWords.filter(w => w.level === l).length}`));
         
         setWords(uniqueWords);
         setFilteredWords(uniqueWords);
