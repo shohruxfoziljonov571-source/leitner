@@ -6,12 +6,13 @@ import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
+import WordList from '@/components/WordList';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpPopup from '@/components/gamification/XpPopup';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PenLine, FileSpreadsheet } from 'lucide-react';
+import { PenLine, FileSpreadsheet, List } from 'lucide-react';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
@@ -134,14 +135,18 @@ const AddWord: React.FC = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 h-12">
+            <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
               <TabsTrigger value="manual" className="gap-2 h-10">
                 <PenLine className="w-4 h-4" />
                 Qo'lda
               </TabsTrigger>
               <TabsTrigger value="import" className="gap-2 h-10">
                 <FileSpreadsheet className="w-4 h-4" />
-                Excel import
+                Import
+              </TabsTrigger>
+              <TabsTrigger value="list" className="gap-2 h-10">
+                <List className="w-4 h-4" />
+                Ro'yxat
               </TabsTrigger>
             </TabsList>
 
@@ -162,6 +167,12 @@ const AddWord: React.FC = () => {
                   targetLanguage={activeLanguage.target_language}
                   onImport={handleBulkImport}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="list">
+              <div className="bg-card rounded-3xl shadow-card p-6">
+                <WordList />
               </div>
             </TabsContent>
           </Tabs>
