@@ -1,0 +1,144 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { BookOpen, Flame, Target, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useWords } from '@/hooks/useWords';
+import BoxCard from '@/components/dashboard/BoxCard';
+import StatCard from '@/components/dashboard/StatCard';
+
+const Dashboard: React.FC = () => {
+  const { t } = useLanguage();
+  const { stats, getBoxCounts, getWordsForReview, isLoading } = useWords();
+  const boxCounts = getBoxCounts();
+  const wordsForReview = getWordsForReview();
+  const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
+            {t('welcomeMessage')} 👋
+          </h1>
+          <p className="text-muted-foreground">
+            {wordsForReview.length > 0
+              ? `${wordsForReview.length} so'z takrorlashni kutmoqda`
+              : "Bugun uchun barcha so'zlar takrorlandi!"}
+          </p>
+        </motion.div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            icon={BookOpen}
+            label={t('totalWords')}
+            value={totalWords}
+            delay={0.1}
+          />
+          <StatCard
+            icon={Target}
+            label={t('todayProgress')}
+            value={stats.todayReviewed}
+            subtext={t('words')}
+            delay={0.15}
+          />
+          <StatCard
+            icon={TrendingUp}
+            label={t('accuracy')}
+            value={
+              stats.todayReviewed > 0
+                ? `${Math.round((stats.todayCorrect / stats.todayReviewed) * 100)}%`
+                : '—'
+            }
+            delay={0.2}
+          />
+          <StatCard
+            icon={Flame}
+            label={t('streak')}
+            value={stats.streak}
+            subtext="kun"
+            gradient
+            delay={0.25}
+          />
+        </div>
+
+        {/* Start Learning Button */}
+        {wordsForReview.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8"
+          >
+            <Link to="/learn">
+              <Button size="lg" className="w-full md:w-auto gap-2 gradient-primary text-primary-foreground h-14 text-lg shadow-elevated">
+                <BookOpen className="w-5 h-5" />
+                {t('startLearning')} ({wordsForReview.length} so'z)
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* Leitner Boxes */}
+        <div className="mb-6">
+          <h2 className="font-display font-semibold text-xl text-foreground mb-4">
+            Leitner qutilar
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {([1, 2, 3, 4, 5] as const).map((boxNumber, index) => (
+              <BoxCard
+                key={boxNumber}
+                boxNumber={boxNumber}
+                wordCount={boxCounts[boxNumber]}
+                totalWords={totalWords}
+                delay={0.1 * index}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Empty State */}
+        {totalWords === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-center py-12 px-6 rounded-3xl bg-card shadow-card"
+          >
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl gradient-primary flex items-center justify-center">
+              <BookOpen className="w-10 h-10 text-primary-foreground" />
+            </div>
+            <h3 className="font-display font-semibold text-xl mb-2">
+              So'zlar hali yo'q
+            </h3>
+            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+              Birinchi so'zingizni qo'shing va Leitner tizimi bilan o'rganishni boshlang!
+            </p>
+            <Link to="/add">
+              <Button size="lg" className="gap-2 gradient-primary text-primary-foreground">
+                Birinchi so'z qo'shish
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
