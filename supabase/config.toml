@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send-review-notifications]
 verify_jwt = false
+
+[functions.translate-words]
+verify_jwt = false
