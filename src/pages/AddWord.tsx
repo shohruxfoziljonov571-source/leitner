@@ -14,21 +14,20 @@ import { PenLine, FileSpreadsheet } from 'lucide-react';
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
-  const { addWord } = useWordsDB();
+  const { addWord, addWordsBulk } = useWordsDB();
   const [activeTab, setActiveTab] = useState('manual');
 
   const handleBulkImport = async (words: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
     if (!activeLanguage) return;
     
-    for (const word of words) {
-      await addWord({
-        original_word: word.originalWord,
-        translated_word: word.translatedWord,
-        source_language: activeLanguage.source_language,
-        target_language: activeLanguage.target_language,
-        example_sentences: word.exampleSentences,
-      });
-    }
+    // Use bulk insert - much faster than individual inserts
+    await addWordsBulk(words.map(word => ({
+      original_word: word.originalWord,
+      translated_word: word.translatedWord,
+      source_language: activeLanguage.source_language,
+      target_language: activeLanguage.target_language,
+      example_sentences: word.exampleSentences,
+    })));
   };
 
   if (!activeLanguage) {

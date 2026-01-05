@@ -195,6 +195,55 @@ export const useWordsDB = () => {
     }
   }, [user, activeLanguage, stats.total_words]);
 
+  // Bulk insert for faster Excel imports
+  const addWordsBulk = useCallback(async (wordsToAdd: {
+    original_word: string;
+    translated_word: string;
+    source_language: string;
+    target_language: string;
+    example_sentences?: string[];
+  }[]) => {
+    if (!user || !activeLanguage || wordsToAdd.length === 0) return [];
+
+    try {
+      const wordsData = wordsToAdd.map(word => ({
+        user_id: user.id,
+        user_language_id: activeLanguage.id,
+        original_word: word.original_word,
+        translated_word: word.translated_word,
+        source_language: word.source_language,
+        target_language: word.target_language,
+        example_sentences: word.example_sentences || [],
+        box_number: 1,
+        next_review_time: new Date().toISOString(),
+      }));
+
+      const { data, error } = await supabase
+        .from('words')
+        .insert(wordsData)
+        .select();
+
+      if (error) throw error;
+
+      setWords(prev => [...(data || []), ...prev]);
+
+      // Update stats with total count
+      const newTotal = stats.total_words + wordsToAdd.length;
+      await supabase
+        .from('user_stats')
+        .update({ total_words: newTotal })
+        .eq('user_id', user.id)
+        .eq('user_language_id', activeLanguage.id);
+
+      setStats(prev => ({ ...prev, total_words: newTotal }));
+
+      return data || [];
+    } catch (error) {
+      console.error('Error bulk adding words:', error);
+      return [];
+    }
+  }, [user, activeLanguage, stats.total_words]);
+
   const deleteWord = useCallback(async (wordId: string) => {
     if (!user || !activeLanguage) return;
 
@@ -308,6 +357,7 @@ export const useWordsDB = () => {
     stats,
     isLoading,
     addWord,
+    addWordsBulk,
     deleteWord,
     reviewWord,
     getWordsForReview,
