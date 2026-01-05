@@ -370,7 +370,7 @@ export const useWordsDB = () => {
         };
       }));
 
-      // Update stats
+      // Update user_stats
       const today = new Date().toISOString().split('T')[0];
       await supabase
         .from('user_stats')
@@ -382,6 +382,37 @@ export const useWordsDB = () => {
         })
         .eq('user_id', user.id)
         .eq('user_language_id', activeLanguage.id);
+
+      // Update daily_stats for charts
+      const { data: existingDailyStat } = await supabase
+        .from('daily_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('user_language_id', activeLanguage.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (existingDailyStat) {
+        await supabase
+          .from('daily_stats')
+          .update({
+            words_reviewed: (existingDailyStat.words_reviewed || 0) + 1,
+            words_correct: isCorrect 
+              ? (existingDailyStat.words_correct || 0) + 1 
+              : existingDailyStat.words_correct || 0,
+          })
+          .eq('id', existingDailyStat.id);
+      } else {
+        await supabase
+          .from('daily_stats')
+          .insert({
+            user_id: user.id,
+            user_language_id: activeLanguage.id,
+            date: today,
+            words_reviewed: 1,
+            words_correct: isCorrect ? 1 : 0,
+          });
+      }
 
       setStats(prev => ({
         ...prev,
