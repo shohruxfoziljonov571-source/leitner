@@ -149,6 +149,12 @@ export const useWordsDB = () => {
     }
   }, [user, activeLanguage, fetchWords, fetchStats]);
 
+  const checkDuplicate = useCallback((originalWord: string) => {
+    return words.some(w => 
+      w.original_word.toLowerCase().trim() === originalWord.toLowerCase().trim()
+    );
+  }, [words]);
+
   const addWord = useCallback(async (word: {
     original_word: string;
     translated_word: string;
@@ -158,6 +164,11 @@ export const useWordsDB = () => {
     category_id?: string | null;
   }) => {
     if (!user || !activeLanguage) return null;
+
+    // Check for duplicate
+    if (checkDuplicate(word.original_word)) {
+      return { error: 'duplicate', existingWord: word.original_word };
+    }
 
     try {
       const { data, error } = await supabase
@@ -195,9 +206,9 @@ export const useWordsDB = () => {
       console.error('Error adding word:', error);
       return null;
     }
-  }, [user, activeLanguage, stats.total_words]);
+  }, [user, activeLanguage, stats.total_words, checkDuplicate]);
 
-  // Bulk insert for faster Excel imports
+  // Bulk insert for faster Excel imports (with duplicate check)
   const addWordsBulk = useCallback(async (wordsToAdd: {
     original_word: string;
     translated_word: string;
@@ -206,10 +217,29 @@ export const useWordsDB = () => {
     example_sentences?: string[];
     category_id?: string | null;
   }[]) => {
-    if (!user || !activeLanguage || wordsToAdd.length === 0) return [];
+    if (!user || !activeLanguage || wordsToAdd.length === 0) return { added: [], duplicates: [] };
+
+    // Filter out duplicates
+    const existingWords = new Set(words.map(w => w.original_word.toLowerCase().trim()));
+    const uniqueWords: typeof wordsToAdd = [];
+    const duplicates: string[] = [];
+
+    wordsToAdd.forEach(word => {
+      const normalizedWord = word.original_word.toLowerCase().trim();
+      if (existingWords.has(normalizedWord)) {
+        duplicates.push(word.original_word);
+      } else {
+        uniqueWords.push(word);
+        existingWords.add(normalizedWord); // Prevent duplicates within the batch
+      }
+    });
+
+    if (uniqueWords.length === 0) {
+      return { added: [], duplicates };
+    }
 
     try {
-      const wordsData = wordsToAdd.map(word => ({
+      const wordsData = uniqueWords.map(word => ({
         user_id: user.id,
         user_language_id: activeLanguage.id,
         original_word: word.original_word,
@@ -232,7 +262,7 @@ export const useWordsDB = () => {
       setWords(prev => [...(data || []), ...prev]);
 
       // Update stats with total count
-      const newTotal = stats.total_words + wordsToAdd.length;
+      const newTotal = stats.total_words + uniqueWords.length;
       await supabase
         .from('user_stats')
         .update({ total_words: newTotal })
@@ -241,12 +271,12 @@ export const useWordsDB = () => {
 
       setStats(prev => ({ ...prev, total_words: newTotal }));
 
-      return data || [];
+      return { added: data || [], duplicates };
     } catch (error) {
       console.error('Error bulk adding words:', error);
-      return [];
+      return { added: [], duplicates };
     }
-  }, [user, activeLanguage, stats.total_words]);
+  }, [user, activeLanguage, stats.total_words, words]);
 
   const updateWord = useCallback(async (wordId: string, updates: {
     original_word?: string;

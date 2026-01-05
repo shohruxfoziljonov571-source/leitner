@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
@@ -31,7 +32,7 @@ const AddWord: React.FC = () => {
     exampleSentences: string[];
     categoryId?: string | null;
   }) => {
-    await addWord({
+    const result = await addWord({
       original_word: word.originalWord,
       translated_word: word.translatedWord,
       source_language: word.sourceLanguage,
@@ -39,6 +40,15 @@ const AddWord: React.FC = () => {
       example_sentences: word.exampleSentences,
       category_id: word.categoryId,
     });
+
+    // Check if duplicate
+    if (result && 'error' in result && result.error === 'duplicate') {
+      throw new Error(`"${result.existingWord}" so'zi allaqachon mavjud!`);
+    }
+
+    if (!result) {
+      throw new Error('Xatolik yuz berdi');
+    }
 
     // Add XP for new word
     setLastXpGain(XP_PER_NEW_WORD);
@@ -58,7 +68,7 @@ const AddWord: React.FC = () => {
     if (!activeLanguage) return;
     
     // Use bulk insert - much faster than individual inserts
-    await addWordsBulk(wordsToImport.map(word => ({
+    const result = await addWordsBulk(wordsToImport.map(word => ({
       original_word: word.originalWord,
       translated_word: word.translatedWord,
       source_language: activeLanguage.source_language,
@@ -66,19 +76,28 @@ const AddWord: React.FC = () => {
       example_sentences: word.exampleSentences,
     })));
 
-    // Add XP for all imported words
-    const totalXp = wordsToImport.length * XP_PER_NEW_WORD;
-    setLastXpGain(totalXp);
-    setShowXpPopup(true);
-    await addXp(totalXp, 'bulk_import');
-    setTimeout(() => setShowXpPopup(false), 2000);
+    const addedCount = result.added.length;
+    const duplicateCount = result.duplicates.length;
 
-    // Check achievements
-    await checkAndUnlockAchievements({
-      totalWords: words.length + wordsToImport.length,
-      streak: stats.streak,
-      level,
-    });
+    if (duplicateCount > 0) {
+      toast.warning(`${addedCount} ta so'z qo'shildi, ${duplicateCount} ta takroriy so'z o'tkazib yuborildi`);
+    }
+
+    if (addedCount > 0) {
+      // Add XP for all imported words
+      const totalXp = addedCount * XP_PER_NEW_WORD;
+      setLastXpGain(totalXp);
+      setShowXpPopup(true);
+      await addXp(totalXp, 'bulk_import');
+      setTimeout(() => setShowXpPopup(false), 2000);
+
+      // Check achievements
+      await checkAndUnlockAchievements({
+        totalWords: words.length + addedCount,
+        streak: stats.streak,
+        level,
+      });
+    }
   };
 
   if (!activeLanguage) {
