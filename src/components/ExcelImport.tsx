@@ -110,9 +110,9 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
       if (words.length === 0) {
         setError('Faylda so\'zlar topilmadi. Ustunlar: A - asl so\'z, B - tarjima, C - misollar (ixtiyoriy)');
         setPreviewData([]);
-      } else if (words.length > 500) {
-        setError('Maksimum 500 ta so\'z import qilish mumkin. Faylda ' + words.length + ' ta so\'z bor.');
-        setPreviewData(words.slice(0, 500));
+      } else if (words.length > 1000) {
+        setError('Maksimum 1000 ta so\'z import qilish mumkin. Faylda ' + words.length + ' ta so\'z bor.');
+        setPreviewData(words.slice(0, 1000));
       } else {
         setPreviewData(words);
       }
