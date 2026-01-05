@@ -1,22 +1,26 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Flame, Target, TrendingUp } from 'lucide-react';
+import { BookOpen, Flame, Target, TrendingUp, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
+import { useGamification } from '@/hooks/useGamification';
 import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
+import XpBar from '@/components/gamification/XpBar';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
+  const { level, getUnlockedAchievements } = useGamification();
   const boxCounts = getBoxCounts();
   const wordsForReview = getWordsForReview();
   const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
+  const unlockedAchievements = getUnlockedAchievements();
 
   if (isLoading || langLoading) {
     return (
@@ -52,27 +56,40 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <div className="container mx-auto px-4 py-6">
-        {/* Header */}
+        {/* Header with Level */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          className="mb-4 flex items-start justify-between"
+        >
+          <div>
+            <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
+              {t('welcomeMessage')} 👋
+            </h1>
+            <p className="text-muted-foreground">
+              {wordsForReview.length > 0
+                ? `${wordsForReview.length} so'z takrorlashni kutmoqda`
+                : "Bugun uchun barcha so'zlar takrorlandi!"}
+            </p>
+          </div>
+          <XpBar compact />
+        </motion.div>
+
+        {/* XP Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
           className="mb-6"
         >
-          <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
-            {t('welcomeMessage')} 👋
-          </h1>
-          <p className="text-muted-foreground">
-            {wordsForReview.length > 0
-              ? `${wordsForReview.length} so'z takrorlashni kutmoqda`
-              : "Bugun uchun barcha so'zlar takrorlandi!"}
-          </p>
+          <XpBar />
         </motion.div>
 
         {/* Language Selector */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
+          transition={{ delay: 0.1 }}
           className="mb-6"
         >
           <LanguageSelector />
@@ -84,14 +101,14 @@ const Dashboard: React.FC = () => {
             icon={BookOpen}
             label={t('totalWords')}
             value={totalWords}
-            delay={0.1}
+            delay={0.15}
           />
           <StatCard
             icon={Target}
             label={t('todayProgress')}
             value={stats.today_reviewed}
             subtext={t('words')}
-            delay={0.15}
+            delay={0.2}
           />
           <StatCard
             icon={TrendingUp}
@@ -101,7 +118,7 @@ const Dashboard: React.FC = () => {
                 ? `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`
                 : '—'
             }
-            delay={0.2}
+            delay={0.25}
           />
           <StatCard
             icon={Flame}
@@ -109,16 +126,45 @@ const Dashboard: React.FC = () => {
             value={stats.streak}
             subtext="kun"
             gradient
-            delay={0.25}
+            delay={0.3}
           />
         </div>
+
+        {/* Achievements Preview */}
+        {unlockedAchievements.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mb-6"
+          >
+            <Link to="/statistics" className="block">
+              <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 flex items-center justify-between hover:from-primary/20 hover:to-secondary/20 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-6 h-6 text-primary" />
+                  <div>
+                    <p className="font-semibold text-foreground">Yutuqlar</p>
+                    <p className="text-sm text-muted-foreground">{unlockedAchievements.length} ta yutuq ochilgan</p>
+                  </div>
+                </div>
+                <div className="flex -space-x-2">
+                  {unlockedAchievements.slice(0, 5).map((a) => (
+                    <div key={a.id} className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-lg shadow-sm">
+                      {a.icon}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        )}
 
         {/* Start Learning Button */}
         {wordsForReview.length > 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.4 }}
             className="mb-8"
           >
             <Link to="/learn">
@@ -153,7 +199,7 @@ const Dashboard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.5 }}
             className="text-center py-12 px-6 rounded-3xl bg-card shadow-card"
           >
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl gradient-primary flex items-center justify-center">

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Check, X, ArrowRight } from 'lucide-react';
+import { Eye, Check, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useSpeech } from '@/hooks/useSpeech';
 import { Word } from '@/types/word';
 
 interface FlashCardProps {
@@ -14,6 +15,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
   const { t } = useLanguage();
   const [isFlipped, setIsFlipped] = useState(false);
   const [answered, setAnswered] = useState<boolean | null>(null);
+  const { speak, isSpeaking, isSupported, stop } = useSpeech();
 
   const handleFlip = () => {
     if (!isFlipped) {
@@ -28,6 +30,14 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
       setIsFlipped(false);
       setAnswered(null);
     }, 500);
+  };
+
+  const handleSpeak = (text: string, lang: string) => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(text, { lang });
+    }
   };
 
   const languageFlags: Record<string, string> = {
@@ -71,14 +81,26 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
           <span className="text-2xl">{languageFlags[word.targetLanguage]}</span>
         </div>
 
-        {/* Original word */}
+        {/* Original word with speaker */}
         <div className="text-center mb-8">
           <p className="text-sm text-muted-foreground mb-2">
             {word.sourceLanguage === 'ru' ? 'Русский' : 'English'}
           </p>
-          <h2 className="font-display font-bold text-3xl text-foreground">
-            {word.originalWord}
-          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <h2 className="font-display font-bold text-3xl text-foreground">
+              {word.originalWord}
+            </h2>
+            {isSupported && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleSpeak(word.originalWord, word.sourceLanguage)}
+                className={`rounded-full transition-all ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+              >
+                {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Answer area */}
@@ -107,12 +129,24 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              {/* Translation */}
+              {/* Translation with speaker */}
               <div className="text-center mb-6">
                 <p className="text-sm text-muted-foreground mb-2">{t('translation')}</p>
-                <p className="font-display font-semibold text-2xl text-primary">
-                  {word.translatedWord}
-                </p>
+                <div className="flex items-center justify-center gap-3">
+                  <p className="font-display font-semibold text-2xl text-primary">
+                    {word.translatedWord}
+                  </p>
+                  {isSupported && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleSpeak(word.translatedWord, word.targetLanguage)}
+                      className={`rounded-full transition-all ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+                    >
+                      {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Examples */}

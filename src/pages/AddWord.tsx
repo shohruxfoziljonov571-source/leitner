@@ -3,9 +3,11 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
+import { useGamification } from '@/hooks/useGamification';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
 import LanguageSelector from '@/components/LanguageSelector';
+import XpPopup from '@/components/gamification/XpPopup';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,20 +16,66 @@ import { PenLine, FileSpreadsheet } from 'lucide-react';
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
-  const { addWord, addWordsBulk } = useWordsDB();
+  const { addWord, addWordsBulk, words, stats } = useWordsDB();
+  const { addXp, checkAndUnlockAchievements, XP_PER_NEW_WORD, level } = useGamification();
   const [activeTab, setActiveTab] = useState('manual');
+  const [showXpPopup, setShowXpPopup] = useState(false);
+  const [lastXpGain, setLastXpGain] = useState(0);
 
-  const handleBulkImport = async (words: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
+  const handleAddWord = async (word: {
+    originalWord: string;
+    translatedWord: string;
+    sourceLanguage: string;
+    targetLanguage: string;
+    exampleSentences: string[];
+  }) => {
+    await addWord({
+      original_word: word.originalWord,
+      translated_word: word.translatedWord,
+      source_language: word.sourceLanguage,
+      target_language: word.targetLanguage,
+      example_sentences: word.exampleSentences,
+    });
+
+    // Add XP for new word
+    setLastXpGain(XP_PER_NEW_WORD);
+    setShowXpPopup(true);
+    await addXp(XP_PER_NEW_WORD, 'new_word');
+    setTimeout(() => setShowXpPopup(false), 1500);
+
+    // Check achievements
+    await checkAndUnlockAchievements({
+      totalWords: words.length + 1,
+      streak: stats.streak,
+      level,
+    });
+  };
+
+  const handleBulkImport = async (wordsToImport: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
     if (!activeLanguage) return;
     
     // Use bulk insert - much faster than individual inserts
-    await addWordsBulk(words.map(word => ({
+    await addWordsBulk(wordsToImport.map(word => ({
       original_word: word.originalWord,
       translated_word: word.translatedWord,
       source_language: activeLanguage.source_language,
       target_language: activeLanguage.target_language,
       example_sentences: word.exampleSentences,
     })));
+
+    // Add XP for all imported words
+    const totalXp = wordsToImport.length * XP_PER_NEW_WORD;
+    setLastXpGain(totalXp);
+    setShowXpPopup(true);
+    await addXp(totalXp, 'bulk_import');
+    setTimeout(() => setShowXpPopup(false), 2000);
+
+    // Check achievements
+    await checkAndUnlockAchievements({
+      totalWords: words.length + wordsToImport.length,
+      streak: stats.streak,
+      level,
+    });
   };
 
   if (!activeLanguage) {
@@ -57,6 +105,8 @@ const AddWord: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+      <XpPopup amount={lastXpGain} show={showXpPopup} />
+      
       <div className="container mx-auto px-4 py-6 max-w-lg">
         {/* Header */}
         <motion.div
@@ -69,6 +119,9 @@ const AddWord: React.FC = () => {
           </h1>
           <p className="text-muted-foreground">
             Yangi so'z qo'shing va o'rganishni boshlang
+          </p>
+          <p className="text-sm text-primary mt-2">
+            +{XP_PER_NEW_WORD} XP har bir yangi so'z uchun
           </p>
         </motion.div>
 
@@ -95,15 +148,7 @@ const AddWord: React.FC = () => {
                 <AddWordForm
                   sourceLanguage={activeLanguage.source_language}
                   targetLanguage={activeLanguage.target_language}
-                  onAddWord={async (word) => {
-                    await addWord({
-                      original_word: word.originalWord,
-                      translated_word: word.translatedWord,
-                      source_language: word.sourceLanguage,
-                      target_language: word.targetLanguage,
-                      example_sentences: word.exampleSentences,
-                    });
-                  }}
+                  onAddWord={handleAddWord}
                 />
               </div>
             </TabsContent>
