@@ -19,7 +19,7 @@ interface Profile {
   telegram_connected_at: string | null;
 }
 
-const TELEGRAM_BOT_USERNAME = 'LeitnerNotifyBot'; // User should replace with actual bot
+const TELEGRAM_BOT_USERNAME = 'Leitner_robot'; // User should replace with actual bot
 
 const Profile: React.FC = () => {
   const { t } = useLanguage();
