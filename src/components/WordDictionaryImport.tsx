@@ -54,27 +54,43 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
       try {
         const response = await fetch('/data/english-words.xlsx');
         const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer);
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         
         const allWords: DictionaryWord[] = [];
+        
+        console.log('Sheet names:', workbook.SheetNames);
         
         // Parse each sheet (each level has its own sheet)
         workbook.SheetNames.forEach(sheetName => {
           const sheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
           
+          console.log(`Sheet ${sheetName}: ${jsonData.length} rows`);
+          if (jsonData.length > 0) {
+            console.log('First row keys:', Object.keys(jsonData[0]));
+            console.log('First row:', jsonData[0]);
+          }
+          
           jsonData.forEach(row => {
-            const headword = row['headword'] || row['Headword'] || row[0];
-            const pos = row['pos'] || row['PoS'] || row['Part of Speech'] || '';
-            const level = row['CEFR level'] || row['level'] || row['Level'] || sheetName;
-            const guideword = row['guideword'] || row['Guideword'] || '';
-            const topic = row['Topic (for verbs in the EVP)'] || row['topic'] || '';
+            // Try multiple column name variations
+            const headword = row['headword'] || row['Headword'] || row['HEADWORD'] || 
+                           row['word'] || row['Word'] || row['WORD'] || 
+                           row['__EMPTY'] || Object.values(row)[0];
+            const pos = row['pos'] || row['PoS'] || row['POS'] || row['Part of Speech'] || 
+                       row['part_of_speech'] || '';
+            const level = row['CEFR level'] || row['CEFR Level'] || row['level'] || 
+                         row['Level'] || row['LEVEL'] || sheetName;
+            const guideword = row['guideword'] || row['Guideword'] || row['Guide Word'] || 
+                             row['definition'] || row['Definition'] || '';
+            const topic = row['Topic (for verbs in the EVP)'] || row['topic'] || row['Topic'] || '';
             
-            if (headword && typeof headword === 'string' && headword.trim()) {
+            const wordValue = typeof headword === 'string' ? headword.trim() : String(headword || '').trim();
+            
+            if (wordValue && wordValue.length > 0 && !wordValue.startsWith('headword')) {
               allWords.push({
-                headword: headword.trim(),
-                pos: String(pos).trim(),
-                level: String(level).toUpperCase().trim(),
+                headword: wordValue,
+                pos: String(pos || '').trim(),
+                level: String(level || 'A1').toUpperCase().trim(),
                 guideword: guideword ? String(guideword).trim() : undefined,
                 topic: topic ? String(topic).trim() : undefined,
               });
@@ -82,10 +98,14 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
           });
         });
         
+        console.log('Total words parsed:', allWords.length);
+        
         // Remove duplicates by headword
         const uniqueWords = Array.from(
           new Map(allWords.map(w => [w.headword.toLowerCase(), w])).values()
         );
+        
+        console.log('Unique words:', uniqueWords.length);
         
         setWords(uniqueWords);
         setFilteredWords(uniqueWords);
