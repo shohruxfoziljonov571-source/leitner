@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Check, Search, Filter, ChevronDown, Download, Loader2 } from 'lucide-react';
+import { BookOpen, Check, Search, Filter, ChevronDown, Download, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DictionaryWord {
   headword: string;
@@ -192,27 +193,51 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
     setImportProgress(0);
 
     try {
-      const wordsToImport = words
+      const wordsToTranslate = words
         .filter(w => selectedWords.has(w.headword))
-        .map(w => ({
-          originalWord: w.headword,
-          translatedWord: `[${w.level}] ${w.guideword || ''}`.trim() || w.headword,
-          exampleSentences: w.topic ? [w.topic] : [],
-        }));
+        .map(w => w.headword);
 
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setImportProgress(prev => Math.min(prev + 10, 90));
-      }, 100);
+      setImportProgress(10);
+      toast.info(`${wordsToTranslate.length} ta so'z tarjima qilinmoqda...`);
+
+      // Call the translation edge function
+      const { data, error } = await supabase.functions.invoke('translate-words', {
+        body: { 
+          words: wordsToTranslate,
+          targetLanguage: 'uz' // O'zbek tiliga tarjima
+        }
+      });
+
+      if (error) {
+        console.error('Translation error:', error);
+        throw new Error('Tarjima qilishda xatolik');
+      }
+
+      setImportProgress(70);
+
+      const translations = data.translations as Array<{
+        original: string;
+        translation: string;
+        examples: string[];
+      }>;
+
+      // Map translations to import format
+      const wordsToImport = translations.map(t => ({
+        originalWord: t.original,
+        translatedWord: t.translation,
+        exampleSentences: t.examples || [],
+      }));
+
+      setImportProgress(85);
 
       await onImport(wordsToImport);
 
-      clearInterval(progressInterval);
       setImportProgress(100);
 
       toast.success(`${wordsToImport.length} ta so'z muvaffaqiyatli import qilindi!`);
       setSelectedWords(new Set());
     } catch (error) {
+      console.error('Import error:', error);
       toast.error("Import qilishda xatolik yuz berdi");
     } finally {
       setIsImporting(false);
@@ -364,15 +389,22 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
         disabled={selectedWords.size === 0 || isImporting}
         className="w-full gap-2 gradient-primary text-primary-foreground"
       >
-        <Download className="w-4 h-4" />
-        {isImporting
-          ? `Import qilinmoqda... ${importProgress}%`
-          : `${selectedWords.size} ta so'zni import qilish`}
+        {isImporting ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            {`ChatGPT tarjima qilmoqda... ${importProgress}%`}
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-4 h-4" />
+            {`${selectedWords.size} ta so'zni tarjima qilish (ChatGPT)`}
+          </>
+        )}
       </Button>
 
       {/* Info */}
       <p className="text-xs text-center text-muted-foreground">
-        Cambridge EnglishProfile - rasmiy CEFR so'zlar ro'yxati
+        ChatGPT orqali avtomatik tarjima va misol gaplar
       </p>
     </motion.div>
   );
