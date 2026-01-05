@@ -14,7 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          preferred_language: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          preferred_language?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          preferred_language?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_languages: {
+        Row: {
+          created_at: string
+          id: string
+          source_language: string
+          target_language: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source_language: string
+          target_language: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source_language?: string
+          target_language?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          id: string
+          last_active_date: string
+          learned_words: number
+          streak: number
+          today_correct: number
+          today_reviewed: number
+          total_words: number
+          user_id: string
+          user_language_id: string
+        }
+        Insert: {
+          id?: string
+          last_active_date?: string
+          learned_words?: number
+          streak?: number
+          today_correct?: number
+          today_reviewed?: number
+          total_words?: number
+          user_id: string
+          user_language_id: string
+        }
+        Update: {
+          id?: string
+          last_active_date?: string
+          learned_words?: number
+          streak?: number
+          today_correct?: number
+          today_reviewed?: number
+          total_words?: number
+          user_id?: string
+          user_language_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stats_user_language_id_fkey"
+            columns: ["user_language_id"]
+            isOneToOne: false
+            referencedRelation: "user_languages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      words: {
+        Row: {
+          box_number: number
+          created_at: string
+          example_sentences: string[] | null
+          id: string
+          last_reviewed: string | null
+          next_review_time: string
+          original_word: string
+          source_language: string
+          target_language: string
+          times_correct: number
+          times_incorrect: number
+          times_reviewed: number
+          translated_word: string
+          user_id: string
+          user_language_id: string
+        }
+        Insert: {
+          box_number?: number
+          created_at?: string
+          example_sentences?: string[] | null
+          id?: string
+          last_reviewed?: string | null
+          next_review_time?: string
+          original_word: string
+          source_language: string
+          target_language: string
+          times_correct?: number
+          times_incorrect?: number
+          times_reviewed?: number
+          translated_word: string
+          user_id: string
+          user_language_id: string
+        }
+        Update: {
+          box_number?: number
+          created_at?: string
+          example_sentences?: string[] | null
+          id?: string
+          last_reviewed?: string | null
+          next_review_time?: string
+          original_word?: string
+          source_language?: string
+          target_language?: string
+          times_correct?: number
+          times_incorrect?: number
+          times_reviewed?: number
+          translated_word?: string
+          user_id?: string
+          user_language_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "words_user_language_id_fkey"
+            columns: ["user_language_id"]
+            isOneToOne: false
+            referencedRelation: "user_languages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -2,25 +2,50 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Target, TrendingUp, Flame, Award, Calendar } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useWords } from '@/hooks/useWords';
+import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
+import { useWordsDB } from '@/hooks/useWordsDB';
 import StatCard from '@/components/dashboard/StatCard';
+import LanguageSelector from '@/components/LanguageSelector';
 
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
-  const { stats, getBoxCounts, words, isLoading } = useWords();
+  const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
+  const { stats, getBoxCounts, words, isLoading } = useWordsDB();
   const boxCounts = getBoxCounts();
   const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
 
   // Calculate additional stats
-  const totalReviews = words.reduce((acc, w) => acc + w.timesReviewed, 0);
-  const totalCorrect = words.reduce((acc, w) => acc + w.timesCorrect, 0);
+  const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0);
+  const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0);
   const overallAccuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
   const masteredWords = boxCounts[5];
 
-  if (isLoading) {
+  if (isLoading || langLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  if (!activeLanguage) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 text-center"
+          >
+            <h1 className="font-display font-bold text-3xl text-foreground mb-2">
+              {t('statistics')} 📊
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              Avval o'rganish tilini tanlang
+            </p>
+          </motion.div>
+          <LanguageSelector />
+        </div>
       </div>
     );
   }
@@ -32,12 +57,22 @@ const Statistics: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
           <h1 className="font-display font-bold text-3xl text-foreground mb-2">
             {t('statistics')} 📊
           </h1>
           <p className="text-muted-foreground">Sizning o'rganish natijalaringiz</p>
+        </motion.div>
+
+        {/* Language Selector */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <LanguageSelector showAddNew={false} />
         </motion.div>
 
         {/* Main Stats */}
@@ -64,7 +99,7 @@ const Statistics: React.FC = () => {
           <StatCard
             icon={Target}
             label={t('reviewsToday')}
-            value={stats.todayReviewed}
+            value={stats.today_reviewed}
             delay={0.25}
           />
           <StatCard
@@ -133,14 +168,14 @@ const Statistics: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-card/50 rounded-2xl">
               <p className="font-display font-bold text-3xl text-primary">
-                {stats.todayReviewed}
+                {stats.today_reviewed}
               </p>
               <p className="text-sm text-muted-foreground">takrorlangan</p>
             </div>
             <div className="text-center p-4 bg-card/50 rounded-2xl">
               <p className="font-display font-bold text-3xl text-primary">
-                {stats.todayReviewed > 0
-                  ? `${Math.round((stats.todayCorrect / stats.todayReviewed) * 100)}%`
+                {stats.today_reviewed > 0
+                  ? `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`
                   : '—'}
               </p>
               <p className="text-sm text-muted-foreground">aniqlik</p>
