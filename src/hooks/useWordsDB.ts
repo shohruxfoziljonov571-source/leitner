@@ -248,6 +248,32 @@ export const useWordsDB = () => {
     }
   }, [user, activeLanguage, stats.total_words]);
 
+  const updateWord = useCallback(async (wordId: string, updates: {
+    original_word?: string;
+    translated_word?: string;
+    example_sentences?: string[];
+    category_id?: string | null;
+  }) => {
+    if (!user || !activeLanguage) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('words')
+        .update(updates)
+        .eq('id', wordId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setWords(prev => prev.map(w => w.id === wordId ? { ...w, ...data } : w));
+      return data;
+    } catch (error) {
+      console.error('Error updating word:', error);
+      return null;
+    }
+  }, [user, activeLanguage]);
+
   const deleteWord = useCallback(async (wordId: string) => {
     if (!user || !activeLanguage) return;
 
@@ -362,6 +388,7 @@ export const useWordsDB = () => {
     isLoading,
     addWord,
     addWordsBulk,
+    updateWord,
     deleteWord,
     reviewWord,
     getWordsForReview,
