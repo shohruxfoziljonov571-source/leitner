@@ -15,6 +15,7 @@ import Statistics from "@/pages/Statistics";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
+import About from "@/pages/About";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const AppRoutes = () => {
         <Route path="/statistics" element={<Navigate to="/stats" replace />} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
