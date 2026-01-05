@@ -23,7 +23,9 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [importProgress, setImportProgress] = useState(0);
   const [previewData, setPreviewData] = useState<ImportedWord[]>([]);
   const [fileName, setFileName] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -125,8 +127,8 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
   const handleImport = async () => {
     if (previewData.length === 0) return;
 
-    setIsProcessing(true);
-    setProgress(0);
+    setIsImporting(true);
+    setImportProgress(0);
 
     try {
       const wordsToImport = previewData.map(w => ({
@@ -135,21 +137,38 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
         exampleSentences: w.examples ? w.examples.split(';').map(s => s.trim()).filter(s => s.length > 0) : [],
       }));
 
+      // Simulate progress for UX (bulk insert is fast)
+      const progressInterval = setInterval(() => {
+        setImportProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
       await onImport(wordsToImport);
+      
+      clearInterval(progressInterval);
+      setImportProgress(100);
       
       toast.success(`${wordsToImport.length} ta so'z muvaffaqiyatli import qilindi!`);
       
-      // Reset state
-      setPreviewData([]);
-      setFileName('');
-      setProgress(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      // Reset state after a brief delay to show 100%
+      setTimeout(() => {
+        setPreviewData([]);
+        setFileName('');
+        setImportProgress(0);
+        setIsImporting(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }, 500);
     } catch (err) {
       toast.error('Import qilishda xatolik yuz berdi');
-    } finally {
-      setIsProcessing(false);
+      setIsImporting(false);
+      setImportProgress(0);
     }
   };
 
@@ -276,13 +295,23 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
               )}
             </div>
 
+            {isImporting && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Import qilinmoqda...</span>
+                  <span className="font-medium text-primary">{importProgress}%</span>
+                </div>
+                <Progress value={importProgress} className="h-3" />
+              </div>
+            )}
+
             <Button
               onClick={handleImport}
-              disabled={isProcessing}
+              disabled={isImporting}
               className="w-full gap-2 gradient-primary text-primary-foreground"
             >
               <Check className="w-4 h-4" />
-              {isProcessing ? 'Import qilinmoqda...' : `${previewData.length} ta so'zni import qilish`}
+              {isImporting ? `Import qilinmoqda... ${importProgress}%` : `${previewData.length} ta so'zni import qilish`}
             </Button>
           </motion.div>
         )}
