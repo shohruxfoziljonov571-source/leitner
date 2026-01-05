@@ -28,6 +28,7 @@ const AddWord: React.FC = () => {
     sourceLanguage: string;
     targetLanguage: string;
     exampleSentences: string[];
+    categoryId?: string | null;
   }) => {
     await addWord({
       original_word: word.originalWord,
@@ -35,6 +36,7 @@ const AddWord: React.FC = () => {
       source_language: word.sourceLanguage,
       target_language: word.targetLanguage,
       example_sentences: word.exampleSentences,
+      category_id: word.categoryId,
     });
 
     // Add XP for new word

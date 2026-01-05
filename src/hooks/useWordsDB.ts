@@ -155,6 +155,7 @@ export const useWordsDB = () => {
     source_language: string;
     target_language: string;
     example_sentences?: string[];
+    category_id?: string | null;
   }) => {
     if (!user || !activeLanguage) return null;
 
@@ -171,6 +172,7 @@ export const useWordsDB = () => {
           example_sentences: word.example_sentences || [],
           box_number: 1,
           next_review_time: new Date().toISOString(),
+          category_id: word.category_id || null,
         })
         .select()
         .single();
@@ -202,6 +204,7 @@ export const useWordsDB = () => {
     source_language: string;
     target_language: string;
     example_sentences?: string[];
+    category_id?: string | null;
   }[]) => {
     if (!user || !activeLanguage || wordsToAdd.length === 0) return [];
 
@@ -216,6 +219,7 @@ export const useWordsDB = () => {
         example_sentences: word.example_sentences || [],
         box_number: 1,
         next_review_time: new Date().toISOString(),
+        category_id: word.category_id || null,
       }));
 
       const { data, error } = await supabase

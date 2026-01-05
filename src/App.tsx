@@ -57,6 +57,7 @@ const AppRoutes = () => {
         <Route path="/add" element={<ProtectedRoute><AddWord /></ProtectedRoute>} />
         <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
         <Route path="/stats" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
+        <Route path="/statistics" element={<Navigate to="/stats" replace />} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />

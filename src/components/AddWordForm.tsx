@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
+import CategorySelect from '@/components/CategorySelect';
 
 const languageFlags: Record<string, string> = {
   uz: '🇺🇿',
@@ -29,6 +30,7 @@ interface AddWordFormProps {
     sourceLanguage: string;
     targetLanguage: string;
     exampleSentences: string[];
+    categoryId?: string | null;
   }) => Promise<void>;
 }
 
@@ -41,6 +43,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
   const [originalWord, setOriginalWord] = useState('');
   const [translatedWord, setTranslatedWord] = useState('');
   const [examples, setExamples] = useState('');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +68,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
         sourceLanguage,
         targetLanguage,
         exampleSentences,
+        categoryId,
       });
 
       // Reset form
@@ -125,6 +129,14 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
           placeholder={targetLanguage === 'uz' ? 'Salom' : targetLanguage === 'ru' ? 'Привет' : 'Hello'}
           className="bg-background text-lg h-12"
         />
+      </div>
+
+      {/* Category Select */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">
+          Kategoriya (ixtiyoriy)
+        </Label>
+        <CategorySelect value={categoryId} onChange={setCategoryId} />
       </div>
 
       {/* Examples */}

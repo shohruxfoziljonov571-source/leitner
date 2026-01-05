@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor } from 'lucide-react';
+import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import CategoryManager from '@/components/CategoryManager';
+import NotificationSettings from '@/components/NotificationSettings';
 
 const Settings: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -143,6 +145,44 @@ const Settings: React.FC = () => {
               </button>
             ))}
           </div>
+        </motion.div>
+
+        {/* Categories */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-card rounded-2xl shadow-card p-5 mb-4"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+              <Folder className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h3 className="font-medium">Kategoriyalar</h3>
+              <p className="text-sm text-muted-foreground">So'zlarni guruhlang</p>
+            </div>
+          </div>
+          <CategoryManager mode="manage" />
+        </motion.div>
+
+        {/* Notifications */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-card rounded-2xl shadow-card p-5 mb-4"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Bell className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-medium">Bildirishnomalar</h3>
+              <p className="text-sm text-muted-foreground">Kunlik eslatmalar</p>
+            </div>
+          </div>
+          <NotificationSettings />
         </motion.div>
 
         {/* About */}
