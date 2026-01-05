@@ -7,13 +7,14 @@ import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
+import WordDictionaryImport from '@/components/WordDictionaryImport';
 import WordList from '@/components/WordList';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpPopup from '@/components/gamification/XpPopup';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PenLine, FileSpreadsheet, List } from 'lucide-react';
+import { PenLine, FileSpreadsheet, List, BookOpen } from 'lucide-react';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
@@ -154,18 +155,22 @@ const AddWord: React.FC = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
-              <TabsTrigger value="manual" className="gap-2 h-10">
+            <TabsList className="grid w-full grid-cols-4 mb-6 h-12">
+              <TabsTrigger value="manual" className="gap-1 h-10 text-xs px-2">
                 <PenLine className="w-4 h-4" />
-                Qo'lda
+                <span className="hidden sm:inline">Qo'lda</span>
               </TabsTrigger>
-              <TabsTrigger value="import" className="gap-2 h-10">
+              <TabsTrigger value="dictionary" className="gap-1 h-10 text-xs px-2">
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">Lug'at</span>
+              </TabsTrigger>
+              <TabsTrigger value="import" className="gap-1 h-10 text-xs px-2">
                 <FileSpreadsheet className="w-4 h-4" />
-                Import
+                <span className="hidden sm:inline">Excel</span>
               </TabsTrigger>
-              <TabsTrigger value="list" className="gap-2 h-10">
+              <TabsTrigger value="list" className="gap-1 h-10 text-xs px-2">
                 <List className="w-4 h-4" />
-                Ro'yxat
+                <span className="hidden sm:inline">Ro'yxat</span>
               </TabsTrigger>
             </TabsList>
 
@@ -176,6 +181,12 @@ const AddWord: React.FC = () => {
                   targetLanguage={activeLanguage.target_language}
                   onAddWord={handleAddWord}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="dictionary">
+              <div className="bg-card rounded-3xl shadow-card p-6">
+                <WordDictionaryImport onImport={handleBulkImport} />
               </div>
             </TabsContent>
 
@@ -205,11 +216,13 @@ const AddWord: React.FC = () => {
           className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/10"
         >
           <h4 className="font-medium text-sm text-primary mb-2">
-            {activeTab === 'manual' ? '💡 Maslahat' : '📋 Excel format'}
+            {activeTab === 'manual' ? '💡 Maslahat' : activeTab === 'dictionary' ? '📚 Lug\'at haqida' : '📋 Excel format'}
           </h4>
           <p className="text-sm text-muted-foreground">
             {activeTab === 'manual' 
               ? "So'zlar bilan birga misol gaplar qo'shing - bu yodda saqlashni osonlashtiradi!"
+              : activeTab === 'dictionary'
+              ? "Cambridge EnglishProfile - rasmiy CEFR darajalariga mos ingliz tili so'zlari. A1 dan C2 gacha."
               : "Ustun A - asl so'z, Ustun B - tarjima, Ustun C - misollar (nuqtali vergul bilan ajrating)"}
           </p>
         </motion.div>
