@@ -186,7 +186,10 @@ const AddWord: React.FC = () => {
 
             <TabsContent value="dictionary">
               <div className="bg-card rounded-3xl shadow-card p-6">
-                <WordDictionaryImport onImport={handleBulkImport} />
+                <WordDictionaryImport 
+                  onImport={handleBulkImport} 
+                  targetLanguage={activeLanguage.target_language}
+                />
               </div>
             </TabsContent>
 

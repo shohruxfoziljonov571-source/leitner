@@ -27,6 +27,7 @@ interface DictionaryWord {
 
 interface WordDictionaryImportProps {
   onImport: (words: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => Promise<void>;
+  targetLanguage: string; // en, ru, etc. - which language dictionary to show
 }
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -39,7 +40,7 @@ const LEVEL_COLORS: Record<string, string> = {
   'C2': 'bg-purple-500',
 };
 
-const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport }) => {
+const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport, targetLanguage }) => {
   const [words, setWords] = useState<DictionaryWord[]>([]);
   const [filteredWords, setFilteredWords] = useState<DictionaryWord[]>([]);
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set());
@@ -49,11 +50,24 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
 
+  // Dictionary config by language
+  const DICTIONARY_CONFIG: Record<string, { file: string; name: string; available: boolean }> = {
+    'en': { file: '/data/english-words.xlsx', name: 'EnglishProfile', available: true },
+    'ru': { file: '/data/russian-words.xlsx', name: 'Русский словарь', available: false },
+  };
+
+  const dictConfig = DICTIONARY_CONFIG[targetLanguage] || { file: '', name: '', available: false };
+
   // Load and parse the Excel file
   useEffect(() => {
+    if (!dictConfig.available) {
+      setIsLoading(false);
+      return;
+    }
+
     const loadDictionary = async () => {
       try {
-        const response = await fetch('/data/english-words.xlsx');
+        const response = await fetch(dictConfig.file);
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         
@@ -137,7 +151,7 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
     };
 
     loadDictionary();
-  }, []);
+  }, [targetLanguage, dictConfig.available, dictConfig.file]);
 
   // Filter words based on search and level
   useEffect(() => {
@@ -249,6 +263,35 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
     return words.filter(w => w.level === level).length;
   };
 
+  // Show message if dictionary not available for this language
+  if (!dictConfig.available) {
+    const languageNames: Record<string, string> = {
+      'en': 'Ingliz',
+      'ru': 'Rus',
+      'uz': "O'zbek"
+    };
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-12 gap-4 text-center"
+      >
+        <div className="p-4 rounded-full bg-muted">
+          <BookOpen className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-lg mb-2">
+            {languageNames[targetLanguage] || targetLanguage} tili lug'ati mavjud emas
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Hozircha faqat ingliz tili uchun EnglishProfile lug'ati mavjud. 
+            Rus tili lug'atini qo'shish uchun Excel faylini yuklashingiz mumkin.
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-4">
@@ -270,7 +313,7 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport })
           <BookOpen className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="font-semibold">EnglishProfile Lug'ati</h3>
+          <h3 className="font-semibold">{dictConfig.name} Lug'ati</h3>
           <p className="text-sm text-muted-foreground">
             {words.length} ta so'z (A1-C2)
           </p>
