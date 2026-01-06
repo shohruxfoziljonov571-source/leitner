@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Check, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
+import { Eye, Check, X, ArrowRight, Volume2, VolumeX, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSpeech } from '@/hooks/useSpeech';
@@ -9,13 +9,66 @@ import { Word } from '@/types/word';
 interface FlashCardProps {
   word: Word;
   onAnswer: (isCorrect: boolean) => void;
+  isReversed?: boolean; // If true, show translation first and ask for original
 }
 
-const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
+const languageNames: Record<string, string> = {
+  uz: "O'zbekcha",
+  ru: 'Русский',
+  en: 'English',
+};
+
+const languageFlags: Record<string, string> = {
+  uz: '🇺🇿',
+  ru: '🇷🇺',
+  en: '🇬🇧',
+};
+
+const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = false }) => {
   const { t } = useLanguage();
   const [isFlipped, setIsFlipped] = useState(false);
   const [answered, setAnswered] = useState<boolean | null>(null);
   const { speak, isSpeaking, isSupported, stop } = useSpeech();
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Determine which word to show as question and which as answer
+  const questionWord = isReversed ? word.translatedWord : word.originalWord;
+  const answerWord = isReversed ? word.originalWord : word.translatedWord;
+  const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
+  const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
+
+  // Fetch image when answer is revealed
+  useEffect(() => {
+    if (isFlipped && !imageUrl && !imageLoading) {
+      fetchWordImage();
+    }
+  }, [isFlipped]);
+
+  const fetchWordImage = async () => {
+    setImageLoading(true);
+    try {
+      // Use the original word (foreign language) for better image results
+      const searchWord = word.originalWord;
+      // Using a free image API - Unsplash
+      const response = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchWord)}&per_page=1&client_id=demo`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          setImageUrl(data.results[0].urls.small);
+        }
+      }
+    } catch (error) {
+      console.log('Image fetch failed, using fallback');
+      // Fallback: use a placeholder image service
+      setImageUrl(`https://source.unsplash.com/200x150/?${encodeURIComponent(word.originalWord)}`);
+    } finally {
+      setImageLoading(false);
+    }
+  };
 
   const handleFlip = () => {
     if (!isFlipped) {
@@ -29,6 +82,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
       onAnswer(isCorrect);
       setIsFlipped(false);
       setAnswered(null);
+      setImageUrl(null);
     }, 500);
   };
 
@@ -38,12 +92,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
     } else {
       speak(text, { lang });
     }
-  };
-
-  const languageFlags: Record<string, string> = {
-    uz: '🇺🇿',
-    ru: '🇷🇺',
-    en: '🇬🇧',
   };
 
   return (
@@ -74,27 +122,27 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
           {t('box')} {word.boxNumber}
         </div>
 
-        {/* Language badges */}
+        {/* Language badges - show direction based on isReversed */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-2xl">{languageFlags[word.sourceLanguage]}</span>
+          <span className="text-2xl">{languageFlags[questionLang]}</span>
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
-          <span className="text-2xl">{languageFlags[word.targetLanguage]}</span>
+          <span className="text-2xl">{languageFlags[answerLang]}</span>
         </div>
 
-        {/* Original word with speaker */}
+        {/* Question word with speaker */}
         <div className="text-center mb-8">
           <p className="text-sm text-muted-foreground mb-2">
-            {word.sourceLanguage === 'ru' ? 'Русский' : 'English'}
+            {languageNames[questionLang]}
           </p>
           <div className="flex items-center justify-center gap-3">
             <h2 className="font-display font-bold text-3xl text-foreground">
-              {word.originalWord}
+              {questionWord}
             </h2>
             {isSupported && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleSpeak(word.originalWord, word.sourceLanguage)}
+                onClick={() => handleSpeak(questionWord, questionLang)}
                 className={`rounded-full transition-all ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
               >
                 {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -129,18 +177,38 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              {/* Translation with speaker */}
+              {/* Image for the word */}
+              {(imageUrl || imageLoading) && (
+                <div className="mb-4 flex justify-center">
+                  {imageLoading ? (
+                    <div className="w-32 h-24 bg-muted rounded-xl flex items-center justify-center animate-pulse">
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  ) : imageUrl ? (
+                    <motion.img
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      src={imageUrl}
+                      alt={word.originalWord}
+                      className="w-32 h-24 object-cover rounded-xl shadow-md"
+                      onError={() => setImageUrl(null)}
+                    />
+                  ) : null}
+                </div>
+              )}
+
+              {/* Answer word with speaker */}
               <div className="text-center mb-6">
                 <p className="text-sm text-muted-foreground mb-2">{t('translation')}</p>
                 <div className="flex items-center justify-center gap-3">
                   <p className="font-display font-semibold text-2xl text-primary">
-                    {word.translatedWord}
+                    {answerWord}
                   </p>
                   {isSupported && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleSpeak(word.translatedWord, word.targetLanguage)}
+                      onClick={() => handleSpeak(answerWord, answerLang)}
                       className={`rounded-full transition-all ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
                     >
                       {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
