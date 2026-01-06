@@ -49,11 +49,20 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
   const fetchWordImage = async () => {
     setImageLoading(true);
     try {
+      // Always search with the foreign language word (not Uzbek)
+      // Determine which word is the foreign one (English or Russian)
+      const srcLang = word.sourceLanguage as string;
+      const tgtLang = word.targetLanguage as string;
+      const foreignWord = tgtLang === 'uz' ? word.originalWord : word.translatedWord;
+      const foreignLang = tgtLang === 'uz' ? srcLang : tgtLang;
+      
+      console.log(`Searching image for: "${foreignWord}" (${foreignLang})`);
+      
       // Use edge function to search for image
       const { data, error } = await supabase.functions.invoke('search-word-image', {
         body: { 
-          word: word.originalWord,
-          lang: word.sourceLanguage
+          word: foreignWord,
+          lang: foreignLang
         }
       });
       
