@@ -82,6 +82,33 @@ export type Database = {
           },
         ]
       }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -120,6 +147,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          friend_code: string | null
           full_name: string | null
           id: string
           preferred_language: string | null
@@ -133,6 +161,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          friend_code?: string | null
           full_name?: string | null
           id?: string
           preferred_language?: string | null
@@ -146,6 +175,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          friend_code?: string | null
           full_name?: string | null
           id?: string
           preferred_language?: string | null
