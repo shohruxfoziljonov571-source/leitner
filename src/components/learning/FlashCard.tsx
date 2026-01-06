@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Check, X, ArrowRight, Volume2, VolumeX, ImageIcon } from 'lucide-react';
+import { Eye, Check, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { Word } from '@/types/word';
-import { supabase } from '@/integrations/supabase/client';
 
 interface FlashCardProps {
   word: Word;
   onAnswer: (isCorrect: boolean) => void;
-  isReversed?: boolean; // If true, show translation first and ask for original
+  isReversed?: boolean;
 }
 
 const languageNames: Record<string, string> = {
@@ -30,55 +29,11 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
   const [isFlipped, setIsFlipped] = useState(false);
   const [answered, setAnswered] = useState<boolean | null>(null);
   const { speak, isSpeaking, isSupported, stop } = useSpeech();
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(false);
 
-  // Determine which word to show as question and which as answer
   const questionWord = isReversed ? word.translatedWord : word.originalWord;
   const answerWord = isReversed ? word.originalWord : word.translatedWord;
   const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
   const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
-
-  // Fetch image when answer is revealed
-  useEffect(() => {
-    if (isFlipped && !imageUrl && !imageLoading) {
-      fetchWordImage();
-    }
-  }, [isFlipped]);
-
-  const fetchWordImage = async () => {
-    setImageLoading(true);
-    try {
-      // Database stores: original_word = foreign (en/ru), translated_word = uzbek
-      // But source_language/target_language are swapped in DB
-      // So we always use original_word for image search (it's the foreign word)
-      const foreignWord = word.originalWord;
-      
-      console.log(`Searching image for: "${foreignWord}"`);
-      
-      // Use edge function to search for image
-      const { data, error } = await supabase.functions.invoke('search-word-image', {
-        body: { 
-          word: foreignWord,
-          lang: 'en' // Use English for better search results
-        }
-      });
-      
-      if (error) {
-        console.log('Image search error:', error);
-        return;
-      }
-      
-      if (data?.imageUrl) {
-        setImageUrl(data.imageUrl);
-        console.log(`Found image from ${data.source}: ${data.imageUrl}`);
-      }
-    } catch (error) {
-      console.log('Image fetch failed:', error);
-    } finally {
-      setImageLoading(false);
-    }
-  };
 
   const handleFlip = () => {
     if (!isFlipped) {
@@ -92,7 +47,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
       onAnswer(isCorrect);
       setIsFlipped(false);
       setAnswered(null);
-      setImageUrl(null);
     }, 500);
   };
 
@@ -111,7 +65,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
       exit={{ opacity: 0, y: -20 }}
       className="w-full max-w-md mx-auto"
     >
-      {/* Card */}
       <div
         className={`relative min-h-[320px] rounded-3xl shadow-elevated p-6 transition-all duration-300 ${
           answered === true
@@ -121,7 +74,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
             : 'bg-card'
         }`}
       >
-        {/* Box indicator */}
         <div
           className="absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium"
           style={{
@@ -132,14 +84,12 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
           {t('box')} {word.boxNumber}
         </div>
 
-        {/* Language badges - show direction based on isReversed */}
         <div className="flex items-center gap-2 mb-6">
           <span className="text-2xl">{languageFlags[questionLang]}</span>
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
           <span className="text-2xl">{languageFlags[answerLang]}</span>
         </div>
 
-        {/* Question word with speaker */}
         <div className="text-center mb-8">
           <p className="text-sm text-muted-foreground mb-2">
             {languageNames[questionLang]}
@@ -161,7 +111,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
           </div>
         </div>
 
-        {/* Answer area */}
         <AnimatePresence mode="wait">
           {!isFlipped ? (
             <motion.div
@@ -187,27 +136,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              {/* Image for the word */}
-              {(imageUrl || imageLoading) && (
-                <div className="mb-4 flex justify-center">
-                  {imageLoading ? (
-                    <div className="w-32 h-24 bg-muted rounded-xl flex items-center justify-center animate-pulse">
-                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  ) : imageUrl ? (
-                    <motion.img
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      src={imageUrl}
-                      alt={word.originalWord}
-                      className="w-32 h-24 object-cover rounded-xl shadow-md"
-                      onError={() => setImageUrl(null)}
-                    />
-                  ) : null}
-                </div>
-              )}
-
-              {/* Answer word with speaker */}
               <div className="text-center mb-6">
                 <p className="text-sm text-muted-foreground mb-2">{t('translation')}</p>
                 <div className="flex items-center justify-center gap-3">
@@ -227,7 +155,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
                 </div>
               </div>
 
-              {/* Examples */}
               {word.exampleSentences.length > 0 && (
                 <div className="mb-6 p-4 bg-muted/50 rounded-xl">
                   <p className="text-sm text-muted-foreground mb-2">{t('examples')}</p>
@@ -239,7 +166,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
                 </div>
               )}
 
-              {/* Answer buttons */}
               <div className="flex gap-3">
                 <Button
                   onClick={() => handleAnswer(false)}
@@ -264,7 +190,6 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
         </AnimatePresence>
       </div>
 
-      {/* Progress indicator */}
       <div className="mt-4 text-center">
         <p className="text-sm text-muted-foreground">
           {word.timesReviewed} {t('reviewsToday').toLowerCase()}
