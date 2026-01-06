@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, PartyPopper, Plus } from 'lucide-react';
+import { BookOpen, PartyPopper, Plus, Layers, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
 import FlashCard from '@/components/learning/FlashCard';
+import QuizCard from '@/components/learning/QuizCard';
 import XpPopup from '@/components/gamification/XpPopup';
 import XpBar from '@/components/gamification/XpBar';
 
@@ -21,6 +22,8 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
+type LearningMode = 'flashcard' | 'quiz';
+
 const Learn: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
@@ -30,22 +33,41 @@ const Learn: React.FC = () => {
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [lastXpGain, setLastXpGain] = useState(0);
+  const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
 
   // Shuffle words and assign random direction for each word (memoized once per session)
   const shuffledWordsWithDirection = useMemo(() => {
     const wordsToReview = getWordsForReview();
     const shuffled = shuffleArray(wordsToReview);
-    // Randomly assign direction for each word (50% chance to be reversed)
     return shuffled.map(word => ({
       word,
       isReversed: Math.random() < 0.5
     }));
-  }, [words]); // Re-shuffle when words list changes
+  }, [words]);
 
   // Filter out reviewed words
   const wordsForReview = useMemo(() => {
     return shuffledWordsWithDirection.filter(item => !reviewedIds.has(item.word.id));
   }, [shuffledWordsWithDirection, reviewedIds]);
+
+  // All words for quiz options
+  const allTransformedWords = useMemo(() => {
+    return words.map(w => ({
+      id: w.id,
+      originalWord: w.original_word,
+      translatedWord: w.translated_word,
+      sourceLanguage: w.source_language as 'ru' | 'en',
+      targetLanguage: w.target_language as 'uz' | 'ru' | 'en',
+      exampleSentences: w.example_sentences || [],
+      boxNumber: w.box_number as 1 | 2 | 3 | 4 | 5,
+      nextReviewTime: new Date(w.next_review_time),
+      timesReviewed: w.times_reviewed,
+      timesCorrect: w.times_correct,
+      timesIncorrect: w.times_incorrect,
+      createdAt: new Date(w.created_at),
+      lastReviewed: w.last_reviewed ? new Date(w.last_reviewed) : null,
+    }));
+  }, [words]);
 
   const currentWordItem = wordsForReview[0];
   const totalToReview = shuffledWordsWithDirection.length;
@@ -57,7 +79,6 @@ const Learn: React.FC = () => {
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
-      // Add XP
       const xpGain = isCorrect ? XP_PER_CORRECT : XP_PER_INCORRECT;
       setLastXpGain(xpGain);
       setShowXpPopup(true);
@@ -65,7 +86,6 @@ const Learn: React.FC = () => {
       
       setTimeout(() => setShowXpPopup(false), 1500);
 
-      // Check achievements
       const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
       await checkAndUnlockAchievements({
         totalWords: words.length,
@@ -163,7 +183,71 @@ const Learn: React.FC = () => {
     );
   }
 
-  // Transform word for FlashCard component
+  // Mode selection screen
+  if (!learningMode) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">
+              O'rganish rejimini tanlang
+            </h1>
+            <p className="text-muted-foreground">
+              {totalToReview} ta so'z takrorlash uchun tayyor
+            </p>
+          </motion.div>
+
+          <div className="grid gap-4 max-w-md mx-auto">
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              onClick={() => setLearningMode('flashcard')}
+              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-primary text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Layers className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Flashcard</h3>
+                  <p className="text-sm text-muted-foreground">
+                    So'zni ko'ring, javobni eslang va o'zingizni tekshiring
+                  </p>
+                </div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              onClick={() => setLearningMode('quiz')}
+              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-primary text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-2xl bg-accent/50 text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Gamepad2 className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Quiz (4 variant)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    4 ta variantdan to'g'ri javobni tanlang - o'yin rejimi
+                  </p>
+                </div>
+              </div>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Transform word for FlashCard/QuizCard component
   const currentWord = currentWordItem?.word;
   const transformedWord = currentWord ? {
     id: currentWord.id,
@@ -193,9 +277,17 @@ const Learn: React.FC = () => {
           className="mb-6"
         >
           <div className="flex items-center justify-between mb-2">
-            <h1 className="font-display font-bold text-2xl text-foreground">
-              {t('learn')}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display font-bold text-2xl text-foreground">
+                {t('learn')}
+              </h1>
+              <button
+                onClick={() => setLearningMode(null)}
+                className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+              >
+                {learningMode === 'flashcard' ? '📚 Flashcard' : '🎮 Quiz'}
+              </button>
+            </div>
             <XpBar compact />
           </div>
           
@@ -219,12 +311,21 @@ const Learn: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Flash Card */}
+        {/* Card based on mode */}
         <AnimatePresence mode="wait">
-          {transformedWord && (
+          {transformedWord && learningMode === 'flashcard' && (
             <FlashCard
               key={transformedWord.id}
               word={transformedWord}
+              onAnswer={handleAnswer}
+              isReversed={currentWordItem?.isReversed}
+            />
+          )}
+          {transformedWord && learningMode === 'quiz' && (
+            <QuizCard
+              key={transformedWord.id}
+              word={transformedWord}
+              allWords={allTransformedWords}
               onAnswer={handleAnswer}
               isReversed={currentWordItem?.isReversed}
             />

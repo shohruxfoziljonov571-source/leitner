@@ -8,6 +8,3 @@ verify_jwt = false
 
 [functions.translate-words]
 verify_jwt = false
-
-[functions.search-word-image]
-verify_jwt = false
