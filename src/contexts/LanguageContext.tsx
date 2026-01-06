@@ -16,6 +16,7 @@ export const translations: Translations = {
   addWord: { uz: "So'z qo'shish", ru: "Добавить слово", en: "Add Word" },
   learn: { uz: "O'rganish", ru: "Учить", en: "Learn" },
   statistics: { uz: "Statistika", ru: "Статистика", en: "Statistics" },
+  friends: { uz: "Do'stlar", ru: "Друзья", en: "Friends" },
   settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
   
   // Dashboard
