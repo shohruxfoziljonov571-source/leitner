@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Check, X, ArrowRight, Volume2, VolumeX, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { Word } from '@/types/word';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FlashCardProps {
   word: Word;
@@ -48,23 +49,25 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
   const fetchWordImage = async () => {
     setImageLoading(true);
     try {
-      // Use the original word (foreign language) for better image results
-      const searchWord = word.originalWord;
-      // Using a free image API - Unsplash
-      const response = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchWord)}&per_page=1&client_id=demo`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          setImageUrl(data.results[0].urls.small);
+      // Use edge function to search for image
+      const { data, error } = await supabase.functions.invoke('search-word-image', {
+        body: { 
+          word: word.originalWord,
+          lang: word.sourceLanguage
         }
+      });
+      
+      if (error) {
+        console.log('Image search error:', error);
+        return;
+      }
+      
+      if (data?.imageUrl) {
+        setImageUrl(data.imageUrl);
+        console.log(`Found image from ${data.source}: ${data.imageUrl}`);
       }
     } catch (error) {
-      console.log('Image fetch failed, using fallback');
-      // Fallback: use a placeholder image service
-      setImageUrl(`https://source.unsplash.com/200x150/?${encodeURIComponent(word.originalWord)}`);
+      console.log('Image fetch failed:', error);
     } finally {
       setImageLoading(false);
     }
