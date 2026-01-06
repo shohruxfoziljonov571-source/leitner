@@ -11,6 +11,16 @@ import FlashCard from '@/components/learning/FlashCard';
 import XpPopup from '@/components/gamification/XpPopup';
 import XpBar from '@/components/gamification/XpBar';
 
+// Fisher-Yates shuffle algorithm
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 const Learn: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
@@ -21,18 +31,30 @@ const Learn: React.FC = () => {
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [lastXpGain, setLastXpGain] = useState(0);
 
-  const wordsForReview = useMemo(() => {
-    return getWordsForReview().filter((w) => !reviewedIds.has(w.id));
-  }, [getWordsForReview, reviewedIds]);
+  // Shuffle words and assign random direction for each word (memoized once per session)
+  const shuffledWordsWithDirection = useMemo(() => {
+    const wordsToReview = getWordsForReview();
+    const shuffled = shuffleArray(wordsToReview);
+    // Randomly assign direction for each word (50% chance to be reversed)
+    return shuffled.map(word => ({
+      word,
+      isReversed: Math.random() < 0.5
+    }));
+  }, [words]); // Re-shuffle when words list changes
 
-  const currentWord = wordsForReview[0];
-  const totalToReview = getWordsForReview().length;
+  // Filter out reviewed words
+  const wordsForReview = useMemo(() => {
+    return shuffledWordsWithDirection.filter(item => !reviewedIds.has(item.word.id));
+  }, [shuffledWordsWithDirection, reviewedIds]);
+
+  const currentWordItem = wordsForReview[0];
+  const totalToReview = shuffledWordsWithDirection.length;
   const reviewedCount = reviewedIds.size;
 
   const handleAnswer = async (isCorrect: boolean) => {
-    if (currentWord) {
-      await reviewWord(currentWord.id, isCorrect);
-      setReviewedIds((prev) => new Set([...prev, currentWord.id]));
+    if (currentWordItem) {
+      await reviewWord(currentWordItem.word.id, isCorrect);
+      setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
       // Add XP
@@ -142,6 +164,7 @@ const Learn: React.FC = () => {
   }
 
   // Transform word for FlashCard component
+  const currentWord = currentWordItem?.word;
   const transformedWord = currentWord ? {
     id: currentWord.id,
     originalWord: currentWord.original_word,
@@ -203,6 +226,7 @@ const Learn: React.FC = () => {
               key={transformedWord.id}
               word={transformedWord}
               onAnswer={handleAnswer}
+              isReversed={currentWordItem?.isReversed}
             />
           )}
         </AnimatePresence>
