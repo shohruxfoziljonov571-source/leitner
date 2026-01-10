@@ -335,11 +335,16 @@ export const useWordsDB = () => {
     const word = words.find(w => w.id === wordId);
     if (!word) return;
 
+    const previousBoxNumber = word.box_number;
     const newBoxNumber = isCorrect 
       ? Math.min(5, word.box_number + 1)
       : 1;
 
+    // Word is considered "learned" only when it reaches box 5 for the first time
+    const justLearned = isCorrect && newBoxNumber === 5 && previousBoxNumber < 5;
+
     const interval = BOX_INTERVALS[newBoxNumber as 1 | 2 | 3 | 4 | 5];
+    const today = new Date().toISOString().split('T')[0];
 
     try {
       const { error } = await supabase
@@ -369,18 +374,34 @@ export const useWordsDB = () => {
         };
       }));
 
-      // Update user_stats
-      const today = new Date().toISOString().split('T')[0];
-      await supabase
-        .from('user_stats')
-        .update({
-          today_reviewed: stats.today_reviewed + 1,
-          today_correct: isCorrect ? stats.today_correct + 1 : stats.today_correct,
-          learned_words: isCorrect ? stats.learned_words + 1 : stats.learned_words,
+      // Update user_stats using functional update to avoid race condition
+      // Use RPC or increment directly in DB to be truly race-condition free
+      setStats(prev => {
+        const newStats = {
+          ...prev,
+          today_reviewed: prev.today_reviewed + 1,
+          today_correct: isCorrect ? prev.today_correct + 1 : prev.today_correct,
+          learned_words: justLearned ? prev.learned_words + 1 : prev.learned_words,
           last_active_date: today,
-        })
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id);
+        };
+
+        // Update DB with new values (fire and forget, state is source of truth for UI)
+        supabase
+          .from('user_stats')
+          .update({
+            today_reviewed: newStats.today_reviewed,
+            today_correct: newStats.today_correct,
+            learned_words: newStats.learned_words,
+            last_active_date: today,
+          })
+          .eq('user_id', user.id)
+          .eq('user_language_id', activeLanguage.id)
+          .then(({ error }) => {
+            if (error) console.error('Error updating user_stats:', error);
+          });
+
+        return newStats;
+      });
 
       // Update daily_stats for charts
       const { data: existingDailyStat } = await supabase
@@ -412,18 +433,10 @@ export const useWordsDB = () => {
             words_correct: isCorrect ? 1 : 0,
           });
       }
-
-      setStats(prev => ({
-        ...prev,
-        today_reviewed: prev.today_reviewed + 1,
-        today_correct: isCorrect ? prev.today_correct + 1 : prev.today_correct,
-        learned_words: isCorrect ? prev.learned_words + 1 : prev.learned_words,
-        last_active_date: today,
-      }));
     } catch (error) {
       console.error('Error reviewing word:', error);
     }
-  }, [user, activeLanguage, words, stats]);
+  }, [user, activeLanguage, words]);
 
   const getWordsForReview = useCallback(() => {
     const now = new Date();

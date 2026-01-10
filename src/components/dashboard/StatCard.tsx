@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
@@ -11,16 +11,17 @@ interface StatCardProps {
   delay?: number;
 }
 
-const StatCard: React.FC<StatCardProps> = memo(({
+const StatCard = memo(forwardRef<HTMLDivElement, StatCardProps>(({
   icon: Icon,
   label,
   value,
   subtext,
   gradient = false,
   delay = 0,
-}) => {
+}, ref) => {
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, delay }}
@@ -62,7 +63,7 @@ const StatCard: React.FC<StatCardProps> = memo(({
       </div>
     </motion.div>
   );
-});
+}));
 
 StatCard.displayName = 'StatCard';
 

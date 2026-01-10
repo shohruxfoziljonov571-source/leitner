@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, PartyPopper, Plus, Layers, Gamepad2 } from 'lucide-react';
@@ -34,16 +34,22 @@ const Learn: React.FC = () => {
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [lastXpGain, setLastXpGain] = useState(0);
   const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get words for review - memoized based on words array content
+  const wordsToReview = useMemo(() => {
+    const now = new Date();
+    return words.filter(word => new Date(word.next_review_time) <= now);
+  }, [words]);
 
   // Shuffle words and assign random direction for each word (memoized once per session)
   const shuffledWordsWithDirection = useMemo(() => {
-    const wordsToReview = getWordsForReview();
     const shuffled = shuffleArray(wordsToReview);
     return shuffled.map(word => ({
       word,
       isReversed: Math.random() < 0.5
     }));
-  }, [words]);
+  }, [wordsToReview]);
 
   // Filter out reviewed words
   const wordsForReview = useMemo(() => {
@@ -73,7 +79,7 @@ const Learn: React.FC = () => {
   const totalToReview = shuffledWordsWithDirection.length;
   const reviewedCount = reviewedIds.size;
 
-  const handleAnswer = async (isCorrect: boolean) => {
+  const handleAnswer = useCallback(async (isCorrect: boolean) => {
     if (currentWordItem) {
       await reviewWord(currentWordItem.word.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
@@ -84,7 +90,11 @@ const Learn: React.FC = () => {
       setShowXpPopup(true);
       await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
       
-      setTimeout(() => setShowXpPopup(false), 1500);
+      // Clear previous timeout to prevent memory leaks
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => setShowXpPopup(false), 1500);
 
       const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
       await checkAndUnlockAchievements({
@@ -94,7 +104,16 @@ const Learn: React.FC = () => {
         level,
       });
     }
-  };
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
