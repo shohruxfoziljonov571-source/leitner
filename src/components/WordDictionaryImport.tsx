@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DictionaryWord {
@@ -67,6 +66,9 @@ const WordDictionaryImport: React.FC<WordDictionaryImportProps> = ({ onImport, t
 
     const loadDictionary = async () => {
       try {
+        // Dynamic import for better bundle splitting
+        const XLSX = await import('xlsx');
+        
         const response = await fetch(dictConfig.file);
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
