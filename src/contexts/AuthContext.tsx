@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('Attempting Telegram auto-login for:', tgUser.first_name);
       
-      const email = `tg_${tgUser.id}@telegram.leitner.app`;
+      const email = `${tgUser.id}@leitner.uz`;
       const password = `tg_secure_${tgUser.id}_leitner_app_2024`;
       
       // First try to sign in (existing user)

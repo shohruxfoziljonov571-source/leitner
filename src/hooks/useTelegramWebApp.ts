@@ -139,7 +139,7 @@ export const useTelegramWebApp = () => {
       }
 
       // Create new user with Telegram data
-      const email = `tg_${user.id}@telegram.leitner.app`;
+      const email = `${user.id}@leitner.uz`;
       const password = `tg_${user.id}_${webApp.initDataUnsafe.auth_date || Date.now()}`;
       
       // Try to sign up
