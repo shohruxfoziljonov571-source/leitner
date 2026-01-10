@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, Check, AlertCircle, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 
 interface ImportedWord {
   originalWord: string;
@@ -64,6 +63,9 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
     setProgress(10);
 
     try {
+      // Dynamic import for better bundle splitting
+      const XLSX = await import('xlsx');
+      
       const data = await file.arrayBuffer();
       setProgress(30);
       
@@ -182,7 +184,10 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    // Dynamic import for better bundle splitting
+    const XLSX = await import('xlsx');
+    
     const templateData = [
       [languageNames[sourceLanguage][language], languageNames[targetLanguage][language], 'Misollar (ixtiyoriy)'],
       ['Hello', 'Salom', 'Hello, how are you?; Hello world'],

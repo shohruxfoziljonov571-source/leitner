@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
@@ -11,7 +11,7 @@ interface StatCardProps {
   delay?: number;
 }
 
-const StatCard: React.FC<StatCardProps> = ({
+const StatCard: React.FC<StatCardProps> = memo(({
   icon: Icon,
   label,
   value,
@@ -62,6 +62,8 @@ const StatCard: React.FC<StatCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});
+
+StatCard.displayName = 'StatCard';
 
 export default StatCard;

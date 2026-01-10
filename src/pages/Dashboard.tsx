@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Flame, Target, TrendingUp, Trophy } from 'lucide-react';
@@ -17,10 +17,19 @@ const Dashboard: React.FC = () => {
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
   const { level, getUnlockedAchievements } = useGamification();
-  const boxCounts = getBoxCounts();
-  const wordsForReview = getWordsForReview();
-  const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
-  const unlockedAchievements = getUnlockedAchievements();
+  
+  // Memoize expensive calculations
+  const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
+  const wordsForReview = useMemo(() => getWordsForReview(), [getWordsForReview]);
+  const totalWords = useMemo(() => Object.values(boxCounts).reduce((a, b) => a + b, 0), [boxCounts]);
+  const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [getUnlockedAchievements]);
+  
+  const accuracy = useMemo(() => {
+    if (stats.today_reviewed > 0) {
+      return `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`;
+    }
+    return '—';
+  }, [stats.today_correct, stats.today_reviewed]);
 
   if (isLoading || langLoading) {
     return (
@@ -113,11 +122,7 @@ const Dashboard: React.FC = () => {
           <StatCard
             icon={TrendingUp}
             label={t('accuracy')}
-            value={
-              stats.today_reviewed > 0
-                ? `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`
-                : '—'
-            }
+            value={accuracy}
             delay={0.25}
           />
           <StatCard

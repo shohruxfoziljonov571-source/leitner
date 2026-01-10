@@ -1,3 +1,4 @@
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,18 +9,36 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LearningLanguageProvider } from "@/contexts/LearningLanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Navigation from "@/components/layout/Navigation";
-import Dashboard from "@/pages/Dashboard";
-import AddWord from "@/pages/AddWord";
-import Learn from "@/pages/Learn";
-import Statistics from "@/pages/Statistics";
-import Settings from "@/pages/Settings";
-import Profile from "@/pages/Profile";
-import Auth from "@/pages/Auth";
-import About from "@/pages/About";
-import Friends from "@/pages/Friends";
-import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient();
+// Lazy load pages for better initial load performance
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const AddWord = lazy(() => import("@/pages/AddWord"));
+const Learn = lazy(() => import("@/pages/Learn"));
+const Statistics = lazy(() => import("@/pages/Statistics"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Auth = lazy(() => import("@/pages/Auth"));
+const About = lazy(() => import("@/pages/About"));
+const Friends = lazy(() => import("@/pages/Friends"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+
+// Loading component for Suspense
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-pulse-soft text-muted-foreground">Yuklanmoqda...</div>
+  </div>
+);
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 mins
+      gcTime: 10 * 60 * 1000, // 10 minutes - cache for 10 mins (formerly cacheTime)
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      retry: 1, // Only retry once on failure
+    },
+  },
+});
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -53,19 +72,21 @@ const AppRoutes = () => {
   return (
     <>
       {user && <Navigation />}
-      <Routes>
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/add" element={<ProtectedRoute><AddWord /></ProtectedRoute>} />
-        <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
-        <Route path="/stats" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
-        <Route path="/statistics" element={<Navigate to="/stats" replace />} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
-        <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/add" element={<ProtectedRoute><AddWord /></ProtectedRoute>} />
+          <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
+          <Route path="/stats" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
+          <Route path="/statistics" element={<Navigate to="/stats" replace />} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+          <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </>
   );
 };

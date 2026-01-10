@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -9,23 +9,27 @@ import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
 import AchievementBadge from '@/components/gamification/AchievementBadge';
-import WeeklyChart from '@/components/statistics/WeeklyChart';
-import AccuracyChart from '@/components/statistics/AccuracyChart';
+import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/LazyCharts';
 
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, words, isLoading } = useWordsDB();
   const { achievements, level, xp } = useGamification();
-  const boxCounts = getBoxCounts();
-  const totalWords = Object.values(boxCounts).reduce((a, b) => a + b, 0);
+  
+  // Memoize expensive calculations
+  const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
+  const totalWords = useMemo(() => Object.values(boxCounts).reduce((a, b) => a + b, 0), [boxCounts]);
 
-  // Calculate additional stats
-  const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0);
-  const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0);
-  const totalIncorrect = words.reduce((acc, w) => acc + w.times_incorrect, 0);
-  const overallAccuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
-  const masteredWords = boxCounts[5];
+  // Calculate additional stats with useMemo
+  const { totalReviews, totalCorrect, totalIncorrect, overallAccuracy, masteredWords } = useMemo(() => {
+    const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0);
+    const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0);
+    const totalIncorrect = words.reduce((acc, w) => acc + w.times_incorrect, 0);
+    const overallAccuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
+    const masteredWords = boxCounts[5];
+    return { totalReviews, totalCorrect, totalIncorrect, overallAccuracy, masteredWords };
+  }, [words, boxCounts]);
 
   if (isLoading || langLoading) {
     return (
@@ -137,8 +141,8 @@ const Statistics: React.FC = () => {
 
         {/* Charts Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <WeeklyChart />
-          <AccuracyChart correct={totalCorrect} incorrect={totalIncorrect} />
+          <LazyWeeklyChart />
+          <LazyAccuracyChart correct={totalCorrect} incorrect={totalIncorrect} />
         </div>
 
         {/* Box Distribution */}
