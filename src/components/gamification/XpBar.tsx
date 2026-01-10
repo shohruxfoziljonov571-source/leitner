@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Zap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -8,7 +8,7 @@ interface XpBarProps {
   compact?: boolean;
 }
 
-const XpBar: React.FC<XpBarProps> = ({ compact = false }) => {
+const XpBar: React.FC<XpBarProps> = memo(({ compact = false }) => {
   const { xp, level, getCurrentLevelXp, getXpForNextLevel } = useGamification();
   
   const currentXp = getCurrentLevelXp();
@@ -59,6 +59,8 @@ const XpBar: React.FC<XpBarProps> = ({ compact = false }) => {
       <Progress value={progress} className="h-3" />
     </motion.div>
   );
-};
+});
+
+XpBar.displayName = 'XpBar';
 
 export default XpBar;

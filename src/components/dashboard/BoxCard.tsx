@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -17,7 +17,7 @@ const boxDescriptions = {
   5: 'box5Desc',
 };
 
-const BoxCard: React.FC<BoxCardProps> = ({ boxNumber, wordCount, totalWords, delay = 0 }) => {
+const BoxCard: React.FC<BoxCardProps> = memo(({ boxNumber, wordCount, totalWords, delay = 0 }) => {
   const { t } = useLanguage();
   const progress = totalWords > 0 ? (wordCount / totalWords) * 100 : 0;
 
@@ -67,6 +67,8 @@ const BoxCard: React.FC<BoxCardProps> = ({ boxNumber, wordCount, totalWords, del
       </div>
     </motion.div>
   );
-};
+});
+
+BoxCard.displayName = 'BoxCard';
 
 export default BoxCard;

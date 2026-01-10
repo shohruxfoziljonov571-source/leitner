@@ -48,7 +48,6 @@ export const useWordsDB = () => {
   const fetchWords = useCallback(async () => {
     if (!user || !activeLanguage) {
       setWords([]);
-      setIsLoading(false);
       return;
     }
 
@@ -64,8 +63,6 @@ export const useWordsDB = () => {
       setWords(data || []);
     } catch (error) {
       console.error('Error fetching words:', error);
-    } finally {
-      setIsLoading(false);
     }
   }, [user, activeLanguage]);
 
@@ -140,14 +137,16 @@ export const useWordsDB = () => {
   useEffect(() => {
     if (user && activeLanguage) {
       setIsLoading(true);
-      fetchWords();
-      fetchStats();
+      // Parallel fetch for better performance
+      Promise.all([fetchWords(), fetchStats()]).finally(() => {
+        setIsLoading(false);
+      });
     } else {
       setWords([]);
       setStats(getDefaultStats());
       setIsLoading(false);
     }
-  }, [user, activeLanguage, fetchWords, fetchStats]);
+  }, [user, activeLanguage]);
 
   const checkDuplicate = useCallback((originalWord: string) => {
     return words.some(w => 
