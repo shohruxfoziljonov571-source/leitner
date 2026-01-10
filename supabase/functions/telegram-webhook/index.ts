@@ -8,11 +8,16 @@ const corsHeaders = {
 
 const WEBAPP_URL = "https://leitner.lovable.app";
 
+// Cache for user profiles to reduce DB calls
+const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const startTime = Date.now();
 
   try {
     const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
@@ -27,212 +32,38 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-
-    // Parse Telegram webhook update
     const update = await req.json();
-    console.log("Telegram update:", JSON.stringify(update));
+    
+    // Handle inline queries (for sharing words)
+    if (update.inline_query) {
+      await handleInlineQuery(supabase, TELEGRAM_BOT_TOKEN, update.inline_query);
+      return quickResponse();
+    }
+
+    // Handle chosen inline result
+    if (update.chosen_inline_result) {
+      console.log("Inline result chosen:", update.chosen_inline_result.result_id);
+      return quickResponse();
+    }
 
     const chatId = update.message?.chat?.id || update.callback_query?.message?.chat?.id;
-    const username = update.message?.from?.username || update.callback_query?.from?.username;
+    const messageText = update.message?.text || "";
 
-    // Handle callback queries (inline keyboard button clicks)
+    // Handle callback queries with early return
     if (update.callback_query) {
-      const callbackData = update.callback_query.data;
-      const callbackChatId = update.callback_query.message.chat.id;
-      
-      // Answer callback query to remove loading state
-      await answerCallbackQuery(TELEGRAM_BOT_TOKEN, update.callback_query.id);
-
-      switch (callbackData) {
-        case "open_app":
-          await sendTelegramMessage(
-            TELEGRAM_BOT_TOKEN,
-            callbackChatId,
-            "📱 <b>Ilovani ochish</b>\n\n" +
-            "Quyidagi tugmani bosing:",
-            getWebAppButton()
-          );
-          break;
-        
-        case "my_stats":
-          await handleStatsCommand(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-        
-        case "words_to_review":
-          await handleWordsToReviewCommand(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-        
-        case "my_streak":
-          await handleStreakCommand(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-
-        case "my_rank":
-          await handleRankCommand(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-        
-        case "help":
-          await sendHelpMessage(TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-
-        case "settings":
-          await sendSettingsMenu(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-
-        case "notif_on":
-          await handleToggleNotifications(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, true);
-          break;
-
-        case "notif_off":
-          await handleToggleNotifications(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, false);
-          break;
-
-        case "set_time":
-          await sendTimeSettingsInfo(TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-
-        case "time_06:00":
-        case "time_08:00":
-        case "time_09:00":
-        case "time_12:00":
-        case "time_18:00":
-        case "time_21:00":
-          const time = callbackData.replace("time_", "");
-          await handleSetReminderTime(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, time);
-          break;
-
-        case "weekly_report":
-          await handleWeeklyReport(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
-          break;
-
-        case "back_to_menu":
-          await sendTelegramMessage(
-            TELEGRAM_BOT_TOKEN,
-            callbackChatId,
-            "📋 <b>Asosiy menyu</b>",
-            getMainMenuKeyboard()
-          );
-          break;
-      }
-
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await handleCallbackQuery(supabase, TELEGRAM_BOT_TOKEN, update.callback_query);
+      return quickResponse();
     }
 
-    // Handle /start command with deep link
-    if (update.message?.text?.startsWith("/start")) {
-      const text = update.message.text;
-      
-      // Extract deep link parameter (user_id:timestamp encoded in base64)
-      const parts = text.split(" ");
-      if (parts.length > 1) {
-        const linkToken = parts[1];
-        try {
-          const decoded = atob(linkToken);
-          const [userId, timestamp] = decoded.split(":");
-          
-          if (userId) {
-            // Link this Telegram chat to the user profile
-            const { error } = await supabase
-              .from("profiles")
-              .update({
-                telegram_chat_id: chatId,
-                telegram_username: username,
-                telegram_connected_at: new Date().toISOString(),
-              })
-              .eq("user_id", userId);
-
-            if (error) {
-              console.error("Error linking Telegram:", error);
-              await sendTelegramMessage(
-                TELEGRAM_BOT_TOKEN,
-                chatId,
-                "❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring."
-              );
-            } else {
-              // Create notification settings if not exists
-              await supabase
-                .from("notification_settings")
-                .upsert({
-                  user_id: userId,
-                  telegram_enabled: true,
-                }, { onConflict: "user_id" });
-
-              await sendTelegramMessage(
-                TELEGRAM_BOT_TOKEN,
-                chatId,
-                "✅ <b>Muvaffaqiyatli ulandi!</b>\n\n" +
-                "Endi siz so'zlarni takrorlash eslatmalarini shu yerda olasiz.\n\n" +
-                "📱 Ilovani ochish yoki buyruqlarni ko'rish uchun quyidagi tugmalardan foydalaning:",
-                getMainMenuKeyboard()
-              );
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing deep link:", e);
-          await sendWelcomeMessage(TELEGRAM_BOT_TOKEN, chatId);
-        }
-      } else {
-        // No deep link - just a regular /start
-        await sendWelcomeMessage(TELEGRAM_BOT_TOKEN, chatId);
-      }
+    // Handle text commands
+    if (update.message?.text) {
+      await handleTextCommand(supabase, TELEGRAM_BOT_TOKEN, chatId, messageText, update.message);
     }
 
-    // Handle /menu command
-    if (update.message?.text === "/menu") {
-      await sendTelegramMessage(
-        TELEGRAM_BOT_TOKEN,
-        chatId,
-        "📋 <b>Asosiy menyu</b>\n\nQuyidagi tugmalardan birini tanlang:",
-        getMainMenuKeyboard()
-      );
-    }
-
-    // Handle /help command
-    if (update.message?.text === "/help") {
-      await sendHelpMessage(TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /status command
-    if (update.message?.text === "/status") {
-      await handleStatusCommand(supabase, TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /stats command
-    if (update.message?.text === "/stats") {
-      await handleStatsCommand(supabase, TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /review command
-    if (update.message?.text === "/review") {
-      await handleWordsToReviewCommand(supabase, TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /streak command
-    if (update.message?.text === "/streak") {
-      await handleStreakCommand(supabase, TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /rank command
-    if (update.message?.text === "/rank") {
-      await handleRankCommand(supabase, TELEGRAM_BOT_TOKEN, chatId);
-    }
-
-    // Handle /app command
-    if (update.message?.text === "/app") {
-      await sendTelegramMessage(
-        TELEGRAM_BOT_TOKEN,
-        chatId,
-        "📱 <b>Leitner App</b>\n\nIlovani ochish uchun quyidagi tugmani bosing:",
-        getWebAppButton()
-      );
-    }
-
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.log(`Request processed in ${Date.now() - startTime}ms`);
+    return quickResponse();
   } catch (error) {
-    console.error("Error processing webhook:", error);
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -240,141 +71,435 @@ serve(async (req) => {
   }
 });
 
-// Helper functions
+function quickResponse() {
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-function getMainMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
-      [
-        { text: "📊 Statistika", callback_data: "my_stats" },
-        { text: "🔥 Streak", callback_data: "my_streak" },
-      ],
-      [
-        { text: "📚 Takrorlash", callback_data: "words_to_review" },
-        { text: "🏆 Reyting", callback_data: "my_rank" },
-      ],
-      [
-        { text: "⚙️ Sozlamalar", callback_data: "settings" },
-        { text: "❓ Yordam", callback_data: "help" },
-      ],
-    ],
+// ============ INLINE QUERY HANDLER ============
+async function handleInlineQuery(supabase: any, token: string, inlineQuery: any) {
+  const queryId = inlineQuery.id;
+  const query = inlineQuery.query.trim().toLowerCase();
+  const fromId = inlineQuery.from.id;
+
+  // Get user profile from cache or DB
+  const profile = await getCachedProfile(supabase, fromId);
+  
+  if (!profile) {
+    await answerInlineQuery(token, queryId, [{
+      type: "article",
+      id: "not_connected",
+      title: "❌ Hisob ulanmagan",
+      description: "Avval botni hisobingizga ulang",
+      input_message_content: {
+        message_text: "❌ Leitner App hisobiga ulanmagan. @Leitner_robot ga /start yuboring.",
+      },
+    }]);
+    return;
+  }
+
+  // Search user's words
+  let wordsQuery = supabase
+    .from("words")
+    .select("id, original_word, translated_word, source_language, target_language, box_number")
+    .eq("user_id", profile.userId)
+    .limit(20);
+
+  if (query.length > 0) {
+    wordsQuery = wordsQuery.or(`original_word.ilike.%${query}%,translated_word.ilike.%${query}%`);
+  }
+
+  const { data: words } = await wordsQuery;
+
+  if (!words || words.length === 0) {
+    await answerInlineQuery(token, queryId, [{
+      type: "article",
+      id: "no_words",
+      title: "📭 So'z topilmadi",
+      description: query ? `"${query}" bo'yicha so'z topilmadi` : "Siz hali so'z qo'shmagansiz",
+      input_message_content: {
+        message_text: "📱 Leitner App - So'z o'rganish ilovasi\n\n" + WEBAPP_URL,
+      },
+    }]);
+    return;
+  }
+
+  const results = words.map((word: any, index: number) => ({
+    type: "article",
+    id: `word_${word.id}_${index}`,
+    title: `${word.original_word} → ${word.translated_word}`,
+    description: `📦 Box ${word.box_number} | ${getLanguageEmoji(word.source_language)} → ${getLanguageEmoji(word.target_language)}`,
+    input_message_content: {
+      message_text: 
+        `📚 <b>Leitner App - So'z</b>\n\n` +
+        `${getLanguageEmoji(word.source_language)} <b>${word.original_word}</b>\n` +
+        `${getLanguageEmoji(word.target_language)} ${word.translated_word}\n\n` +
+        `📦 Box: ${word.box_number}/5\n\n` +
+        `🎓 O'rganish uchun: ${WEBAPP_URL}`,
+      parse_mode: "HTML",
+    },
+  }));
+
+  await answerInlineQuery(token, queryId, results);
+}
+
+// ============ CALLBACK QUERY HANDLER ============
+async function handleCallbackQuery(supabase: any, token: string, callbackQuery: any) {
+  const data = callbackQuery.data;
+  const chatId = callbackQuery.message.chat.id;
+  
+  // Answer immediately to remove loading
+  answerCallbackQuery(token, callbackQuery.id);
+
+  // Handle time settings
+  if (data.startsWith("time_")) {
+    const time = data.replace("time_", "");
+    await handleSetReminderTime(supabase, token, chatId, time);
+    return;
+  }
+
+  // Use switch for other callbacks
+  const handlers: Record<string, () => Promise<void>> = {
+    "open_app": async () => { await sendMessage(token, chatId, "📱 <b>Ilovani ochish</b>", getWebAppButton()); },
+    "my_stats": () => handleStatsCommand(supabase, token, chatId),
+    "words_to_review": () => handleWordsToReviewCommand(supabase, token, chatId),
+    "my_streak": () => handleStreakCommand(supabase, token, chatId),
+    "my_rank": () => handleRankCommand(supabase, token, chatId),
+    "help": () => sendHelpMessage(token, chatId),
+    "settings": () => sendSettingsMenu(supabase, token, chatId),
+    "notif_on": () => handleToggleNotifications(supabase, token, chatId, true),
+    "notif_off": () => handleToggleNotifications(supabase, token, chatId, false),
+    "set_time": () => sendTimeSettingsInfo(token, chatId),
+    "weekly_report": () => handleWeeklyReport(supabase, token, chatId),
+    "challenge": () => handleChallengeCommand(supabase, token, chatId),
+    "join_challenge": () => handleJoinChallenge(supabase, token, chatId),
+    "back_to_menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
   };
+
+  const handler = handlers[data];
+  if (handler) await handler();
 }
 
-function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string) {
-  return {
-    inline_keyboard: [
-      [
-        notificationsEnabled 
-          ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
-          : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }
-      ],
-      [{ text: `⏰ Eslatma vaqti: ${currentTime || '09:00'}`, callback_data: "set_time" }],
-      [
-        { text: "🌅 06:00", callback_data: "time_06:00" },
-        { text: "🌄 08:00", callback_data: "time_08:00" },
-        { text: "🌅 09:00", callback_data: "time_09:00" },
-      ],
-      [
-        { text: "☀️ 12:00", callback_data: "time_12:00" },
-        { text: "🌆 18:00", callback_data: "time_18:00" },
-        { text: "🌙 21:00", callback_data: "time_21:00" },
-      ],
-      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
-      [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
-    ],
+// ============ TEXT COMMAND HANDLER ============
+async function handleTextCommand(supabase: any, token: string, chatId: number, text: string, message: any) {
+  const username = message.from?.username;
+
+  // Handle /add command
+  if (text.startsWith("/add ") || text.startsWith("/add\n")) {
+    await handleAddWordCommand(supabase, token, chatId, text.slice(5).trim());
+    return;
+  }
+
+  // Simple command routing
+  const commands: Record<string, () => Promise<void>> = {
+    "/start": () => handleStartCommand(supabase, token, chatId, text, username),
+    "/menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
+    "/help": () => sendHelpMessage(token, chatId),
+    "/status": () => handleStatusCommand(supabase, token, chatId),
+    "/stats": () => handleStatsCommand(supabase, token, chatId),
+    "/review": () => handleWordsToReviewCommand(supabase, token, chatId),
+    "/streak": () => handleStreakCommand(supabase, token, chatId),
+    "/rank": () => handleRankCommand(supabase, token, chatId),
+    "/challenge": () => handleChallengeCommand(supabase, token, chatId),
+    "/app": async () => { await sendMessage(token, chatId, "📱 <b>Leitner App</b>", getWebAppButton()); },
   };
-}
 
-function getWebAppButton() {
-  return {
-    inline_keyboard: [
-      [{ text: "📱 Leitner App'ni ochish", web_app: { url: WEBAPP_URL } }],
-    ],
-  };
-}
-
-async function sendWelcomeMessage(token: string, chatId: number) {
-  await sendTelegramMessage(
-    token,
-    chatId,
-    "👋 <b>Salom! Leitner App botiga xush kelibsiz!</b>\n\n" +
-    "🎓 Bu bot orqali:\n" +
-    "• So'zlarni takrorlash eslatmalarini olasiz\n" +
-    "• Statistikangizni ko'rasiz\n" +
-    "• Ilovani to'g'ridan-to'g'ri ochasiz\n\n" +
-    "📱 <b>Ilovadan botni ulash uchun:</b>\n" +
-    "Profil → Telegram → Ulash tugmasini bosing\n\n" +
-    "Yoki hoziroq ilovani oching:",
-    getMainMenuKeyboard()
-  );
-}
-
-async function sendHelpMessage(token: string, chatId: number) {
-  await sendTelegramMessage(
-    token,
-    chatId,
-    "📚 <b>Leitner App Bot - Yordam</b>\n\n" +
-    "Bu bot sizga so'zlarni takrorlash vaqti kelganda eslatma yuboradi.\n\n" +
-    "<b>Buyruqlar:</b>\n" +
-    "/start - Botni ishga tushirish\n" +
-    "/menu - Asosiy menyuni ko'rsatish\n" +
-    "/app - Ilovani ochish\n" +
-    "/stats - Statistikani ko'rish\n" +
-    "/review - Takrorlash kerak so'zlar\n" +
-    "/streak - Streak ma'lumotlari\n" +
-    "/rank - Reytingdagi o'rningiz\n" +
-    "/status - Ulanish holatini tekshirish\n" +
-    "/help - Yordam\n\n" +
-    "❓ Savollar uchun: Ilovadagi Sozlamalar bo'limiga o'ting",
-    getMainMenuKeyboard()
-  );
-}
-
-async function handleStatusCommand(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id, full_name")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (profile) {
-    await sendTelegramMessage(
-      token,
-      chatId,
-      `✅ <b>Hisob ulangan!</b>\n\n👤 ${profile.full_name || "Foydalanuvchi"}\n\n📱 Eslatmalar faol`,
-      getMainMenuKeyboard()
-    );
-  } else {
-    await sendTelegramMessage(
-      token,
-      chatId,
-      "❌ <b>Hisob ulanmagan.</b>\n\n📱 Ilovadan botni ulash uchun:\nProfil → Telegram → Ulash",
-      getWebAppButton()
-    );
+  // Check for exact match or command with bot username
+  for (const [cmd, handler] of Object.entries(commands)) {
+    if (text === cmd || text.startsWith(cmd + " ") || text.startsWith(cmd + "@")) {
+      await handler();
+      return;
+    }
   }
 }
 
-async function handleStatsCommand(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
+// ============ COMMAND HANDLERS ============
+
+async function handleStartCommand(supabase: any, token: string, chatId: number, text: string, username?: string) {
+  const parts = text.split(" ");
+  
+  if (parts.length > 1) {
+    try {
+      const decoded = atob(parts[1]);
+      const [userId] = decoded.split(":");
+      
+      if (userId) {
+        await supabase
+          .from("profiles")
+          .update({
+            telegram_chat_id: chatId,
+            telegram_username: username,
+            telegram_connected_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+
+        await supabase
+          .from("notification_settings")
+          .upsert({ user_id: userId, telegram_enabled: true }, { onConflict: "user_id" });
+
+        // Clear cache
+        profileCache.delete(chatId);
+
+        await sendMessage(
+          token, chatId,
+          "✅ <b>Muvaffaqiyatli ulandi!</b>\n\n" +
+          "Endi siz eslatmalar olasiz va bot orqali so'z qo'shishingiz mumkin.\n\n" +
+          "💡 <b>Foydali:</b>\n" +
+          "• /add so'z - tarjima - tezkor so'z qo'shish\n" +
+          "• @Leitner_robot yozing - so'zlarni ulashing\n" +
+          "• /challenge - haftalik musobaqaga qo'shiling",
+          getMainMenuKeyboard()
+        );
+        return;
+      }
+    } catch (e) {
+      console.error("Deep link error:", e);
+    }
+  }
+
+  await sendWelcomeMessage(token, chatId);
+}
+
+async function handleAddWordCommand(supabase: any, token: string, chatId: number, input: string) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    return;
+  }
+
+  // Parse: "word - translation" or "word = translation" or "word : translation"
+  const separators = [" - ", " = ", " : ", "-", "=", ":"];
+  let word = "", translation = "";
+
+  for (const sep of separators) {
+    if (input.includes(sep)) {
+      const parts = input.split(sep);
+      if (parts.length >= 2) {
+        word = parts[0].trim();
+        translation = parts.slice(1).join(sep).trim();
+        break;
+      }
+    }
+  }
+
+  if (!word || !translation) {
+    await sendMessage(
+      token, chatId,
+      "❌ <b>Noto'g'ri format</b>\n\n" +
+      "To'g'ri format:\n" +
+      "<code>/add so'z - tarjima</code>\n\n" +
+      "Misol:\n" +
+      "<code>/add hello - salom</code>\n" +
+      "<code>/add computer - kompyuter</code>"
+    );
+    return;
+  }
+
+  // Get user's default language pair
+  const { data: userLang } = await supabase
+    .from("user_languages")
+    .select("id, source_language, target_language")
+    .eq("user_id", profile.userId)
+    .limit(1)
     .maybeSingle();
 
+  if (!userLang) {
+    await sendMessage(token, chatId, "❌ Avval ilovada til tanlang!", getWebAppButton());
+    return;
+  }
+
+  // Check for duplicate
+  const { data: existing } = await supabase
+    .from("words")
+    .select("id")
+    .eq("user_id", profile.userId)
+    .eq("original_word", word.toLowerCase())
+    .maybeSingle();
+
+  if (existing) {
+    await sendMessage(token, chatId, `⚠️ <b>"${word}"</b> allaqachon mavjud!`);
+    return;
+  }
+
+  // Add word
+  const { error } = await supabase.from("words").insert({
+    user_id: profile.userId,
+    user_language_id: userLang.id,
+    original_word: word,
+    translated_word: translation,
+    source_language: userLang.source_language,
+    target_language: userLang.target_language,
+  });
+
+  if (error) {
+    console.error("Add word error:", error);
+    await sendMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
+    return;
+  }
+
+  // Update stats
+  await supabase
+    .from("user_stats")
+    .update({ total_words: supabase.rpc("increment_total_words") })
+    .eq("user_id", profile.userId)
+    .eq("user_language_id", userLang.id);
+
+  await sendMessage(
+    token, chatId,
+    `✅ <b>So'z qo'shildi!</b>\n\n` +
+    `${getLanguageEmoji(userLang.source_language)} <b>${word}</b>\n` +
+    `${getLanguageEmoji(userLang.target_language)} ${translation}\n\n` +
+    `📦 Box 1 ga joylashtirildi`,
+    {
+      inline_keyboard: [
+        [{ text: "➕ Yana qo'shish", callback_data: "add_more" }],
+        [{ text: "📚 O'rganishni boshlash", web_app: { url: WEBAPP_URL } }],
+      ],
+    }
+  );
+}
+
+async function handleChallengeCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
   if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  // Get or create current week's challenge
+  const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
+
+  // Get challenge info and participants
+  const [challengeResult, participantsResult, userParticipation] = await Promise.all([
+    supabase.from("weekly_challenges").select("*").eq("id", challengeId).maybeSingle(),
+    supabase
+      .from("weekly_challenge_participants")
+      .select(`
+        user_id,
+        xp_earned,
+        words_reviewed,
+        days_active
+      `)
+      .eq("challenge_id", challengeId)
+      .order("xp_earned", { ascending: false })
+      .limit(10),
+    supabase
+      .from("weekly_challenge_participants")
+      .select("*")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", profile.userId)
+      .maybeSingle(),
+  ]);
+
+  const challenge = challengeResult.data;
+  const participants = participantsResult.data || [];
+  const isJoined = !!userParticipation.data;
+
+  // Get participant names
+  const userIds = participants.map((p: any) => p.user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .in("user_id", userIds);
+
+  const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p.full_name]) || []);
+
+  // Calculate days left
+  const endDate = new Date(challenge.week_end);
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+  let leaderboard = "";
+  participants.forEach((p: any, i: number) => {
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    const name = profileMap.get(p.user_id) || "Noma'lum";
+    const isMe = p.user_id === profile.userId;
+    leaderboard += `${medal} ${isMe ? "<b>" : ""}${name}${isMe ? "</b>" : ""} - ${p.xp_earned} XP\n`;
+  });
+
+  const message = 
+    `🏆 <b>Haftalik Challenge</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📅 ${challenge.week_start} - ${challenge.week_end}\n` +
+    `⏰ ${daysLeft} kun qoldi\n` +
+    `👥 ${participants.length} ishtirokchi\n\n` +
+    `📊 <b>Liderlar:</b>\n` +
+    (leaderboard || "Hali ishtirokchilar yo'q\n") +
+    `\n` +
+    (isJoined 
+      ? `✅ Siz qatnashyapsiz!\n💎 Sizning XP: ${userParticipation.data.xp_earned}`
+      : `❌ Siz hali qo'shilmagansiz`);
+
+  await sendMessage(token, chatId, message, {
+    inline_keyboard: [
+      isJoined 
+        ? [{ text: "📱 O'ynashni davom ettirish", web_app: { url: WEBAPP_URL } }]
+        : [{ text: "🚀 Qo'shilish", callback_data: "join_challenge" }],
+      [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
+    ],
+  });
+}
+
+async function handleJoinChallenge(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
+
+  const { error } = await supabase
+    .from("weekly_challenge_participants")
+    .upsert({
+      challenge_id: challengeId,
+      user_id: profile.userId,
+      xp_earned: 0,
+      words_reviewed: 0,
+      days_active: 0,
+    }, { onConflict: "challenge_id,user_id" });
+
+  if (error) {
+    console.error("Join challenge error:", error);
+    await sendMessage(token, chatId, "❌ Xatolik yuz berdi.");
+    return;
+  }
+
+  await sendMessage(
+    token, chatId,
+    "🎉 <b>Challenge'ga qo'shildingiz!</b>\n\n" +
+    "Bu hafta eng ko'p XP yig'ing va g'olib bo'ling! 🏆\n\n" +
+    "💡 XP yig'ish uchun:\n" +
+    "• So'zlarni takrorlang\n" +
+    "• Har kuni o'ynang (streak bonus)\n" +
+    "• To'g'ri javob bering",
+    {
+      inline_keyboard: [
+        [{ text: "📱 O'ynashni boshlash", web_app: { url: WEBAPP_URL } }],
+        [{ text: "🏆 Reytingni ko'rish", callback_data: "challenge" }],
+      ],
+    }
+  );
+}
+
+async function handleStatsCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
   const { data: stats } = await supabase
     .from("user_stats")
     .select("xp, level, streak, total_words, learned_words, today_reviewed, today_correct")
-    .eq("user_id", profile.user_id);
+    .eq("user_id", profile.userId);
 
-  if (!stats || stats.length === 0) {
-    await sendTelegramMessage(token, chatId, "📊 Hali statistika yo'q. So'z qo'shishni boshlang!");
+  if (!stats?.length) {
+    await sendMessage(token, chatId, "📊 Hali statistika yo'q. So'z qo'shishni boshlang!");
     return;
   }
 
@@ -386,46 +511,32 @@ async function handleStatsCommand(supabase: any, token: string, chatId: number) 
   const todayReviewed = stats.reduce((sum: number, s: any) => sum + (s.today_reviewed || 0), 0);
   const todayCorrect = stats.reduce((sum: number, s: any) => sum + (s.today_correct || 0), 0);
 
-  await sendTelegramMessage(
-    token,
-    chatId,
-    `📊 <b>Sizning statistikangiz</b>\n\n` +
-    `⭐ Daraja: ${maxLevel}\n` +
-    `💎 XP: ${totalXp.toLocaleString()}\n` +
-    `🔥 Streak: ${maxStreak} kun\n\n` +
-    `📚 Jami so'zlar: ${totalWords}\n` +
-    `✅ O'rganilgan: ${learnedWords}\n\n` +
-    `📅 Bugun takrorlangan: ${todayReviewed}\n` +
-    `🎯 Bugun to'g'ri: ${todayCorrect}`,
+  await sendMessage(
+    token, chatId,
+    `📊 <b>${profile.fullName || "Sizning"} statistikangiz</b>\n\n` +
+    `⭐ Daraja: ${maxLevel}\n💎 XP: ${totalXp.toLocaleString()}\n🔥 Streak: ${maxStreak} kun\n\n` +
+    `📚 Jami: ${totalWords} | ✅ O'rganilgan: ${learnedWords}\n` +
+    `📅 Bugun: ${todayReviewed} | 🎯 To'g'ri: ${todayCorrect}`,
     getMainMenuKeyboard()
   );
 }
 
 async function handleWordsToReviewCommand(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
+  const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
-  const now = new Date().toISOString();
-  const { data: words, error } = await supabase
+  const { count } = await supabase
     .from("words")
-    .select("id")
-    .eq("user_id", profile.user_id)
-    .lte("next_review_time", now);
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", profile.userId)
+    .lte("next_review_time", new Date().toISOString());
 
-  const count = words?.length || 0;
-
-  await sendTelegramMessage(
-    token,
-    chatId,
-    count > 0
+  await sendMessage(
+    token, chatId,
+    count! > 0
       ? `📚 <b>Takrorlash kerak:</b> ${count} ta so'z\n\nHoziroq boshlang!`
       : "🎉 <b>Ajoyib!</b> Hozircha takrorlash kerak so'z yo'q!",
     getWebAppButton()
@@ -433,365 +544,336 @@ async function handleWordsToReviewCommand(supabase: any, token: string, chatId: 
 }
 
 async function handleStreakCommand(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
+  const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
   const { data: stats } = await supabase
     .from("user_stats")
-    .select("streak, last_active_date")
-    .eq("user_id", profile.user_id);
+    .select("streak")
+    .eq("user_id", profile.userId);
 
   const maxStreak = stats?.reduce((max: number, s: any) => Math.max(max, s.streak || 0), 0) || 0;
-  const lastActive = stats?.[0]?.last_active_date;
-
-  let message = `🔥 <b>Sizning streak:</b> ${maxStreak} kun\n\n`;
   
-  if (maxStreak === 0) {
-    message += "Har kuni o'rganib streak'ingizni oshiring!";
-  } else if (maxStreak < 7) {
-    message += "Yaxshi boshladingiz! Davom eting! 💪";
-  } else if (maxStreak < 30) {
-    message += "Zo'r natija! Siz muntazamsiz! 🌟";
-  } else if (maxStreak < 100) {
-    message += "Ajoyib! Siz haqiqiy o'rganuvchisiz! 🏆";
-  } else {
-    message += "Incredibleeee! Siz chempionsiz! 👑";
-  }
+  const messages = [
+    [0, "Har kuni o'rganib streak'ingizni oshiring! 💪"],
+    [7, "Yaxshi boshladingiz! Davom eting! 💪"],
+    [30, "Zo'r natija! Siz muntazamsiz! 🌟"],
+    [100, "Ajoyib! Siz haqiqiy o'rganuvchisiz! 🏆"],
+    [Infinity, "Incredible! Siz chempionsiz! 👑"],
+  ];
 
-  await sendTelegramMessage(token, chatId, message, getMainMenuKeyboard());
-}
+  const msg = messages.find(([threshold]) => maxStreak < threshold)![1];
 
-async function handleRankCommand(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!");
-    return;
-  }
-
-  // Get all users' XP
-  const { data: allStats } = await supabase
-    .from("user_stats")
-    .select("user_id, xp");
-
-  // Aggregate by user
-  const userXpMap = new Map<string, number>();
-  for (const stat of allStats || []) {
-    const existing = userXpMap.get(stat.user_id) || 0;
-    userXpMap.set(stat.user_id, existing + (stat.xp || 0));
-  }
-
-  // Sort by XP
-  const sorted = Array.from(userXpMap.entries()).sort((a, b) => b[1] - a[1]);
-  const rank = sorted.findIndex(([userId]) => userId === profile.user_id) + 1;
-  const myXp = userXpMap.get(profile.user_id) || 0;
-  const totalUsers = sorted.length;
-
-  let emoji = "📊";
-  if (rank === 1) emoji = "👑";
-  else if (rank === 2) emoji = "🥈";
-  else if (rank === 3) emoji = "🥉";
-  else if (rank <= 10) emoji = "🏆";
-
-  await sendTelegramMessage(
-    token,
-    chatId,
-    `${emoji} <b>Reytingdagi o'rningiz</b>\n\n` +
-    `🏅 O'rin: <b>#${rank}</b> / ${totalUsers}\n` +
-    `💎 XP: ${myXp.toLocaleString()}\n\n` +
-    (rank === 1 ? "🎉 Siz birinchi o'rindasiz! Davom eting!" : 
-     rank <= 3 ? "🌟 Zo'r natija! Top 3 dasiz!" :
-     rank <= 10 ? "💪 Top 10 ichida! Yaxshi ish!" :
-     "📈 Ko'proq XP yig'ing va yuqoriga ko'taring!"),
+  await sendMessage(
+    token, chatId,
+    `🔥 <b>Sizning streak:</b> ${maxStreak} kun\n\n${msg}`,
     getMainMenuKeyboard()
   );
 }
 
-async function sendTelegramMessage(
-  token: string, 
-  chatId: number, 
-  text: string, 
-  replyMarkup?: any
-) {
-  const body: any = {
-    chat_id: chatId,
-    text: text,
-    parse_mode: "HTML",
-  };
-
-  if (replyMarkup) {
-    body.reply_markup = replyMarkup;
+async function handleRankCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    return;
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const { data: allStats } = await supabase.from("user_stats").select("user_id, xp");
+
+  const userXpMap = new Map<string, number>();
+  for (const stat of allStats || []) {
+    userXpMap.set(stat.user_id, (userXpMap.get(stat.user_id) || 0) + (stat.xp || 0));
+  }
+
+  const sorted = Array.from(userXpMap.entries()).sort((a, b) => b[1] - a[1]);
+  const rank = sorted.findIndex(([userId]) => userId === profile.userId) + 1;
+  const myXp = userXpMap.get(profile.userId) || 0;
+
+  const emoji = rank === 1 ? "👑" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank <= 10 ? "🏆" : "📊";
+  const msg = rank === 1 ? "🎉 Siz birinchi o'rindasiz!" : 
+              rank <= 3 ? "🌟 Top 3 dasiz!" : 
+              rank <= 10 ? "💪 Top 10 ichida!" : "📈 Ko'proq XP yig'ing!";
+
+  await sendMessage(
+    token, chatId,
+    `${emoji} <b>Reytingdagi o'rningiz</b>\n\n🏅 O'rin: <b>#${rank}</b> / ${sorted.length}\n💎 XP: ${myXp.toLocaleString()}\n\n${msg}`,
+    getMainMenuKeyboard()
+  );
+}
+
+async function handleStatusCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
   
-  if (!response.ok) {
-    console.error("Error sending Telegram message:", await response.text());
+  if (profile) {
+    await sendMessage(
+      token, chatId,
+      `✅ <b>Hisob ulangan!</b>\n\n👤 ${profile.fullName || "Foydalanuvchi"}\n\n📱 Eslatmalar faol`,
+      getMainMenuKeyboard()
+    );
+  } else {
+    await sendMessage(token, chatId, "❌ <b>Hisob ulanmagan.</b>\n\nProfil → Telegram → Ulash", getWebAppButton());
   }
-  
-  return response;
 }
 
-async function answerCallbackQuery(token: string, callbackQueryId: string) {
-  await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      callback_query_id: callbackQueryId,
-    }),
-  });
-}
-
-async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
+async function handleWeeklyReport(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
-  const { data: settings } = await supabase
-    .from("notification_settings")
-    .select("telegram_enabled, daily_reminder_time")
-    .eq("user_id", profile.user_id)
-    .maybeSingle();
-
-  const notificationsEnabled = settings?.telegram_enabled || false;
-  const currentTime = settings?.daily_reminder_time?.slice(0, 5) || "09:00";
-
-  await sendTelegramMessage(
-    token,
-    chatId,
-    "⚙️ <b>Sozlamalar</b>\n\n" +
-    "Quyidagi sozlamalarni o'zgartirishingiz mumkin:",
-    getSettingsKeyboard(notificationsEnabled, currentTime)
-  );
-}
-
-async function handleToggleNotifications(
-  supabase: any, 
-  token: string, 
-  chatId: number, 
-  enabled: boolean
-) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
-    return;
-  }
-
-  const { error } = await supabase
-    .from("notification_settings")
-    .upsert({
-      user_id: profile.user_id,
-      telegram_enabled: enabled,
-    }, { onConflict: "user_id" });
-
-  if (error) {
-    console.error("Error updating notification settings:", error);
-    await sendTelegramMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
-    return;
-  }
-
-  const { data: settings } = await supabase
-    .from("notification_settings")
-    .select("daily_reminder_time")
-    .eq("user_id", profile.user_id)
-    .maybeSingle();
-
-  const currentTime = settings?.daily_reminder_time?.slice(0, 5) || "09:00";
-
-  const message = enabled
-    ? "🔔 <b>Bildirishnomalar yoqildi!</b>\n\nEndi siz so'zlarni takrorlash eslatmalarini olasiz."
-    : "🔕 <b>Bildirishnomalar o'chirildi.</b>\n\nBildirishnomalar yuborilmaydi.";
-
-  await sendTelegramMessage(
-    token,
-    chatId,
-    message,
-    getSettingsKeyboard(enabled, currentTime)
-  );
-}
-
-async function sendTimeSettingsInfo(token: string, chatId: number) {
-  await sendTelegramMessage(
-    token,
-    chatId,
-    "⏰ <b>Eslatma vaqtini tanlang</b>\n\n" +
-    "Quyidagi vaqtlardan birini tanlang. Har kuni shu vaqtda eslatma olasiz:",
-  );
-}
-
-async function handleSetReminderTime(
-  supabase: any,
-  token: string,
-  chatId: number,
-  time: string
-) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
-    return;
-  }
-
-  const { error } = await supabase
-    .from("notification_settings")
-    .upsert({
-      user_id: profile.user_id,
-      daily_reminder_time: time,
-      telegram_enabled: true,
-    }, { onConflict: "user_id" });
-
-  if (error) {
-    console.error("Error setting reminder time:", error);
-    await sendTelegramMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
-    return;
-  }
-
-  await sendTelegramMessage(
-    token,
-    chatId,
-    `✅ <b>Eslatma vaqti o'zgartirildi!</b>\n\n` +
-    `⏰ Yangi vaqt: <b>${time}</b>\n\n` +
-    `Har kuni shu vaqtda eslatma olasiz.`,
-    getSettingsKeyboard(true, time)
-  );
-}
-
-async function handleWeeklyReport(
-  supabase: any,
-  token: string,
-  chatId: number
-) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id, full_name")
-    .eq("telegram_chat_id", chatId)
-    .maybeSingle();
-
-  if (!profile) {
-    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
-    return;
-  }
-
-  // Get stats from the last 7 days
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const startDate = oneWeekAgo.toISOString().split('T')[0];
 
-  const { data: dailyStats } = await supabase
-    .from("daily_stats")
-    .select("date, words_reviewed, words_correct, xp_earned")
-    .eq("user_id", profile.user_id)
-    .gte("date", startDate)
-    .order("date", { ascending: true });
+  const [dailyResult, statsResult] = await Promise.all([
+    supabase
+      .from("daily_stats")
+      .select("date, words_reviewed, words_correct, xp_earned")
+      .eq("user_id", profile.userId)
+      .gte("date", oneWeekAgo.toISOString().split('T')[0]),
+    supabase
+      .from("user_stats")
+      .select("xp, level, streak, total_words, learned_words")
+      .eq("user_id", profile.userId),
+  ]);
 
-  // Get current user stats
-  const { data: userStats } = await supabase
-    .from("user_stats")
-    .select("xp, level, streak, total_words, learned_words")
-    .eq("user_id", profile.user_id);
+  const dailyStats = dailyResult.data || [];
+  const userStats = statsResult.data || [];
 
-  // Calculate weekly totals
-  let totalReviewed = 0;
-  let totalCorrect = 0;
-  let totalXp = 0;
-  let daysActive = 0;
-
-  for (const stat of dailyStats || []) {
+  let totalReviewed = 0, totalCorrect = 0, totalXp = 0, daysActive = 0;
+  for (const stat of dailyStats) {
     totalReviewed += stat.words_reviewed || 0;
     totalCorrect += stat.words_correct || 0;
     totalXp += stat.xp_earned || 0;
     if ((stat.words_reviewed || 0) > 0) daysActive++;
   }
 
-  const accuracy = totalReviewed > 0 
-    ? Math.round((totalCorrect / totalReviewed) * 100) 
-    : 0;
+  const currentXp = userStats.reduce((sum: number, s: any) => sum + (s.xp || 0), 0);
+  const currentLevel = Math.max(...userStats.map((s: any) => s.level || 1));
+  const currentStreak = Math.max(...userStats.map((s: any) => s.streak || 0));
+  const totalWords = userStats.reduce((sum: number, s: any) => sum + (s.total_words || 0), 0);
+  const learnedWords = userStats.reduce((sum: number, s: any) => sum + (s.learned_words || 0), 0);
 
-  // Aggregate user stats
-  const currentXp = userStats?.reduce((sum: number, s: any) => sum + (s.xp || 0), 0) || 0;
-  const currentLevel = Math.max(...(userStats?.map((s: any) => s.level || 1) || [1]));
-  const currentStreak = Math.max(...(userStats?.map((s: any) => s.streak || 0) || [0]));
-  const totalWords = userStats?.reduce((sum: number, s: any) => sum + (s.total_words || 0), 0) || 0;
-  const learnedWords = userStats?.reduce((sum: number, s: any) => sum + (s.learned_words || 0), 0) || 0;
-
-  // Generate progress bar
+  const accuracy = totalReviewed > 0 ? Math.round((totalCorrect / totalReviewed) * 100) : 0;
   const progressPercent = totalWords > 0 ? Math.round((learnedWords / totalWords) * 100) : 0;
-  const progressBar = generateProgressBar(progressPercent);
+  const progressBar = "▓".repeat(Math.round(progressPercent / 10)) + "░".repeat(10 - Math.round(progressPercent / 10));
 
-  // Day breakdown with emojis
-  const dayEmojis = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
   let weekBreakdown = "";
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
-    const dayStat = dailyStats?.find((s: any) => s.date === dateStr);
-    const dayIndex = date.getDay();
-    const emoji = (dayStat?.words_reviewed || 0) > 0 ? "🟢" : "⚪️";
-    weekBreakdown += `${emoji} `;
+    const dayStat = dailyStats.find((s: any) => s.date === dateStr);
+    weekBreakdown += (dayStat?.words_reviewed || 0) > 0 ? "🟢 " : "⚪️ ";
   }
 
-  const reportMessage = 
-    `📊 <b>Haftalik Hisobot</b>\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `👤 <b>${profile.full_name || 'Foydalanuvchi'}</b>\n\n` +
-    `📅 <b>Oxirgi 7 kun:</b>\n` +
-    `${weekBreakdown}\n\n` +
-    `📈 <b>Haftalik natijalar:</b>\n` +
-    `• Takrorlangan: ${totalReviewed} ta so'z\n` +
-    `• To'g'ri javoblar: ${totalCorrect} (${accuracy}%)\n` +
-    `• XP yig'ildi: +${totalXp}\n` +
-    `• Faol kunlar: ${daysActive}/7\n\n` +
-    `🏆 <b>Joriy holat:</b>\n` +
-    `• Daraja: ⭐️ ${currentLevel}\n` +
-    `• Jami XP: 💎 ${currentXp.toLocaleString()}\n` +
-    `• Streak: 🔥 ${currentStreak} kun\n\n` +
-    `📚 <b>So'zlar progress:</b>\n` +
-    `${progressBar} ${progressPercent}%\n` +
-    `${learnedWords} / ${totalWords} so'z o'rganilgan\n\n` +
-    (daysActive >= 5 
-      ? "🌟 <b>Ajoyib hafta!</b> Davom eting!"
-      : daysActive >= 3 
-      ? "👍 <b>Yaxshi hafta!</b> Ozgina ko'proq harakat!"
-      : "💪 <b>Ko'proq mashq qiling!</b> Har kuni 5 daqiqa!");
+  const motivation = daysActive >= 5 ? "🌟 Ajoyib hafta!" : daysActive >= 3 ? "👍 Yaxshi!" : "💪 Ko'proq mashq!";
 
-  await sendTelegramMessage(token, chatId, reportMessage, getMainMenuKeyboard());
+  await sendMessage(
+    token, chatId,
+    `📊 <b>Haftalik Hisobot</b>\n━━━━━━━━━━━━━━━━\n\n` +
+    `👤 <b>${profile.fullName || 'Foydalanuvchi'}</b>\n\n` +
+    `📅 Oxirgi 7 kun:\n${weekBreakdown}\n\n` +
+    `📈 Hafta:\n• ${totalReviewed} takrorlangan (${accuracy}%)\n• +${totalXp} XP\n• ${daysActive}/7 kun\n\n` +
+    `🏆 Holat:\n• ⭐️ ${currentLevel} daraja | 💎 ${currentXp} XP\n• 🔥 ${currentStreak} kun streak\n\n` +
+    `📚 Progress:\n${progressBar} ${progressPercent}%\n${learnedWords}/${totalWords} so'z\n\n${motivation}`,
+    getMainMenuKeyboard()
+  );
 }
 
-function generateProgressBar(percent: number): string {
-  const filled = Math.round(percent / 10);
-  const empty = 10 - filled;
-  return "▓".repeat(filled) + "░".repeat(empty);
+async function handleToggleNotifications(supabase: any, token: string, chatId: number, enabled: boolean) {
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  await supabase
+    .from("notification_settings")
+    .upsert({ user_id: profile.userId, telegram_enabled: enabled }, { onConflict: "user_id" });
+
+  const { data: settings } = await supabase
+    .from("notification_settings")
+    .select("daily_reminder_time")
+    .eq("user_id", profile.userId)
+    .maybeSingle();
+
+  const msg = enabled ? "🔔 <b>Bildirishnomalar yoqildi!</b>" : "🔕 <b>Bildirishnomalar o'chirildi.</b>";
+  await sendMessage(token, chatId, msg, getSettingsKeyboard(enabled, settings?.daily_reminder_time?.slice(0, 5)));
+}
+
+async function handleSetReminderTime(supabase: any, token: string, chatId: number, time: string) {
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  await supabase
+    .from("notification_settings")
+    .upsert({ user_id: profile.userId, daily_reminder_time: time, telegram_enabled: true }, { onConflict: "user_id" });
+
+  await sendMessage(
+    token, chatId,
+    `✅ <b>Eslatma vaqti: ${time}</b>\n\nHar kuni shu vaqtda eslatma olasiz.`,
+    getSettingsKeyboard(true, time)
+  );
+}
+
+// ============ HELPER FUNCTIONS ============
+
+async function getCachedProfile(supabase: any, chatId: number) {
+  const cached = profileCache.get(chatId);
+  if (cached && cached.expires > Date.now()) {
+    return { userId: cached.userId, fullName: cached.fullName };
+  }
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (data) {
+    profileCache.set(chatId, {
+      userId: data.user_id,
+      fullName: data.full_name || "",
+      expires: Date.now() + CACHE_TTL,
+    });
+    return { userId: data.user_id, fullName: data.full_name };
+  }
+
+  return null;
+}
+
+function getLanguageEmoji(lang: string): string {
+  const emojis: Record<string, string> = { en: "🇬🇧", ru: "🇷🇺", uz: "🇺🇿", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸" };
+  return emojis[lang] || "🌐";
+}
+
+function getMainMenuKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
+      [{ text: "📊 Statistika", callback_data: "my_stats" }, { text: "🔥 Streak", callback_data: "my_streak" }],
+      [{ text: "📚 Takrorlash", callback_data: "words_to_review" }, { text: "🏆 Reyting", callback_data: "my_rank" }],
+      [{ text: "🎯 Challenge", callback_data: "challenge" }, { text: "⚙️ Sozlamalar", callback_data: "settings" }],
+    ],
+  };
+}
+
+function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string) {
+  return {
+    inline_keyboard: [
+      [notificationsEnabled 
+        ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
+        : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }],
+      [{ text: `⏰ Vaqt: ${currentTime || '09:00'}`, callback_data: "set_time" }],
+      [{ text: "🌅 06:00", callback_data: "time_06:00" }, { text: "🌄 08:00", callback_data: "time_08:00" }, { text: "🌅 09:00", callback_data: "time_09:00" }],
+      [{ text: "☀️ 12:00", callback_data: "time_12:00" }, { text: "🌆 18:00", callback_data: "time_18:00" }, { text: "🌙 21:00", callback_data: "time_21:00" }],
+      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
+      [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
+    ],
+  };
+}
+
+function getWebAppButton() {
+  return { inline_keyboard: [[{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL } }]] };
+}
+
+async function sendWelcomeMessage(token: string, chatId: number) {
+  await sendMessage(
+    token, chatId,
+    "👋 <b>Salom! Leitner App botiga xush kelibsiz!</b>\n\n" +
+    "🎓 Imkoniyatlar:\n" +
+    "• 📚 So'z qo'shish: <code>/add so'z - tarjima</code>\n" +
+    "• 📤 Inline: @Leitner_robot so'z\n" +
+    "• 🏆 Challenge: /challenge\n\n" +
+    "📱 Hisobni ulash: Profil → Telegram → Ulash",
+    getMainMenuKeyboard()
+  );
+}
+
+async function sendHelpMessage(token: string, chatId: number) {
+  await sendMessage(
+    token, chatId,
+    "📚 <b>Leitner App Bot - Yordam</b>\n\n" +
+    "<b>Buyruqlar:</b>\n" +
+    "/add so'z - tarjima - So'z qo'shish\n" +
+    "/stats - Statistika\n" +
+    "/review - Takrorlash kerak so'zlar\n" +
+    "/streak - Streak\n" +
+    "/rank - Reyting\n" +
+    "/challenge - Haftalik musobaqa\n" +
+    "/menu - Menyu\n\n" +
+    "<b>Inline:</b>\n" +
+    "@Leitner_robot so'z - so'zlarni ulashing",
+    getMainMenuKeyboard()
+  );
+}
+
+async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { data: settings } = await supabase
+    .from("notification_settings")
+    .select("telegram_enabled, daily_reminder_time")
+    .eq("user_id", profile.userId)
+    .maybeSingle();
+
+  await sendMessage(
+    token, chatId,
+    "⚙️ <b>Sozlamalar</b>",
+    getSettingsKeyboard(settings?.telegram_enabled || false, settings?.daily_reminder_time?.slice(0, 5))
+  );
+}
+
+async function sendTimeSettingsInfo(token: string, chatId: number) {
+  await sendMessage(token, chatId, "⏰ <b>Eslatma vaqtini tanlang</b>\n\nQuyidagi vaqtlardan birini tanlang:");
+}
+
+// ============ TELEGRAM API FUNCTIONS ============
+
+async function sendMessage(token: string, chatId: number, text: string, replyMarkup?: any) {
+  const body: any = { chat_id: chatId, text, parse_mode: "HTML" };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) console.error("Send error:", await response.text());
+  return response;
+}
+
+async function answerCallbackQuery(token: string, callbackQueryId: string) {
+  fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackQueryId }),
+  });
+}
+
+async function answerInlineQuery(token: string, queryId: string, results: any[]) {
+  const response = await fetch(`https://api.telegram.org/bot${token}/answerInlineQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      inline_query_id: queryId,
+      results,
+      cache_time: 10,
+      is_personal: true,
+    }),
+  });
+
+  if (!response.ok) console.error("Inline error:", await response.text());
 }
