@@ -41,6 +41,47 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_rewards: {
+        Row: {
+          badge_type: string
+          bonus_xp: number
+          challenge_id: string
+          claimed_at: string | null
+          created_at: string
+          id: string
+          rank: number
+          user_id: string
+        }
+        Insert: {
+          badge_type: string
+          bonus_xp?: number
+          challenge_id: string
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          rank: number
+          user_id: string
+        }
+        Update: {
+          badge_type?: string
+          bonus_xp?: number
+          challenge_id?: string
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          rank?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_rewards_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_stats: {
         Row: {
           created_at: string
@@ -78,6 +119,44 @@ export type Database = {
             columns: ["user_language_id"]
             isOneToOne: false
             referencedRelation: "user_languages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duel_responses: {
+        Row: {
+          created_at: string
+          duel_id: string
+          id: string
+          is_correct: boolean
+          response_time_ms: number
+          user_id: string
+          word_index: number
+        }
+        Insert: {
+          created_at?: string
+          duel_id: string
+          id?: string
+          is_correct: boolean
+          response_time_ms: number
+          user_id: string
+          word_index: number
+        }
+        Update: {
+          created_at?: string
+          duel_id?: string
+          id?: string
+          is_correct?: boolean
+          response_time_ms?: number
+          user_id?: string
+          word_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duel_responses_duel_id_fkey"
+            columns: ["duel_id"]
+            isOneToOne: false
+            referencedRelation: "word_duels"
             referencedColumns: ["id"]
           },
         ]
@@ -335,6 +414,66 @@ export type Database = {
         }
         Relationships: []
       }
+      word_duels: {
+        Row: {
+          challenger_id: string
+          challenger_score: number | null
+          challenger_time_ms: number | null
+          completed_at: string | null
+          created_at: string
+          current_word_index: number | null
+          expires_at: string
+          id: string
+          opponent_id: string
+          opponent_score: number | null
+          opponent_time_ms: number | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          winner_id: string | null
+          word_count: number
+          words: Json
+        }
+        Insert: {
+          challenger_id: string
+          challenger_score?: number | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string
+          current_word_index?: number | null
+          expires_at?: string
+          id?: string
+          opponent_id: string
+          opponent_score?: number | null
+          opponent_time_ms?: number | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+          word_count?: number
+          words?: Json
+        }
+        Update: {
+          challenger_id?: string
+          challenger_score?: number | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string
+          current_word_index?: number | null
+          expires_at?: string
+          id?: string
+          opponent_id?: string
+          opponent_score?: number | null
+          opponent_time_ms?: number | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+          word_count?: number
+          words?: Json
+        }
+        Relationships: []
+      }
       words: {
         Row: {
           box_number: number
@@ -413,6 +552,10 @@ export type Database = {
     }
     Functions: {
       get_or_create_weekly_challenge: { Args: never; Returns: string }
+      process_challenge_winners: {
+        Args: { p_challenge_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
