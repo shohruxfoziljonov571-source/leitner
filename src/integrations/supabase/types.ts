@@ -264,6 +264,77 @@ export type Database = {
           },
         ]
       }
+      weekly_challenge_participants: {
+        Row: {
+          challenge_id: string
+          days_active: number | null
+          id: string
+          joined_at: string
+          rank: number | null
+          updated_at: string
+          user_id: string
+          words_correct: number | null
+          words_reviewed: number | null
+          xp_earned: number | null
+        }
+        Insert: {
+          challenge_id: string
+          days_active?: number | null
+          id?: string
+          joined_at?: string
+          rank?: number | null
+          updated_at?: string
+          user_id: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+          xp_earned?: number | null
+        }
+        Update: {
+          challenge_id?: string
+          days_active?: number | null
+          id?: string
+          joined_at?: string
+          rank?: number | null
+          updated_at?: string
+          user_id?: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+          xp_earned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_challenge_participants_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_challenges: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       words: {
         Row: {
           box_number: number
@@ -341,7 +412,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_or_create_weekly_challenge: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
