@@ -14,7 +14,8 @@ import {
   UserX,
   Globe,
   Crown,
-  Medal
+  Medal,
+  Swords
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFriends } from '@/hooks/useFriends';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { toast } from 'sonner';
+import DuelsList from '@/components/duels/DuelsList';
 
 const Friends: React.FC = () => {
   const {
@@ -306,6 +308,9 @@ const Friends: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Word Duels Section */}
+        <DuelsList />
 
         {/* Leaderboard Tabs */}
         <Tabs defaultValue="global" className="w-full">

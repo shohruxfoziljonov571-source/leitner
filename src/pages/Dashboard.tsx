@@ -12,6 +12,7 @@ import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
 import WeeklyChallenge from '@/components/gamification/WeeklyChallenge';
+import UnclaimedRewards from '@/components/gamification/UnclaimedRewards';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
@@ -135,6 +136,9 @@ const Dashboard: React.FC = () => {
             delay={0.3}
           />
         </div>
+
+        {/* Unclaimed Rewards */}
+        <UnclaimedRewards />
 
         {/* Weekly Challenge */}
         <motion.div
