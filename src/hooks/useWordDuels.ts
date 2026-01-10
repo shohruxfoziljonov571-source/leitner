@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { toast } from 'sonner';
+import { fireVictoryConfetti, fireGoldConfetti, fireSilverConfetti, fireBronzeConfetti } from '@/lib/confetti';
 
 interface DuelWord {
   id: string;
@@ -134,6 +135,16 @@ export const useWordDuels = () => {
       if (error) throw error;
 
       toast.success('Duel yuborildi!');
+      
+      // Send Telegram notification
+      try {
+        await supabase.functions.invoke('notify-duel', {
+          body: { type: 'duel_invite', duel_id: duel.id, user_id: opponentId },
+        });
+      } catch (e) {
+        console.log('Telegram notification failed:', e);
+      }
+
       await fetchDuels();
       return duel;
     } catch (error) {
@@ -160,6 +171,16 @@ export const useWordDuels = () => {
       if (error) throw error;
 
       toast.success('Duel boshlandi!');
+      
+      // Send Telegram notification
+      try {
+        await supabase.functions.invoke('notify-duel', {
+          body: { type: 'duel_accepted', duel_id: duelId },
+        });
+      } catch (e) {
+        console.log('Telegram notification failed:', e);
+      }
+
       await fetchDuels();
       return true;
     } catch (error) {
@@ -184,6 +205,16 @@ export const useWordDuels = () => {
       if (error) throw error;
 
       toast.info('Duel rad etildi');
+      
+      // Send Telegram notification
+      try {
+        await supabase.functions.invoke('notify-duel', {
+          body: { type: 'duel_declined', duel_id: duelId, user_id: user.id },
+        });
+      } catch (e) {
+        console.log('Telegram notification failed:', e);
+      }
+
       await fetchDuels();
       return true;
     } catch (error) {
@@ -267,6 +298,35 @@ export const useWordDuels = () => {
         updateData.status = 'completed';
         updateData.winner_id = winnerId;
         updateData.completed_at = new Date().toISOString();
+
+        // Fire confetti for winner
+        if (winnerId === user.id) {
+          const myScore = isChallenger ? finalChallengerScore : finalOpponentScore;
+          const accuracy = myScore / duel.word_count;
+          
+          if (accuracy >= 0.8) {
+            fireGoldConfetti();
+          } else if (accuracy >= 0.6) {
+            fireSilverConfetti();
+          } else {
+            fireBronzeConfetti();
+          }
+          toast.success('🏆 Tabriklaymiz, siz g\'olib!');
+        } else if (!winnerId) {
+          fireVictoryConfetti();
+          toast.info('🤝 Durrang!');
+        } else {
+          toast.info('Keyingi safar omad!');
+        }
+
+        // Send Telegram notification
+        try {
+          await supabase.functions.invoke('notify-duel', {
+            body: { type: 'duel_completed', duel_id: duelId },
+          });
+        } catch (e) {
+          console.log('Telegram notification failed:', e);
+        }
       }
 
       await supabase
