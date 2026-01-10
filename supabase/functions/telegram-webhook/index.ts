@@ -73,6 +73,27 @@ serve(async (req) => {
         case "help":
           await sendHelpMessage(TELEGRAM_BOT_TOKEN, callbackChatId);
           break;
+
+        case "settings":
+          await sendSettingsMenu(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
+          break;
+
+        case "notif_on":
+          await handleToggleNotifications(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, true);
+          break;
+
+        case "notif_off":
+          await handleToggleNotifications(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, false);
+          break;
+
+        case "back_to_menu":
+          await sendTelegramMessage(
+            TELEGRAM_BOT_TOKEN,
+            callbackChatId,
+            "📋 <b>Asosiy menyu</b>",
+            getMainMenuKeyboard()
+          );
+          break;
       }
 
       return new Response(JSON.stringify({ ok: true }), {
@@ -215,7 +236,23 @@ function getMainMenuKeyboard() {
         { text: "📚 Takrorlash", callback_data: "words_to_review" },
         { text: "🏆 Reyting", callback_data: "my_rank" },
       ],
-      [{ text: "❓ Yordam", callback_data: "help" }],
+      [
+        { text: "⚙️ Sozlamalar", callback_data: "settings" },
+        { text: "❓ Yordam", callback_data: "help" },
+      ],
+    ],
+  };
+}
+
+function getSettingsKeyboard(notificationsEnabled: boolean) {
+  return {
+    inline_keyboard: [
+      [
+        notificationsEnabled 
+          ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
+          : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }
+      ],
+      [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
     ],
   };
 }
@@ -489,4 +526,75 @@ async function answerCallbackQuery(token: string, callbackQueryId: string) {
       callback_query_id: callbackQueryId,
     }),
   });
+}
+
+async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (!profile) {
+    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { data: settings } = await supabase
+    .from("notification_settings")
+    .select("telegram_enabled")
+    .eq("user_id", profile.user_id)
+    .maybeSingle();
+
+  const notificationsEnabled = settings?.telegram_enabled || false;
+
+  await sendTelegramMessage(
+    token,
+    chatId,
+    "⚙️ <b>Sozlamalar</b>\n\n" +
+    "Quyidagi sozlamalarni o'zgartirishingiz mumkin:",
+    getSettingsKeyboard(notificationsEnabled)
+  );
+}
+
+async function handleToggleNotifications(
+  supabase: any, 
+  token: string, 
+  chatId: number, 
+  enabled: boolean
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (!profile) {
+    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { error } = await supabase
+    .from("notification_settings")
+    .upsert({
+      user_id: profile.user_id,
+      telegram_enabled: enabled,
+    }, { onConflict: "user_id" });
+
+  if (error) {
+    console.error("Error updating notification settings:", error);
+    await sendTelegramMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
+    return;
+  }
+
+  const message = enabled
+    ? "🔔 <b>Bildirishnomalar yoqildi!</b>\n\nEndi siz so'zlarni takrorlash eslatmalarini olasiz."
+    : "🔕 <b>Bildirishnomalar o'chirildi.</b>\n\nBildirishnomalar yuborilmaydi.";
+
+  await sendTelegramMessage(
+    token,
+    chatId,
+    message,
+    getSettingsKeyboard(enabled)
+  );
 }
