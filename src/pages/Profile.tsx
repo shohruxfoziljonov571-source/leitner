@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw } from 'lucide-react';
+import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw, Bell, BellOff, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,12 +22,18 @@ interface Profile {
   telegram_connected_at: string | null;
 }
 
-const TELEGRAM_BOT_USERNAME = 'Leitner_robot'; // User should replace with actual bot
+interface NotificationSettings {
+  telegram_enabled: boolean;
+  daily_reminder_time: string | null;
+}
+
+const TELEGRAM_BOT_USERNAME = 'Leitner_robot';
 
 const Profile: React.FC = () => {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, isTelegramUser, telegramUser } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -35,6 +44,7 @@ const Profile: React.FC = () => {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchNotificationSettings();
     }
   }, [user]);
 
@@ -57,6 +67,22 @@ const Profile: React.FC = () => {
       console.error('Error fetching profile:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchNotificationSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .select('telegram_enabled, daily_reminder_time')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      setNotificationSettings(data || { telegram_enabled: false, daily_reminder_time: '09:00' });
+    } catch (error) {
+      console.error('Error fetching notification settings:', error);
     }
   };
 
@@ -85,8 +111,28 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .upsert({
+          user_id: user.id,
+          telegram_enabled: enabled,
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+
+      setNotificationSettings(prev => prev ? { ...prev, telegram_enabled: enabled } : null);
+      toast.success(enabled ? 'Bildirishnomalar yoqildi' : 'Bildirishnomalar o\'chirildi');
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      toast.error('Xatolik yuz berdi');
+    }
+  };
+
   const generateTelegramLink = () => {
-    // Create a unique token for linking
     const linkToken = btoa(`${user?.id}:${Date.now()}`);
     return { 
       url: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${linkToken}`,
@@ -109,6 +155,7 @@ const Profile: React.FC = () => {
 
   const handleRefreshStatus = async () => {
     await fetchProfile();
+    await fetchNotificationSettings();
     if (profile?.telegram_chat_id) {
       toast.success('Telegram ulandi!');
       setShowTelegramCommand(false);
@@ -134,12 +181,23 @@ const Profile: React.FC = () => {
 
       if (error) throw error;
 
+      // Also disable notifications
+      await supabase
+        .from('notification_settings')
+        .update({ telegram_enabled: false })
+        .eq('user_id', user.id);
+
       toast.success('Telegram uzildi');
       fetchProfile();
+      fetchNotificationSettings();
     } catch (error) {
       console.error('Error disconnecting Telegram:', error);
       toast.error('Xatolik yuz berdi');
     }
+  };
+
+  const openTelegramBot = () => {
+    window.open(`https://t.me/${TELEGRAM_BOT_USERNAME}`, '_blank');
   };
 
   if (isLoading) {
@@ -149,6 +207,10 @@ const Profile: React.FC = () => {
       </div>
     );
   }
+
+  const isTelegramConnected = !!profile?.telegram_chat_id;
+  const displayAvatar = profile?.avatar_url || (isTelegramUser && telegramUser?.photo_url);
+  const displayName = fullName || profile?.full_name || (isTelegramUser && telegramUser ? `${telegramUser.first_name}${telegramUser.last_name ? ' ' + telegramUser.last_name : ''}` : '');
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
@@ -170,16 +232,36 @@ const Profile: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex justify-center mb-8"
+          className="flex flex-col items-center mb-8"
         >
           <div className="relative">
-            <div className="w-24 h-24 rounded-full gradient-primary flex items-center justify-center shadow-elevated">
-              <User className="w-12 h-12 text-primary-foreground" />
-            </div>
-            <button className="absolute bottom-0 right-0 w-8 h-8 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors">
-              <Camera className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <Avatar className="w-24 h-24 border-4 border-primary/20 shadow-elevated">
+              {displayAvatar ? (
+                <AvatarImage src={displayAvatar} alt={displayName} />
+              ) : null}
+              <AvatarFallback className="gradient-primary text-primary-foreground text-3xl">
+                {displayName ? displayName.charAt(0).toUpperCase() : <User className="w-12 h-12" />}
+              </AvatarFallback>
+            </Avatar>
+            {!isTelegramUser && (
+              <button className="absolute bottom-0 right-0 w-8 h-8 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors">
+                <Camera className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
+          
+          {/* Telegram Badge */}
+          {isTelegramUser && telegramUser && (
+            <div className="mt-3 flex items-center gap-2">
+              <Badge variant="secondary" className="bg-[#0088cc]/10 text-[#0088cc] gap-1">
+                <Send className="w-3 h-3" />
+                Telegram orqali
+              </Badge>
+              {telegramUser.username && (
+                <span className="text-sm text-muted-foreground">@{telegramUser.username}</span>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Profile Form */}
@@ -197,6 +279,11 @@ const Profile: React.FC = () => {
               disabled
               className="bg-muted"
             />
+            {isTelegramUser && (
+              <p className="text-xs text-muted-foreground">
+                Telegram orqali avtomatik yaratilgan
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -252,32 +339,89 @@ const Profile: React.FC = () => {
               <p className="text-sm text-muted-foreground">
                 {profile?.telegram_username 
                   ? `@${profile.telegram_username} ulangan`
+                  : isTelegramUser && telegramUser?.username
+                  ? `@${telegramUser.username} (avtomatik)`
                   : 'Bildirishnomalar uchun ulang'}
               </p>
             </div>
-            {profile?.telegram_chat_id && (
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Check className="w-4 h-4 text-primary" />
+            {(isTelegramConnected || isTelegramUser) && (
+              <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                <Check className="w-4 h-4 text-green-500" />
               </div>
             )}
           </div>
 
-          {profile?.telegram_chat_id ? (
-            <div className="space-y-3">
-              <div className="p-3 bg-primary/5 rounded-xl text-sm">
-                <p className="text-muted-foreground">Ulangan: @{profile.telegram_username}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(profile.telegram_connected_at!).toLocaleDateString()}
-                </p>
+          {isTelegramConnected || isTelegramUser ? (
+            <div className="space-y-4">
+              {/* Telegram Info Card */}
+              <div className="p-4 bg-[#0088cc]/5 rounded-xl border border-[#0088cc]/10">
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar className="w-10 h-10">
+                    {displayAvatar && <AvatarImage src={displayAvatar} />}
+                    <AvatarFallback className="bg-[#0088cc] text-white">
+                      {displayName?.charAt(0)?.toUpperCase() || 'T'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium">{displayName || 'Telegram foydalanuvchi'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      @{profile?.telegram_username || telegramUser?.username || 'username'}
+                    </p>
+                  </div>
+                </div>
+                {profile?.telegram_connected_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Ulangan: {new Date(profile.telegram_connected_at).toLocaleDateString('uz-UZ', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                )}
               </div>
+
+              {/* Notification Toggle */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  {notificationSettings?.telegram_enabled ? (
+                    <Bell className="w-5 h-5 text-primary" />
+                  ) : (
+                    <BellOff className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium text-sm">Telegram bildirishnomalar</p>
+                    <p className="text-xs text-muted-foreground">
+                      Takrorlash eslatmalari
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={notificationSettings?.telegram_enabled || false}
+                  onCheckedChange={handleToggleNotifications}
+                />
+              </div>
+
+              {/* Bot Settings Button */}
               <Button
                 variant="outline"
-                onClick={handleDisconnectTelegram}
-                className="w-full gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                onClick={openTelegramBot}
+                className="w-full gap-2"
               >
-                <X className="w-4 h-4" />
-                Uzish
+                <ExternalLink className="w-4 h-4" />
+                Bot orqali sozlash
               </Button>
+
+              {/* Disconnect Button - only if not logged in via Telegram */}
+              {!isTelegramUser && (
+                <Button
+                  variant="outline"
+                  onClick={handleDisconnectTelegram}
+                  className="w-full gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <X className="w-4 h-4" />
+                  Uzish
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -338,10 +482,13 @@ const Profile: React.FC = () => {
           transition={{ delay: 0.3 }}
           className="p-4 rounded-xl bg-primary/5 border border-primary/10"
         >
-          <h4 className="font-medium text-sm text-primary mb-2">📱 Telegram haqida</h4>
-          <p className="text-sm text-muted-foreground">
-            Telegram bot orqali so'zlarni takrorlash eslatmalarini olasiz. Bot sizga qachon qaysi so'zlarni takrorlash kerakligini xabar qiladi.
-          </p>
+          <h4 className="font-medium text-sm text-primary mb-2">📱 Telegram bot haqida</h4>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li>• So'zlarni takrorlash eslatmalari</li>
+            <li>• Statistika va streak ma'lumotlari</li>
+            <li>• Bot orqali bildirishnomalarni sozlash</li>
+            <li>• /menu - barcha buyruqlarni ko'rish</li>
+          </ul>
         </motion.div>
       </div>
     </div>
