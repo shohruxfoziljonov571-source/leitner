@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -17,12 +17,13 @@ const boxDescriptions = {
   5: 'box5Desc',
 };
 
-const BoxCard: React.FC<BoxCardProps> = memo(({ boxNumber, wordCount, totalWords, delay = 0 }) => {
+const BoxCard = memo(forwardRef<HTMLDivElement, BoxCardProps>(({ boxNumber, wordCount, totalWords, delay = 0 }, ref) => {
   const { t } = useLanguage();
   const progress = totalWords > 0 ? (wordCount / totalWords) * 100 : 0;
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
@@ -30,7 +31,7 @@ const BoxCard: React.FC<BoxCardProps> = memo(({ boxNumber, wordCount, totalWords
     >
       {/* Box number badge */}
       <div
-        className={`absolute top-4 right-4 w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold text-lg bg-box-${boxNumber}/15 text-box-${boxNumber}`}
+        className={`absolute top-4 right-4 w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold text-lg`}
         style={{
           backgroundColor: `hsl(var(--box-${boxNumber}) / 0.15)`,
           color: `hsl(var(--box-${boxNumber}))`,
@@ -67,7 +68,7 @@ const BoxCard: React.FC<BoxCardProps> = memo(({ boxNumber, wordCount, totalWords
       </div>
     </motion.div>
   );
-});
+}));
 
 BoxCard.displayName = 'BoxCard';
 
