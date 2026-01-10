@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw, Bell, BellOff, ExternalLink } from 'lucide-react';
+import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw, Bell, BellOff, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -128,6 +129,27 @@ const Profile: React.FC = () => {
       toast.success(enabled ? 'Bildirishnomalar yoqildi' : 'Bildirishnomalar o\'chirildi');
     } catch (error) {
       console.error('Error updating notification settings:', error);
+      toast.error('Xatolik yuz berdi');
+    }
+  };
+
+  const handleUpdateReminderTime = async (time: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .upsert({
+          user_id: user.id,
+          daily_reminder_time: time,
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+
+      setNotificationSettings(prev => prev ? { ...prev, daily_reminder_time: time } : null);
+      toast.success(`Eslatma vaqti ${time} ga o'zgartirildi`);
+    } catch (error) {
+      console.error('Error updating reminder time:', error);
       toast.error('Xatolik yuz berdi');
     }
   };
@@ -400,6 +422,41 @@ const Profile: React.FC = () => {
                   onCheckedChange={handleToggleNotifications}
                 />
               </div>
+
+              {/* Reminder Time Setting */}
+              {(isTelegramConnected || isTelegramUser) && notificationSettings?.telegram_enabled && (
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium text-sm">Eslatma vaqti</p>
+                      <p className="text-xs text-muted-foreground">
+                        Har kuni shu vaqtda eslatma
+                      </p>
+                    </div>
+                  </div>
+                  <Select
+                    value={notificationSettings?.daily_reminder_time?.slice(0, 5) || '09:00'}
+                    onValueChange={handleUpdateReminderTime}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="06:00">🌅 06:00</SelectItem>
+                      <SelectItem value="07:00">🌄 07:00</SelectItem>
+                      <SelectItem value="08:00">🌄 08:00</SelectItem>
+                      <SelectItem value="09:00">🌅 09:00</SelectItem>
+                      <SelectItem value="10:00">☀️ 10:00</SelectItem>
+                      <SelectItem value="12:00">☀️ 12:00</SelectItem>
+                      <SelectItem value="14:00">🌤️ 14:00</SelectItem>
+                      <SelectItem value="18:00">🌆 18:00</SelectItem>
+                      <SelectItem value="20:00">🌙 20:00</SelectItem>
+                      <SelectItem value="21:00">🌙 21:00</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Bot Settings Button */}
               <Button
