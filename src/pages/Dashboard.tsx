@@ -11,6 +11,7 @@ import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
+import WeeklyChallenge from '@/components/gamification/WeeklyChallenge';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
@@ -135,12 +136,22 @@ const Dashboard: React.FC = () => {
           />
         </div>
 
+        {/* Weekly Challenge */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="mb-6"
+        >
+          <WeeklyChallenge />
+        </motion.div>
+
         {/* Achievements Preview */}
         {unlockedAchievements.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
+            transition={{ delay: 0.4 }}
             className="mb-6"
           >
             <Link to="/stats" className="block">

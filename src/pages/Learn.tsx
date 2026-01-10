@@ -7,6 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
+import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
 import XpPopup from '@/components/gamification/XpPopup';
@@ -29,6 +30,7 @@ const Learn: React.FC = () => {
   const { activeLanguage } = useLearningLanguage();
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, XP_PER_INCORRECT, level } = useGamification();
+  const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [showXpPopup, setShowXpPopup] = useState(false);
@@ -90,6 +92,11 @@ const Learn: React.FC = () => {
       setShowXpPopup(true);
       await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
       
+      // Update weekly challenge stats if user is participating
+      if (userParticipation) {
+        await updateParticipantStats(xpGain, 1, isCorrect ? 1 : 0);
+      }
+      
       // Clear previous timeout to prevent memory leaks
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -104,7 +111,7 @@ const Learn: React.FC = () => {
         level,
       });
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
