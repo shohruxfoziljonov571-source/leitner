@@ -48,7 +48,7 @@ serve(async (req) => {
       // Check notification settings
       const { data: settings } = await supabase
         .from("notification_settings")
-        .select("telegram_enabled, quiet_hours_start, quiet_hours_end")
+        .select("telegram_enabled, daily_reminder_time, quiet_hours_start, quiet_hours_end")
         .eq("user_id", user.user_id)
         .maybeSingle();
 
@@ -56,13 +56,31 @@ serve(async (req) => {
         continue;
       }
 
+      // Get current time in user's timezone (assume UTC+5 for Uzbekistan)
+      const nowUTC = new Date();
+      const currentHour = nowUTC.getUTCHours() + 5; // UTC+5 for Uzbekistan
+      const currentMinute = nowUTC.getUTCMinutes();
+      const currentTimeMinutes = (currentHour % 24) * 60 + currentMinute;
+
+      // Check if it's time for daily reminder
+      if (settings.daily_reminder_time) {
+        const [reminderHour, reminderMinute] = settings.daily_reminder_time.split(":").map(Number);
+        const reminderTimeMinutes = reminderHour * 60 + reminderMinute;
+        
+        // Only send if within 30-minute window of reminder time
+        const timeDiff = Math.abs(currentTimeMinutes - reminderTimeMinutes);
+        if (timeDiff > 30 && timeDiff < (24 * 60 - 30)) {
+          continue; // Not within reminder window
+        }
+      }
+
       // Check quiet hours
-      const currentHour = new Date().getHours();
       if (settings.quiet_hours_start && settings.quiet_hours_end) {
         const startHour = parseInt(settings.quiet_hours_start.split(":")[0]);
         const endHour = parseInt(settings.quiet_hours_end.split(":")[0]);
+        const adjustedHour = currentHour % 24;
         
-        if (startHour <= currentHour && currentHour < endHour) {
+        if (startHour <= adjustedHour && adjustedHour < endHour) {
           continue; // Skip during quiet hours
         }
       }

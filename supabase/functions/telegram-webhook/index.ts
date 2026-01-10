@@ -86,6 +86,24 @@ serve(async (req) => {
           await handleToggleNotifications(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, false);
           break;
 
+        case "set_time":
+          await sendTimeSettingsInfo(TELEGRAM_BOT_TOKEN, callbackChatId);
+          break;
+
+        case "time_06:00":
+        case "time_08:00":
+        case "time_09:00":
+        case "time_12:00":
+        case "time_18:00":
+        case "time_21:00":
+          const time = callbackData.replace("time_", "");
+          await handleSetReminderTime(supabase, TELEGRAM_BOT_TOKEN, callbackChatId, time);
+          break;
+
+        case "weekly_report":
+          await handleWeeklyReport(supabase, TELEGRAM_BOT_TOKEN, callbackChatId);
+          break;
+
         case "back_to_menu":
           await sendTelegramMessage(
             TELEGRAM_BOT_TOKEN,
@@ -244,7 +262,7 @@ function getMainMenuKeyboard() {
   };
 }
 
-function getSettingsKeyboard(notificationsEnabled: boolean) {
+function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string) {
   return {
     inline_keyboard: [
       [
@@ -252,6 +270,18 @@ function getSettingsKeyboard(notificationsEnabled: boolean) {
           ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
           : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }
       ],
+      [{ text: `⏰ Eslatma vaqti: ${currentTime || '09:00'}`, callback_data: "set_time" }],
+      [
+        { text: "🌅 06:00", callback_data: "time_06:00" },
+        { text: "🌄 08:00", callback_data: "time_08:00" },
+        { text: "🌅 09:00", callback_data: "time_09:00" },
+      ],
+      [
+        { text: "☀️ 12:00", callback_data: "time_12:00" },
+        { text: "🌆 18:00", callback_data: "time_18:00" },
+        { text: "🌙 21:00", callback_data: "time_21:00" },
+      ],
+      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
       [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
     ],
   };
@@ -542,18 +572,19 @@ async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
 
   const { data: settings } = await supabase
     .from("notification_settings")
-    .select("telegram_enabled")
+    .select("telegram_enabled, daily_reminder_time")
     .eq("user_id", profile.user_id)
     .maybeSingle();
 
   const notificationsEnabled = settings?.telegram_enabled || false;
+  const currentTime = settings?.daily_reminder_time?.slice(0, 5) || "09:00";
 
   await sendTelegramMessage(
     token,
     chatId,
     "⚙️ <b>Sozlamalar</b>\n\n" +
     "Quyidagi sozlamalarni o'zgartirishingiz mumkin:",
-    getSettingsKeyboard(notificationsEnabled)
+    getSettingsKeyboard(notificationsEnabled, currentTime)
   );
 }
 
@@ -587,6 +618,14 @@ async function handleToggleNotifications(
     return;
   }
 
+  const { data: settings } = await supabase
+    .from("notification_settings")
+    .select("daily_reminder_time")
+    .eq("user_id", profile.user_id)
+    .maybeSingle();
+
+  const currentTime = settings?.daily_reminder_time?.slice(0, 5) || "09:00";
+
   const message = enabled
     ? "🔔 <b>Bildirishnomalar yoqildi!</b>\n\nEndi siz so'zlarni takrorlash eslatmalarini olasiz."
     : "🔕 <b>Bildirishnomalar o'chirildi.</b>\n\nBildirishnomalar yuborilmaydi.";
@@ -595,6 +634,164 @@ async function handleToggleNotifications(
     token,
     chatId,
     message,
-    getSettingsKeyboard(enabled)
+    getSettingsKeyboard(enabled, currentTime)
   );
+}
+
+async function sendTimeSettingsInfo(token: string, chatId: number) {
+  await sendTelegramMessage(
+    token,
+    chatId,
+    "⏰ <b>Eslatma vaqtini tanlang</b>\n\n" +
+    "Quyidagi vaqtlardan birini tanlang. Har kuni shu vaqtda eslatma olasiz:",
+  );
+}
+
+async function handleSetReminderTime(
+  supabase: any,
+  token: string,
+  chatId: number,
+  time: string
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (!profile) {
+    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { error } = await supabase
+    .from("notification_settings")
+    .upsert({
+      user_id: profile.user_id,
+      daily_reminder_time: time,
+      telegram_enabled: true,
+    }, { onConflict: "user_id" });
+
+  if (error) {
+    console.error("Error setting reminder time:", error);
+    await sendTelegramMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
+    return;
+  }
+
+  await sendTelegramMessage(
+    token,
+    chatId,
+    `✅ <b>Eslatma vaqti o'zgartirildi!</b>\n\n` +
+    `⏰ Yangi vaqt: <b>${time}</b>\n\n` +
+    `Har kuni shu vaqtda eslatma olasiz.`,
+    getSettingsKeyboard(true, time)
+  );
+}
+
+async function handleWeeklyReport(
+  supabase: any,
+  token: string,
+  chatId: number
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (!profile) {
+    await sendTelegramMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  // Get stats from the last 7 days
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const startDate = oneWeekAgo.toISOString().split('T')[0];
+
+  const { data: dailyStats } = await supabase
+    .from("daily_stats")
+    .select("date, words_reviewed, words_correct, xp_earned")
+    .eq("user_id", profile.user_id)
+    .gte("date", startDate)
+    .order("date", { ascending: true });
+
+  // Get current user stats
+  const { data: userStats } = await supabase
+    .from("user_stats")
+    .select("xp, level, streak, total_words, learned_words")
+    .eq("user_id", profile.user_id);
+
+  // Calculate weekly totals
+  let totalReviewed = 0;
+  let totalCorrect = 0;
+  let totalXp = 0;
+  let daysActive = 0;
+
+  for (const stat of dailyStats || []) {
+    totalReviewed += stat.words_reviewed || 0;
+    totalCorrect += stat.words_correct || 0;
+    totalXp += stat.xp_earned || 0;
+    if ((stat.words_reviewed || 0) > 0) daysActive++;
+  }
+
+  const accuracy = totalReviewed > 0 
+    ? Math.round((totalCorrect / totalReviewed) * 100) 
+    : 0;
+
+  // Aggregate user stats
+  const currentXp = userStats?.reduce((sum: number, s: any) => sum + (s.xp || 0), 0) || 0;
+  const currentLevel = Math.max(...(userStats?.map((s: any) => s.level || 1) || [1]));
+  const currentStreak = Math.max(...(userStats?.map((s: any) => s.streak || 0) || [0]));
+  const totalWords = userStats?.reduce((sum: number, s: any) => sum + (s.total_words || 0), 0) || 0;
+  const learnedWords = userStats?.reduce((sum: number, s: any) => sum + (s.learned_words || 0), 0) || 0;
+
+  // Generate progress bar
+  const progressPercent = totalWords > 0 ? Math.round((learnedWords / totalWords) * 100) : 0;
+  const progressBar = generateProgressBar(progressPercent);
+
+  // Day breakdown with emojis
+  const dayEmojis = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
+  let weekBreakdown = "";
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayStat = dailyStats?.find((s: any) => s.date === dateStr);
+    const dayIndex = date.getDay();
+    const emoji = (dayStat?.words_reviewed || 0) > 0 ? "🟢" : "⚪️";
+    weekBreakdown += `${emoji} `;
+  }
+
+  const reportMessage = 
+    `📊 <b>Haftalik Hisobot</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `👤 <b>${profile.full_name || 'Foydalanuvchi'}</b>\n\n` +
+    `📅 <b>Oxirgi 7 kun:</b>\n` +
+    `${weekBreakdown}\n\n` +
+    `📈 <b>Haftalik natijalar:</b>\n` +
+    `• Takrorlangan: ${totalReviewed} ta so'z\n` +
+    `• To'g'ri javoblar: ${totalCorrect} (${accuracy}%)\n` +
+    `• XP yig'ildi: +${totalXp}\n` +
+    `• Faol kunlar: ${daysActive}/7\n\n` +
+    `🏆 <b>Joriy holat:</b>\n` +
+    `• Daraja: ⭐️ ${currentLevel}\n` +
+    `• Jami XP: 💎 ${currentXp.toLocaleString()}\n` +
+    `• Streak: 🔥 ${currentStreak} kun\n\n` +
+    `📚 <b>So'zlar progress:</b>\n` +
+    `${progressBar} ${progressPercent}%\n` +
+    `${learnedWords} / ${totalWords} so'z o'rganilgan\n\n` +
+    (daysActive >= 5 
+      ? "🌟 <b>Ajoyib hafta!</b> Davom eting!"
+      : daysActive >= 3 
+      ? "👍 <b>Yaxshi hafta!</b> Ozgina ko'proq harakat!"
+      : "💪 <b>Ko'proq mashq qiling!</b> Har kuni 5 daqiqa!");
+
+  await sendTelegramMessage(token, chatId, reportMessage, getMainMenuKeyboard());
+}
+
+function generateProgressBar(percent: number): string {
+  const filled = Math.round(percent / 10);
+  const empty = 10 - filled;
+  return "▓".repeat(filled) + "░".repeat(empty);
 }
