@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WEBAPP_URL = "https://leitner.lovable.app";
+const WEBAPP_URL = "https://leitner.shohruxdigital.uz";
 
 // Cache for user profiles to reduce DB calls
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
