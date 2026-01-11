@@ -351,35 +351,42 @@ export const useWordDuels = () => {
     fetchDuels();
   }, [fetchDuels]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates with debouncing
   useEffect(() => {
     if (!user) return;
 
+    let debounceTimer: NodeJS.Timeout | null = null;
+    
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchDuels();
+      }, 500);
+    };
+
     const channel = supabase
-      .channel('duels')
+      .channel(`duels-${user.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'word_duels',
-          filter: `challenger_id=eq.${user.id}`,
         },
-        () => fetchDuels()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'word_duels',
-          filter: `opponent_id=eq.${user.id}`,
-        },
-        () => fetchDuels()
+        (payload: any) => {
+          // Only refetch if this duel involves the current user
+          if (payload.new?.challenger_id === user.id || 
+              payload.new?.opponent_id === user.id ||
+              payload.old?.challenger_id === user.id ||
+              payload.old?.opponent_id === user.id) {
+            debouncedFetch();
+          }
+        }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [user, fetchDuels]);

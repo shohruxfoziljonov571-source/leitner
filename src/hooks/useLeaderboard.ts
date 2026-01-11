@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -26,12 +26,18 @@ export const useLeaderboard = () => {
     try {
       setIsLoading(true);
 
-      // Get all users' aggregated stats
-      const { data: allStats, error: statsError } = await supabase
-        .from('user_stats')
-        .select('user_id, xp, level, streak, total_words');
+      // Fetch stats and profiles in parallel
+      const [statsResult, profilesResult] = await Promise.all([
+        supabase
+          .from('user_stats')
+          .select('user_id, xp, level, streak, total_words'),
+        supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+      ]);
 
-      if (statsError) throw statsError;
+      if (statsResult.error) throw statsResult.error;
+      if (profilesResult.error) throw profilesResult.error;
 
       // Aggregate stats by user
       const userStatsMap = new Map<string, {
@@ -41,7 +47,7 @@ export const useLeaderboard = () => {
         totalWords: number;
       }>();
 
-      for (const stat of allStats || []) {
+      for (const stat of statsResult.data || []) {
         const existing = userStatsMap.get(stat.user_id);
         if (existing) {
           existing.xp += stat.xp || 0;
@@ -58,41 +64,38 @@ export const useLeaderboard = () => {
         }
       }
 
-      // Get profiles for all users with stats
-      const userIds = Array.from(userStatsMap.keys());
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, avatar_url')
-        .in('user_id', userIds);
+      // Create profile map
+      const profileMap = new Map(
+        (profilesResult.data || []).map(p => [p.user_id, p])
+      );
 
-      if (profilesError) throw profilesError;
-
-      // Combine stats with profiles
+      // Build leaderboard - only include users who have stats
       const leaderboard: LeaderboardEntry[] = [];
       
-      for (const profile of profiles || []) {
-        const stats = userStatsMap.get(profile.user_id);
-        if (stats) {
-          leaderboard.push({
-            userId: profile.user_id,
-            fullName: profile.full_name || 'Foydalanuvchi',
-            avatarUrl: profile.avatar_url,
-            xp: stats.xp,
-            level: stats.level,
-            streak: stats.streak,
-            totalWords: stats.totalWords,
-            rank: 0,
-            isCurrentUser: profile.user_id === user.id,
-          });
-        }
+      for (const [userId, stats] of userStatsMap.entries()) {
+        const profile = profileMap.get(userId);
+        leaderboard.push({
+          userId,
+          fullName: profile?.full_name || 'Foydalanuvchi',
+          avatarUrl: profile?.avatar_url || null,
+          xp: stats.xp,
+          level: stats.level,
+          streak: stats.streak,
+          totalWords: stats.totalWords,
+          rank: 0,
+          isCurrentUser: userId === user.id,
+        });
       }
 
       // Sort by XP and assign ranks
       leaderboard.sort((a, b) => b.xp - a.xp);
+      
+      let foundMyRank = false;
       leaderboard.forEach((entry, index) => {
         entry.rank = index + 1;
-        if (entry.isCurrentUser) {
+        if (entry.isCurrentUser && !foundMyRank) {
           setMyRank(entry.rank);
+          foundMyRank = true;
         }
       });
 
