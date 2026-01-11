@@ -551,6 +551,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_friend_code: { Args: never; Returns: string }
       get_or_create_weekly_challenge: { Args: never; Returns: string }
       process_challenge_winners: {
         Args: { p_challenge_id: string }

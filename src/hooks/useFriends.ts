@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -16,13 +16,6 @@ interface Friend {
   isRequester: boolean;
 }
 
-interface Profile {
-  user_id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  friend_code: string | null;
-}
-
 export const useFriends = () => {
   const { user } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -36,57 +29,90 @@ export const useFriends = () => {
     try {
       setIsLoading(true);
 
-      // Get my friend code
-      const { data: myProfile } = await supabase
-        .from('profiles')
-        .select('friend_code')
-        .eq('user_id', user.id)
-        .single();
+      // Batch all queries in parallel
+      const [profileResult, friendshipsResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('friend_code')
+          .eq('user_id', user.id)
+          .single(),
+        supabase
+          .from('friendships')
+          .select('*')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+      ]);
 
-      setMyFriendCode(myProfile?.friend_code || null);
+      setMyFriendCode(profileResult.data?.friend_code || null);
 
-      // Get all friendships
-      const { data: friendships, error } = await supabase
-        .from('friendships')
-        .select('*')
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+      const friendships = friendshipsResult.data || [];
+      
+      if (friendships.length === 0) {
+        setFriends([]);
+        setPendingRequests([]);
+        setIsLoading(false);
+        return;
+      }
 
-      if (error) throw error;
+      // Get all friend user IDs
+      const friendUserIds = friendships.map(f => 
+        f.user_id === user.id ? f.friend_id : f.user_id
+      );
+
+      // Batch fetch all profiles and stats in parallel
+      const [profilesResult, statsResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+          .in('user_id', friendUserIds),
+        supabase
+          .from('user_stats')
+          .select('user_id, xp, level, streak, total_words')
+          .in('user_id', friendUserIds)
+      ]);
+
+      // Create lookup maps
+      const profileMap = new Map(
+        (profilesResult.data || []).map(p => [p.user_id, p])
+      );
+      
+      // Aggregate stats by user
+      const statsMap = new Map<string, { xp: number; level: number; streak: number; totalWords: number }>();
+      for (const stat of statsResult.data || []) {
+        const existing = statsMap.get(stat.user_id);
+        if (existing) {
+          existing.xp += stat.xp || 0;
+          existing.level = Math.max(existing.level, stat.level || 1);
+          existing.streak = Math.max(existing.streak, stat.streak || 0);
+          existing.totalWords += stat.total_words || 0;
+        } else {
+          statsMap.set(stat.user_id, {
+            xp: stat.xp || 0,
+            level: stat.level || 1,
+            streak: stat.streak || 0,
+            totalWords: stat.total_words || 0,
+          });
+        }
+      }
 
       const friendsList: Friend[] = [];
       const pendingList: Friend[] = [];
 
-      for (const friendship of friendships || []) {
+      for (const friendship of friendships) {
         const isRequester = friendship.user_id === user.id;
         const friendUserId = isRequester ? friendship.friend_id : friendship.user_id;
 
-        // Get friend's profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, avatar_url')
-          .eq('user_id', friendUserId)
-          .single();
-
-        // Get friend's stats (sum of all language stats)
-        const { data: stats } = await supabase
-          .from('user_stats')
-          .select('xp, level, streak, total_words')
-          .eq('user_id', friendUserId);
-
-        const totalXp = stats?.reduce((sum, s) => sum + (s.xp || 0), 0) || 0;
-        const maxLevel = stats?.reduce((max, s) => Math.max(max, s.level || 1), 1) || 1;
-        const maxStreak = stats?.reduce((max, s) => Math.max(max, s.streak || 0), 0) || 0;
-        const totalWords = stats?.reduce((sum, s) => sum + (s.total_words || 0), 0) || 0;
+        const profile = profileMap.get(friendUserId);
+        const stats = statsMap.get(friendUserId) || { xp: 0, level: 1, streak: 0, totalWords: 0 };
 
         const friend: Friend = {
           id: friendship.id,
           friendId: friendUserId,
           fullName: profile?.full_name || 'Foydalanuvchi',
-          avatarUrl: profile?.avatar_url,
-          xp: totalXp,
-          level: maxLevel,
-          streak: maxStreak,
-          totalWords,
+          avatarUrl: profile?.avatar_url || null,
+          xp: stats.xp,
+          level: stats.level,
+          streak: stats.streak,
+          totalWords: stats.totalWords,
           status: friendship.status as 'pending' | 'accepted' | 'rejected',
           isRequester,
         };
@@ -113,7 +139,7 @@ export const useFriends = () => {
     fetchFriends();
   }, [fetchFriends]);
 
-  const addFriendByCode = async (code: string): Promise<boolean> => {
+  const addFriendByCode = useCallback(async (code: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -139,7 +165,7 @@ export const useFriends = () => {
         .from('friendships')
         .select('id')
         .or(`and(user_id.eq.${user.id},friend_id.eq.${profile.user_id}),and(user_id.eq.${profile.user_id},friend_id.eq.${user.id})`)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         toast.error('Bu foydalanuvchi allaqachon do\'stlar ro\'yxatida');
@@ -165,9 +191,9 @@ export const useFriends = () => {
       toast.error('Xatolik yuz berdi');
       return false;
     }
-  };
+  }, [user, fetchFriends]);
 
-  const acceptRequest = async (friendshipId: string) => {
+  const acceptRequest = useCallback(async (friendshipId: string) => {
     try {
       const { error } = await supabase
         .from('friendships')
@@ -182,9 +208,9 @@ export const useFriends = () => {
       console.error('Error accepting request:', error);
       toast.error('Xatolik yuz berdi');
     }
-  };
+  }, [fetchFriends]);
 
-  const rejectRequest = async (friendshipId: string) => {
+  const rejectRequest = useCallback(async (friendshipId: string) => {
     try {
       const { error } = await supabase
         .from('friendships')
@@ -199,9 +225,9 @@ export const useFriends = () => {
       console.error('Error rejecting request:', error);
       toast.error('Xatolik yuz berdi');
     }
-  };
+  }, [fetchFriends]);
 
-  const removeFriend = async (friendshipId: string) => {
+  const removeFriend = useCallback(async (friendshipId: string) => {
     try {
       const { error } = await supabase
         .from('friendships')
@@ -216,7 +242,7 @@ export const useFriends = () => {
       console.error('Error removing friend:', error);
       toast.error('Xatolik yuz berdi');
     }
-  };
+  }, [fetchFriends]);
 
   return {
     friends,
