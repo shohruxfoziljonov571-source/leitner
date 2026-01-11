@@ -139,7 +139,7 @@ serve(async (req) => {
 });
 
 async function sendTelegramMessage(token: string, chatId: number, text: string) {
-  const WEBAPP_URL = "https://leitner.lovable.app";
+  const WEBAPP_URL = "https://leitner.shohruxdigital.uz";
   
   const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
