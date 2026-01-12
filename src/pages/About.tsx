@@ -124,7 +124,7 @@ const About: React.FC = () => {
           </p>
         </motion.div>
 
-        {/* Video Tutorial */}
+        {/* Video Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -133,19 +133,20 @@ const About: React.FC = () => {
         >
           <h2 className="font-display font-semibold text-xl mb-4 flex items-center gap-2">
             <Play className="w-5 h-5 text-primary" />
-            Video Qo'llanma
+            Nega Bu Usul Samarali?
           </h2>
           <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-muted">
             <iframe
               className="absolute inset-0 w-full h-full"
-              src="https://www.youtube.com/embed/h-F2OofEobQ?start=110&end=574"
-              title="Leitner tizimi haqida video"
+              src="https://www.youtube-nocookie.com/embed/h-F2OofEobQ?start=110&end=574&rel=0&modestbranding=1&showinfo=0&fs=1&disablekb=0"
+              title="Leitner usuli samaradorligi"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              style={{ border: 'none' }}
             />
           </div>
           <p className="text-sm text-muted-foreground mt-3 text-center">
-            Leitner tizimi qanday ishlashini video orqali ko'ring
+            Intervalli takrorlash usulining samaradorligi haqida batafsil
           </p>
         </motion.div>
 
