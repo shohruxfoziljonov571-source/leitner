@@ -10,7 +10,8 @@ import {
   ArrowRight,
   CheckCircle,
   Lightbulb,
-  Zap
+  Zap,
+  Play
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -123,11 +124,36 @@ const About: React.FC = () => {
           </p>
         </motion.div>
 
-        {/* Origin Story */}
+        {/* Video Tutorial */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="bg-card rounded-3xl shadow-card p-6 mb-8"
+        >
+          <h2 className="font-display font-semibold text-xl mb-4 flex items-center gap-2">
+            <Play className="w-5 h-5 text-primary" />
+            Video Qo'llanma
+          </h2>
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-muted">
+            <iframe
+              className="absolute inset-0 w-full h-full"
+              src="https://www.youtube.com/embed/h-F2OofEobQ?start=110&end=574"
+              title="Leitner tizimi haqida video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+          <p className="text-sm text-muted-foreground mt-3 text-center">
+            Leitner tizimi qanday ishlashini video orqali ko'ring
+          </p>
+        </motion.div>
+
+        {/* Origin Story */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
           className="bg-card rounded-3xl shadow-card p-6 mb-8"
         >
           <div className="flex items-start gap-4">
