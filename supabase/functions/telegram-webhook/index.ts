@@ -175,10 +175,19 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     "challenge": () => handleChallengeCommand(supabase, token, chatId),
     "join_challenge": () => handleJoinChallenge(supabase, token, chatId),
     "back_to_menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
+    "check_channels": () => handleCheckChannels(supabase, token, chatId),
   };
 
   const handler = handlers[data];
   if (handler) await handler();
+}
+
+// Handle channel check callback
+async function handleCheckChannels(supabase: any, token: string, chatId: number) {
+  const channelsOk = await checkRequiredChannels(supabase, token, chatId);
+  if (channelsOk) {
+    await sendWelcomeMessage(token, chatId);
+  }
 }
 
 // ============ TEXT COMMAND HANDLER ============
@@ -220,11 +229,27 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   const parts = text.split(" ");
   
   if (parts.length > 1) {
+    const param = parts[1];
+    
+    // Check if it's a referral link (starts with ref_)
+    if (param.startsWith("ref_")) {
+      const refCode = param.replace("ref_", "");
+      await trackReferralVisit(supabase, refCode, chatId, username);
+    }
+    
+    // Check if it's a user connection link (base64 encoded)
     try {
-      const decoded = atob(parts[1]);
+      const decoded = atob(param);
       const [userId] = decoded.split(":");
       
       if (userId) {
+        // Get referral source from profile if any
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("referral_source")
+          .eq("user_id", userId)
+          .maybeSingle();
+
         await supabase
           .from("profiles")
           .update({
@@ -254,11 +279,111 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
         return;
       }
     } catch (e) {
-      console.error("Deep link error:", e);
+      // Not a base64 encoded link, might be just a referral
+      console.log("Param parsing:", e);
     }
   }
 
+  // Check for required channels before showing welcome
+  const channelsCheck = await checkRequiredChannels(supabase, token, chatId);
+  if (!channelsCheck) {
+    return; // User needs to join channels first
+  }
+
   await sendWelcomeMessage(token, chatId);
+}
+
+// Track referral visit
+async function trackReferralVisit(supabase: any, refCode: string, chatId: number, username?: string) {
+  try {
+    // Find referral
+    const { data: referral } = await supabase
+      .from("referrals")
+      .select("id, is_active")
+      .eq("code", refCode)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!referral) {
+      console.log(`Referral not found or inactive: ${refCode}`);
+      return;
+    }
+
+    // Increment clicks
+    await supabase
+      .from("referrals")
+      .update({ clicks: supabase.rpc("increment_clicks") })
+      .eq("id", referral.id);
+
+    // Log visit
+    await supabase.from("referral_visits").insert({
+      referral_id: referral.id,
+      ip_hash: String(chatId), // Using chatId as identifier
+      user_agent: username || "telegram",
+    });
+
+    console.log(`Referral visit tracked: ${refCode}`);
+  } catch (e) {
+    console.error("Track referral error:", e);
+  }
+}
+
+// Check if user has joined required channels
+async function checkRequiredChannels(supabase: any, token: string, chatId: number): Promise<boolean> {
+  const { data: channels } = await supabase
+    .from("required_channels")
+    .select("*")
+    .eq("is_active", true);
+
+  if (!channels || channels.length === 0) {
+    return true; // No required channels
+  }
+
+  const notJoined: any[] = [];
+  
+  for (const channel of channels) {
+    const isMember = await checkChannelMembership(token, channel.channel_id, chatId);
+    if (!isMember) {
+      notJoined.push(channel);
+    }
+  }
+
+  if (notJoined.length > 0) {
+    const channelButtons: any[] = notJoined.map((ch: any) => [
+      { text: `📢 ${ch.channel_name}`, url: ch.channel_url }
+    ]);
+    channelButtons.push([{ text: "✅ Tekshirish", callback_data: "check_channels" }]);
+
+    await sendMessage(
+      token, chatId,
+      "👋 <b>Salom!</b>\n\n" +
+      "Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling:\n\n" +
+      notJoined.map((ch: any) => `📢 ${ch.channel_name}`).join("\n"),
+      { inline_keyboard: channelButtons }
+    );
+    return false;
+  }
+
+  return true;
+}
+
+// Check if user is member of a channel
+async function checkChannelMembership(token: string, channelId: string, userId: number): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${token}/getChatMember?chat_id=${channelId}&user_id=${userId}`
+    );
+    const data = await response.json();
+    
+    if (data.ok) {
+      const status = data.result.status;
+      return ["member", "administrator", "creator"].includes(status);
+    }
+    return false;
+  } catch (e) {
+    console.error("Check membership error:", e);
+    return true; // On error, allow access
+  }
 }
 
 async function handleAddWordCommand(supabase: any, token: string, chatId: number, input: string) {
