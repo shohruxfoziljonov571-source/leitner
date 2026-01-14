@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, PartyPopper, Plus, Layers, Gamepad2 } from 'lucide-react';
+import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
@@ -12,6 +12,10 @@ import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
 import XpPopup from '@/components/gamification/XpPopup';
 import XpBar from '@/components/gamification/XpBar';
+import PomodoroTimer from '@/components/learning/PomodoroTimer';
+import StreakCombo from '@/components/learning/StreakCombo';
+import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
+import AnswerFlash from '@/components/learning/AnswerFlash';
 
 // Fisher-Yates shuffle algorithm
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -23,7 +27,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
-type LearningMode = 'flashcard' | 'quiz';
+type LearningMode = 'flashcard' | 'quiz' | 'speed';
 
 const Learn: React.FC = () => {
   const { t } = useLanguage();
@@ -36,7 +40,14 @@ const Learn: React.FC = () => {
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [lastXpGain, setLastXpGain] = useState(0);
   const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
+  const [comboStreak, setComboStreak] = useState(0);
+  const [showCombo, setShowCombo] = useState(false);
+  const [answerFlash, setAnswerFlash] = useState<boolean | null>(null);
+  const [showFlash, setShowFlash] = useState(false);
+  const [speedResetTrigger, setSpeedResetTrigger] = useState(0);
+  const [isOnBreak, setIsOnBreak] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get words for review - memoized based on words array content
   const wordsToReview = useMemo(() => {
@@ -81,13 +92,52 @@ const Learn: React.FC = () => {
   const totalToReview = shuffledWordsWithDirection.length;
   const reviewedCount = reviewedIds.size;
 
+  const handleSpeedTimeout = useCallback(async () => {
+    // Auto-answer as incorrect when timer runs out
+    if (currentWordItem) {
+      await reviewWord(currentWordItem.word.id, false);
+      setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
+      setCurrentIndex((prev) => prev + 1);
+      
+      // Reset combo on timeout
+      setComboStreak(0);
+      
+      // Flash red
+      setAnswerFlash(false);
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 300);
+      
+      setSpeedResetTrigger(prev => prev + 1);
+    }
+  }, [currentWordItem, reviewWord]);
+
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
     if (currentWordItem) {
       await reviewWord(currentWordItem.word.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
-      const xpGain = isCorrect ? XP_PER_CORRECT : XP_PER_INCORRECT;
+      // Update combo streak
+      if (isCorrect) {
+        setComboStreak(prev => prev + 1);
+        setShowCombo(true);
+        if (comboTimeoutRef.current) {
+          clearTimeout(comboTimeoutRef.current);
+        }
+        comboTimeoutRef.current = setTimeout(() => setShowCombo(false), 2000);
+      } else {
+        setComboStreak(0);
+        setShowCombo(false);
+      }
+
+      // Show answer flash
+      setAnswerFlash(isCorrect);
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 300);
+
+      // Calculate XP with combo bonus
+      const comboBonus = comboStreak >= 10 ? 5 : comboStreak >= 5 ? 3 : comboStreak >= 3 ? 1 : 0;
+      const xpGain = isCorrect ? XP_PER_CORRECT + comboBonus : XP_PER_INCORRECT;
       setLastXpGain(xpGain);
       setShowXpPopup(true);
       await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
@@ -110,14 +160,22 @@ const Learn: React.FC = () => {
         totalReviews,
         level,
       });
+
+      // Reset speed timer for next word
+      if (learningMode === 'speed') {
+        setSpeedResetTrigger(prev => prev + 1);
+      }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (comboTimeoutRef.current) {
+        clearTimeout(comboTimeoutRef.current);
       }
     };
   }, []);
@@ -267,6 +325,31 @@ const Learn: React.FC = () => {
                 </div>
               </div>
             </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              onClick={() => setLearningMode('speed')}
+              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-500 text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                  <Zap className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
+                    Tezlik rejimi
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500">
+                      10s
+                    </span>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    10 soniya ichida javob bering - adrenalin oshadi!
+                  </p>
+                </div>
+              </div>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -291,9 +374,44 @@ const Learn: React.FC = () => {
     lastReviewed: currentWord.last_reviewed ? new Date(currentWord.last_reviewed) : null,
   } : null;
 
+  const getModeLabel = () => {
+    switch (learningMode) {
+      case 'flashcard': return '📚 Flashcard';
+      case 'quiz': return '🎮 Quiz';
+      case 'speed': return '⚡ Tezlik';
+      default: return '';
+    }
+  };
+
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <XpPopup amount={lastXpGain} show={showXpPopup} />
+      <StreakCombo streak={comboStreak} show={showCombo} />
+      <AnswerFlash isCorrect={answerFlash} show={showFlash} />
+      
+      {/* Break overlay */}
+      <AnimatePresence>
+        {isOnBreak && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-background/90 backdrop-blur-md"
+          >
+            <div className="text-center">
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-6xl mb-4"
+              >
+                ☕
+              </motion.div>
+              <h2 className="font-display font-bold text-2xl mb-2">Dam olish vaqti</h2>
+              <p className="text-muted-foreground">5 daqiqa dam oling...</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <div className="container mx-auto px-4 py-6">
         {/* Header with progress */}
@@ -302,7 +420,7 @@ const Learn: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <h1 className="font-display font-bold text-2xl text-foreground">
                 {t('learn')}
@@ -311,19 +429,40 @@ const Learn: React.FC = () => {
                 onClick={() => setLearningMode(null)}
                 className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
               >
-                {learningMode === 'flashcard' ? '📚 Flashcard' : '🎮 Quiz'}
+                {getModeLabel()}
               </button>
             </div>
-            <XpBar compact />
+            <div className="flex items-center gap-3">
+              {learningMode === 'speed' && (
+                <SpeedModeTimer
+                  isActive={!isOnBreak && !!transformedWord}
+                  onTimeout={handleSpeedTimeout}
+                  timeLimit={10}
+                  resetTrigger={speedResetTrigger}
+                />
+              )}
+              <PomodoroTimer
+                onBreakStart={() => setIsOnBreak(true)}
+                onBreakEnd={() => setIsOnBreak(false)}
+              />
+              <XpBar compact />
+            </div>
           </div>
           
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">
               {reviewedCount + 1} / {totalToReview} so'z
             </span>
-            <span className="text-sm text-primary font-medium">
-              +{XP_PER_CORRECT} XP to'g'ri javob uchun
-            </span>
+            <div className="flex items-center gap-3">
+              {comboStreak >= 3 && (
+                <span className="text-sm font-medium text-amber-500">
+                  🔥 x{comboStreak} combo
+                </span>
+              )}
+              <span className="text-sm text-primary font-medium">
+                +{XP_PER_CORRECT} XP
+              </span>
+            </div>
           </div>
 
           {/* Progress bar */}
@@ -339,7 +478,7 @@ const Learn: React.FC = () => {
 
         {/* Card based on mode */}
         <AnimatePresence mode="wait">
-          {transformedWord && learningMode === 'flashcard' && (
+          {transformedWord && (learningMode === 'flashcard') && (
             <FlashCard
               key={transformedWord.id}
               word={transformedWord}
@@ -347,7 +486,7 @@ const Learn: React.FC = () => {
               isReversed={currentWordItem?.isReversed}
             />
           )}
-          {transformedWord && learningMode === 'quiz' && (
+          {transformedWord && (learningMode === 'quiz' || learningMode === 'speed') && (
             <QuizCard
               key={transformedWord.id}
               word={transformedWord}
