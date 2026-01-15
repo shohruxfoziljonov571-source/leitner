@@ -15,7 +15,6 @@ import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
 import StreakCombo from '@/components/learning/StreakCombo';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
-import AnswerFlash from '@/components/learning/AnswerFlash';
 
 // Fisher-Yates shuffle algorithm
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -42,8 +41,6 @@ const Learn: React.FC = () => {
   const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
   const [comboStreak, setComboStreak] = useState(0);
   const [showCombo, setShowCombo] = useState(false);
-  const [answerFlash, setAnswerFlash] = useState<boolean | null>(null);
-  const [showFlash, setShowFlash] = useState(false);
   const [speedResetTrigger, setSpeedResetTrigger] = useState(0);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -102,11 +99,6 @@ const Learn: React.FC = () => {
       // Reset combo on timeout
       setComboStreak(0);
       
-      // Flash red
-      setAnswerFlash(false);
-      setShowFlash(true);
-      setTimeout(() => setShowFlash(false), 300);
-      
       setSpeedResetTrigger(prev => prev + 1);
     }
   }, [currentWordItem, reviewWord]);
@@ -129,11 +121,6 @@ const Learn: React.FC = () => {
         setComboStreak(0);
         setShowCombo(false);
       }
-
-      // Show answer flash
-      setAnswerFlash(isCorrect);
-      setShowFlash(true);
-      setTimeout(() => setShowFlash(false), 300);
 
       // Calculate XP with combo bonus
       const comboBonus = comboStreak >= 10 ? 5 : comboStreak >= 5 ? 3 : comboStreak >= 3 ? 1 : 0;
@@ -387,7 +374,6 @@ const Learn: React.FC = () => {
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <XpPopup amount={lastXpGain} show={showXpPopup} />
       <StreakCombo streak={comboStreak} show={showCombo} />
-      <AnswerFlash isCorrect={answerFlash} show={showFlash} />
       
       {/* Break overlay */}
       <AnimatePresence>

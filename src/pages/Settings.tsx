@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor, Folder } from 'lucide-react';
+import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor, Folder, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import CategoryManager from '@/components/CategoryManager';
 import NotificationSettings from '@/components/NotificationSettings';
+import DailyGoalSetting from '@/components/settings/DailyGoalSetting';
 
 const Settings: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -145,6 +146,16 @@ const Settings: React.FC = () => {
               </button>
             ))}
           </div>
+        </motion.div>
+
+        {/* Daily Goal */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.17 }}
+          className="bg-card rounded-2xl shadow-card p-5 mb-4"
+        >
+          <DailyGoalSetting />
         </motion.div>
 
         {/* Categories */}
