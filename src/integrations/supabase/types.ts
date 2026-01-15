@@ -424,8 +424,10 @@ export type Database = {
       user_stats: {
         Row: {
           achievements: string[] | null
+          daily_goal: number
           id: string
           last_active_date: string
+          last_activity_description: string | null
           learned_words: number
           level: number | null
           streak: number
@@ -438,8 +440,10 @@ export type Database = {
         }
         Insert: {
           achievements?: string[] | null
+          daily_goal?: number
           id?: string
           last_active_date?: string
+          last_activity_description?: string | null
           learned_words?: number
           level?: number | null
           streak?: number
@@ -452,8 +456,10 @@ export type Database = {
         }
         Update: {
           achievements?: string[] | null
+          daily_goal?: number
           id?: string
           last_active_date?: string
+          last_activity_description?: string | null
           learned_words?: number
           level?: number | null
           streak?: number

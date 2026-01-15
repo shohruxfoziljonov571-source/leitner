@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,6 +10,7 @@ import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
 import AchievementBadge from '@/components/gamification/AchievementBadge';
 import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/LazyCharts';
+import StreakHeatmap from '@/components/statistics/StreakHeatmap';
 
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
@@ -138,6 +139,16 @@ const Statistics: React.FC = () => {
             delay={0.4}
           />
         </div>
+
+        {/* Streak Heatmap */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <StreakHeatmap />
+        </motion.div>
 
         {/* Charts Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">

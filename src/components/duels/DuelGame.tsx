@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { useWordDuels } from '@/hooks/useWordDuels';
 import { useAuth } from '@/contexts/AuthContext';
 import { fireVictoryConfetti, fireGoldConfetti, fireStarConfetti } from '@/lib/confetti';
+import TugOfWarAnimation from './TugOfWarAnimation';
 
 interface DuelWord {
   id: string;
@@ -39,6 +40,8 @@ const DuelGame: React.FC<DuelGameProps> = ({ duel, onComplete }) => {
   const [isComplete, setIsComplete] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showVictoryAnimation, setShowVictoryAnimation] = useState(false);
+  const [playerScore, setPlayerScore] = useState(0);
+  const [lastPullResult, setLastPullResult] = useState<'player' | 'opponent' | null>(null);
 
   const currentWord = duel.words[currentIndex];
   const progress = ((currentIndex) / duel.word_count) * 100;
@@ -84,6 +87,15 @@ const DuelGame: React.FC<DuelGameProps> = ({ duel, onComplete }) => {
     await submitAnswer(duel.id, currentIndex, isCorrect, responseTime);
 
     setResults(prev => [...prev, { correct: isCorrect, time: responseTime }]);
+    
+    // Update player score and trigger tug animation
+    if (isCorrect) {
+      setPlayerScore(prev => prev + 1);
+      setLastPullResult('player');
+    } else {
+      setLastPullResult('opponent');
+    }
+    setTimeout(() => setLastPullResult(null), 600);
 
     setTimeout(() => {
       setShowResult(false);
@@ -286,6 +298,19 @@ const DuelGame: React.FC<DuelGameProps> = ({ duel, onComplete }) => {
 
   return (
     <div className="max-w-md mx-auto">
+      {/* Tug of War Animation */}
+      <TugOfWarAnimation
+        playerScore={playerScore}
+        opponentScore={duel.word_count - currentIndex - playerScore}
+        totalQuestions={duel.word_count}
+        playerName={duel.challenger_id === user?.id ? (duel.challenger_name || 'Siz') : (duel.opponent_name || 'Siz')}
+        opponentName={duel.challenger_id === user?.id ? (duel.opponent_name || 'Raqib') : (duel.challenger_name || 'Raqib')}
+        lastResult={lastPullResult}
+        isComplete={isComplete}
+        winnerId={null}
+        playerId={user?.id || ''}
+      />
+
       {/* Progress */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
