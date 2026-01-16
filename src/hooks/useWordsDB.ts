@@ -27,6 +27,7 @@ interface UserStats {
   today_reviewed: number;
   today_correct: number;
   last_active_date: string;
+  daily_goal: number;
 }
 
 const getDefaultStats = (): UserStats => ({
@@ -36,6 +37,7 @@ const getDefaultStats = (): UserStats => ({
   today_reviewed: 0,
   today_correct: 0,
   last_active_date: new Date().toISOString().split('T')[0],
+  daily_goal: 20,
 });
 
 export const useWordsDB = () => {
