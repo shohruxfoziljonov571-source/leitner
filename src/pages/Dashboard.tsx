@@ -9,6 +9,7 @@ import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
 import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
+import DailyGoalProgress from '@/components/dashboard/DailyGoalProgress';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
 import WeeklyChallenge from '@/components/gamification/WeeklyChallenge';
@@ -136,6 +137,19 @@ const Dashboard: React.FC = () => {
             delay={0.3}
           />
         </div>
+
+        {/* Daily Goal Progress */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32 }}
+          className="mb-6"
+        >
+          <DailyGoalProgress 
+            reviewed={stats.today_reviewed} 
+            goal={stats.daily_goal || 20} 
+          />
+        </motion.div>
 
         {/* Unclaimed Rewards */}
         <UnclaimedRewards />
