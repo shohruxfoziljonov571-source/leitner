@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
-  Copy, BarChart3, MessageSquare, Link2, Shield
+  Copy, BarChart3, MessageSquare, Link2, Shield, Trophy
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useAdmin } from '@/hooks/useAdmin';
+import ContestManager from '@/components/admin/ContestManager';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -129,10 +130,14 @@ const Admin = () => {
         </motion.div>
 
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Analitika
+            </TabsTrigger>
+            <TabsTrigger value="contests" className="flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Konkurslar
             </TabsTrigger>
             <TabsTrigger value="channels" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -323,6 +328,11 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Contests Tab */}
+          <TabsContent value="contests">
+            <ContestManager />
           </TabsContent>
 
           {/* Channels Tab */}

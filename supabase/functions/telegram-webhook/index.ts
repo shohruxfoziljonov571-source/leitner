@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WEBAPP_URL = "https://leitner.shohruxdigital.uz";
+const WEBAPP_URL = "https://leitner.lovable.app";
 
 // Cache for user profiles to reduce DB calls
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
@@ -176,6 +176,9 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     "join_challenge": () => handleJoinChallenge(supabase, token, chatId),
     "back_to_menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
     "check_channels": () => handleCheckChannels(supabase, token, chatId),
+    "contest": () => handleContestCommand(supabase, token, chatId),
+    "join_contest": () => handleJoinContest(supabase, token, chatId),
+    "my_contest_stats": () => handleMyContestStats(supabase, token, chatId),
   };
 
   const handler = handlers[data];
@@ -211,6 +214,8 @@ async function handleTextCommand(supabase: any, token: string, chatId: number, t
     "/streak": () => handleStreakCommand(supabase, token, chatId),
     "/rank": () => handleRankCommand(supabase, token, chatId),
     "/challenge": () => handleChallengeCommand(supabase, token, chatId),
+    "/contest": () => handleContestCommand(supabase, token, chatId),
+    "/konkurs": () => handleContestCommand(supabase, token, chatId),
     "/app": async () => { await sendMessage(token, chatId, "📱 <b>Leitner App</b>", getWebAppButton()); },
   };
 
@@ -230,6 +235,13 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   
   if (parts.length > 1) {
     const param = parts[1];
+    
+    // Check if it's a contest referral link (starts with cref_)
+    if (param.startsWith("cref_")) {
+      const [contestShortId, referrerUserId] = param.replace("cref_", "").split("_");
+      await handleContestReferral(supabase, token, chatId, contestShortId, referrerUserId, username);
+      return;
+    }
     
     // Check if it's a referral link (starts with ref_)
     if (param.startsWith("ref_")) {
@@ -273,7 +285,8 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
           "💡 <b>Foydali:</b>\n" +
           "• /add so'z - tarjima - tezkor so'z qo'shish\n" +
           "• @Leitner_robot yozing - so'zlarni ulashing\n" +
-          "• /challenge - haftalik musobaqaga qo'shiling",
+          "• /challenge - haftalik musobaqaga qo'shiling\n" +
+          "• /contest - konkursda qatnashing",
           getMainMenuKeyboard()
         );
         return;
@@ -291,6 +304,63 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   }
 
   await sendWelcomeMessage(token, chatId);
+}
+
+// Handle contest referral
+async function handleContestReferral(supabase: any, token: string, chatId: number, contestShortId: string, referrerUserId: string, username?: string) {
+  try {
+    // Find the contest
+    const { data: contest } = await supabase
+      .from("contests")
+      .select("id, title, is_active, end_date")
+      .ilike("id", `${contestShortId}%`)
+      .eq("is_active", true)
+      .gt("end_date", new Date().toISOString())
+      .maybeSingle();
+
+    if (!contest) {
+      await sendMessage(token, chatId, "❌ Konkurs topilmadi yoki tugagan.", getMainMenuKeyboard());
+      return;
+    }
+
+    // Check if this user already exists in the system
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .eq("telegram_chat_id", chatId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      // User already registered, just show contest info
+      await handleContestCommand(supabase, token, chatId);
+      return;
+    }
+
+    // Store pending referral info in cache or similar mechanism
+    // For now, we'll send a message explaining they need to register
+    await sendMessage(
+      token, chatId,
+      `🏆 <b>${contest.title}</b>\n\n` +
+      `Siz konkursga taklif qilindingiz!\n\n` +
+      `Qatnashish uchun:\n` +
+      `1️⃣ Ilovada ro'yxatdan o'ting\n` +
+      `2️⃣ Profildan Telegramni ulang\n` +
+      `3️⃣ Kamida 1 ta so'z qo'shing\n\n` +
+      `Shundan so'ng siz konkurs ishtirokchisi bo'lasiz!`,
+      {
+        inline_keyboard: [
+          [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
+          [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
+        ],
+      }
+    );
+
+    // Store the referral attempt (will be validated when user adds first word)
+    // We need to create a temp profile or store in session
+  } catch (e) {
+    console.error("Contest referral error:", e);
+    await sendWelcomeMessage(token, chatId);
+  }
 }
 
 // Track referral visit
@@ -848,6 +918,200 @@ async function handleSetReminderTime(supabase: any, token: string, chatId: numbe
   );
 }
 
+// ============ CONTEST HANDLERS ============
+
+async function handleContestCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  // Get active contest
+  const { data: contest } = await supabase
+    .from("contests")
+    .select("*")
+    .eq("is_active", true)
+    .lte("start_date", new Date().toISOString())
+    .gt("end_date", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!contest) {
+    await sendMessage(token, chatId, "📢 Hozirda faol konkurs yo'q.\n\nYangi konkurslar haqida xabar olish uchun kanalimizga obuna bo'ling!", getMainMenuKeyboard());
+    return;
+  }
+
+  // Calculate days left
+  const endDate = new Date(contest.end_date);
+  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
+  // Get participant count
+  const { count: participantCount } = await supabase
+    .from("contest_participants")
+    .select("*", { count: "exact", head: true })
+    .eq("contest_id", contest.id);
+
+  // Check if user is participating
+  let isParticipating = false;
+  let userStats = null;
+  let userRank = 0;
+  let referralLink = "";
+
+  if (profile) {
+    const { data: participation } = await supabase
+      .from("contest_participants")
+      .select("*")
+      .eq("contest_id", contest.id)
+      .eq("user_id", profile.userId)
+      .maybeSingle();
+
+    isParticipating = !!participation;
+    userStats = participation;
+
+    if (isParticipating) {
+      // Get rank
+      const { data: allParticipants } = await supabase
+        .from("contest_participants")
+        .select("user_id, referral_count")
+        .eq("contest_id", contest.id)
+        .order("referral_count", { ascending: false });
+
+      userRank = (allParticipants?.findIndex((p: any) => p.user_id === profile.userId) || 0) + 1;
+      referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
+    }
+  }
+
+  // Get top 5 leaderboard
+  const { data: leaders } = await supabase
+    .from("contest_participants")
+    .select("user_id, referral_count, telegram_username")
+    .eq("contest_id", contest.id)
+    .gt("referral_count", 0)
+    .order("referral_count", { ascending: false })
+    .limit(5);
+
+  // Get leader names
+  const leaderIds = leaders?.map((l: any) => l.user_id) || [];
+  const { data: leaderProfiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .in("user_id", leaderIds);
+
+  const profileMap = new Map(leaderProfiles?.map((p: any) => [p.user_id, p.full_name]) || []);
+
+  let leaderboard = "";
+  leaders?.forEach((l: any, i: number) => {
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    const name = profileMap.get(l.user_id) || l.telegram_username || "Noma'lum";
+    const isMe = profile && l.user_id === profile.userId;
+    leaderboard += `${medal} ${isMe ? "<b>" : ""}${name}${isMe ? "</b>" : ""} - ${l.referral_count} ta\n`;
+  });
+
+  const prizes = contest.prizes?.map((p: any, i: number) => {
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    return `${medal} ${p.prize}`;
+  }).join("\n") || "";
+
+  let message = 
+    `🏆 <b>${contest.title}</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    (contest.description ? `${contest.description}\n\n` : "") +
+    `⏰ ${daysLeft} kun qoldi\n` +
+    `👥 ${participantCount || 0} ishtirokchi\n\n` +
+    `🎁 <b>Sovg'alar:</b>\n${prizes}\n\n` +
+    (leaderboard ? `📊 <b>Top 5:</b>\n${leaderboard}\n` : "");
+
+  if (isParticipating && userStats) {
+    message += `\n✅ <b>Siz qatnashyapsiz!</b>\n` +
+      `📊 O'rningiz: #${userRank}\n` +
+      `👥 Takliflaringiz: ${userStats.referral_count} ta\n\n` +
+      `🔗 Sizning havolangiz:\n<code>${referralLink}</code>`;
+  }
+
+  const keyboard = isParticipating
+    ? {
+        inline_keyboard: [
+          [{ text: "📋 Havolani nusxalash", callback_data: "copy_contest_link" }],
+          [{ text: "📊 Statistikam", callback_data: "my_contest_stats" }],
+          [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
+        ],
+      }
+    : {
+        inline_keyboard: [
+          [{ text: "🚀 Qatnashish", callback_data: "join_contest" }],
+          [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
+        ],
+      };
+
+  await sendMessage(token, chatId, message, keyboard);
+}
+
+async function handleJoinContest(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    return;
+  }
+
+  // Get active contest
+  const { data: contest } = await supabase
+    .from("contests")
+    .select("id, title")
+    .eq("is_active", true)
+    .gt("end_date", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!contest) {
+    await sendMessage(token, chatId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
+    return;
+  }
+
+  // Get telegram username
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("telegram_username")
+    .eq("user_id", profile.userId)
+    .maybeSingle();
+
+  // Join contest
+  const { error } = await supabase
+    .from("contest_participants")
+    .upsert({
+      contest_id: contest.id,
+      user_id: profile.userId,
+      telegram_chat_id: chatId,
+      telegram_username: profileData?.telegram_username,
+    }, { onConflict: "contest_id,user_id" });
+
+  if (error) {
+    console.error("Join contest error:", error);
+    await sendMessage(token, chatId, "❌ Xatolik yuz berdi.");
+    return;
+  }
+
+  const referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
+
+  await sendMessage(
+    token, chatId,
+    `🎉 <b>Konkursga qo'shildingiz!</b>\n\n` +
+    `🏆 ${contest.title}\n\n` +
+    `Do'stlaringizni taklif qiling va sovg'a yutib oling!\n\n` +
+    `🔗 <b>Sizning havolangiz:</b>\n<code>${referralLink}</code>\n\n` +
+    `⚠️ <b>Muhim:</b> Taklif qilingan do'st kamida 1 ta so'z qo'shishi kerak!`,
+    {
+      inline_keyboard: [
+        [{ text: "🏆 Konkurs sahifasi", callback_data: "contest" }],
+        [{ text: "⬅️ Menyu", callback_data: "back_to_menu" }],
+      ],
+    }
+  );
+}
+
+async function handleMyContestStats(supabase: any, token: string, chatId: number) {
+  await handleContestCommand(supabase, token, chatId);
+}
+
 // ============ HELPER FUNCTIONS ============
 
 async function getCachedProfile(supabase: any, chatId: number) {
@@ -885,7 +1149,8 @@ function getMainMenuKeyboard() {
       [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
       [{ text: "📊 Statistika", callback_data: "my_stats" }, { text: "🔥 Streak", callback_data: "my_streak" }],
       [{ text: "📚 Takrorlash", callback_data: "words_to_review" }, { text: "🏆 Reyting", callback_data: "my_rank" }],
-      [{ text: "🎯 Challenge", callback_data: "challenge" }, { text: "⚙️ Sozlamalar", callback_data: "settings" }],
+      [{ text: "🎯 Challenge", callback_data: "challenge" }, { text: "🏆 Konkurs", callback_data: "contest" }],
+      [{ text: "⚙️ Sozlamalar", callback_data: "settings" }],
     ],
   };
 }
