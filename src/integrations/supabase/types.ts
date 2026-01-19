@@ -82,6 +82,142 @@ export type Database = {
           },
         ]
       }
+      contest_participants: {
+        Row: {
+          contest_id: string
+          id: string
+          joined_at: string
+          referral_count: number
+          telegram_chat_id: number | null
+          telegram_username: string | null
+          user_id: string
+          words_added: number
+          xp_earned: number
+        }
+        Insert: {
+          contest_id: string
+          id?: string
+          joined_at?: string
+          referral_count?: number
+          telegram_chat_id?: number | null
+          telegram_username?: string | null
+          user_id: string
+          words_added?: number
+          xp_earned?: number
+        }
+        Update: {
+          contest_id?: string
+          id?: string
+          joined_at?: string
+          referral_count?: number
+          telegram_chat_id?: number | null
+          telegram_username?: string | null
+          user_id?: string
+          words_added?: number
+          xp_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_participants_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_referrals: {
+        Row: {
+          contest_id: string
+          created_at: string
+          id: string
+          is_valid: boolean
+          referred_telegram_chat_id: number | null
+          referred_user_id: string
+          referrer_user_id: string
+          validated_at: string | null
+        }
+        Insert: {
+          contest_id: string
+          created_at?: string
+          id?: string
+          is_valid?: boolean
+          referred_telegram_chat_id?: number | null
+          referred_user_id: string
+          referrer_user_id: string
+          validated_at?: string | null
+        }
+        Update: {
+          contest_id?: string
+          created_at?: string
+          id?: string
+          is_valid?: boolean
+          referred_telegram_chat_id?: number | null
+          referred_user_id?: string
+          referrer_user_id?: string
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_referrals_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contests: {
+        Row: {
+          contest_type: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          min_referrals: number
+          prizes: Json
+          start_date: string
+          title: string
+          updated_at: string
+          winner_count: number
+        }
+        Insert: {
+          contest_type?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          min_referrals?: number
+          prizes?: Json
+          start_date?: string
+          title: string
+          updated_at?: string
+          winner_count?: number
+        }
+        Update: {
+          contest_type?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          min_referrals?: number
+          prizes?: Json
+          start_date?: string
+          title?: string
+          updated_at?: string
+          winner_count?: number
+        }
+        Relationships: []
+      }
       daily_stats: {
         Row: {
           created_at: string
@@ -689,6 +825,29 @@ export type Database = {
     }
     Functions: {
       generate_friend_code: { Args: never; Returns: string }
+      get_active_contest: {
+        Args: never
+        Returns: {
+          contest_type: string
+          description: string
+          end_date: string
+          id: string
+          image_url: string
+          prizes: Json
+          title: string
+          winner_count: number
+        }[]
+      }
+      get_contest_leaderboard: {
+        Args: { p_contest_id: string }
+        Returns: {
+          full_name: string
+          rank: number
+          referral_count: number
+          telegram_username: string
+          user_id: string
+        }[]
+      }
       get_or_create_weekly_challenge: { Args: never; Returns: string }
       has_role: {
         Args: {
