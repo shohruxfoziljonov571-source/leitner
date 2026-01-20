@@ -157,10 +157,10 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
   // Answer immediately to remove loading
   answerCallbackQuery(token, callbackQuery.id);
 
-  // Handle time settings
+  // Handle time settings - edit message
   if (data.startsWith("time_")) {
     const time = data.replace("time_", "");
-    await handleSetReminderTime(supabase, token, chatId, time);
+    await handleSetReminderTime(supabase, token, chatId, messageId, time);
     return;
   }
 
@@ -170,30 +170,30 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     return;
   }
 
-  // Standard handlers
+  // Standard handlers - all now edit the current message
   const handlers: Record<string, () => Promise<void>> = {
-    "open_app": async () => { await sendMessage(token, chatId, "📱 <b>Ilovani ochish</b>", getWebAppButton()); },
-    "my_stats": () => handleStatsCommand(supabase, token, chatId),
-    "words_to_review": () => handleWordsToReviewCommand(supabase, token, chatId),
-    "my_streak": () => handleStreakCommand(supabase, token, chatId),
-    "my_rank": () => handleRankCommand(supabase, token, chatId),
-    "help": () => sendHelpMessage(token, chatId),
-    "settings": () => sendSettingsMenu(supabase, token, chatId),
-    "notif_on": () => handleToggleNotifications(supabase, token, chatId, true),
-    "notif_off": () => handleToggleNotifications(supabase, token, chatId, false),
-    "set_time": () => sendTimeSettingsInfo(token, chatId),
-    "weekly_report": () => handleWeeklyReport(supabase, token, chatId),
-    "challenge": () => handleChallengeCommand(supabase, token, chatId),
-    "join_challenge": () => handleJoinChallenge(supabase, token, chatId),
-    "back_to_menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
-    "check_channels": () => handleCheckChannels(supabase, token, chatId),
-    "contest": () => handleContestCommand(supabase, token, chatId),
-    "join_contest": () => handleJoinContest(supabase, token, chatId),
-    "my_contest_stats": () => handleMyContestStats(supabase, token, chatId),
-    "quiz": () => handleQuizCommand(supabase, token, chatId),
-    "quiz_next": () => sendQuizQuestion(supabase, token, chatId),
-    "quiz_stop": () => handleQuizStop(supabase, token, chatId),
-    "share_contest": () => handleShareContest(supabase, token, chatId),
+    "open_app": async () => { await editMessage(token, chatId, messageId, "📱 <b>Ilovani ochish</b>", getWebAppButton()); },
+    "my_stats": () => handleStatsCommand(supabase, token, chatId, messageId),
+    "words_to_review": () => handleWordsToReviewCommand(supabase, token, chatId, messageId),
+    "my_streak": () => handleStreakCommand(supabase, token, chatId, messageId),
+    "my_rank": () => handleRankCommand(supabase, token, chatId, messageId),
+    "help": () => sendHelpMessage(token, chatId, messageId),
+    "settings": () => sendSettingsMenu(supabase, token, chatId, messageId),
+    "notif_on": () => handleToggleNotifications(supabase, token, chatId, messageId, true),
+    "notif_off": () => handleToggleNotifications(supabase, token, chatId, messageId, false),
+    "set_time": () => sendTimeSettingsInfo(token, chatId, messageId),
+    "weekly_report": () => handleWeeklyReport(supabase, token, chatId, messageId),
+    "challenge": () => handleChallengeCommand(supabase, token, chatId, messageId),
+    "join_challenge": () => handleJoinChallenge(supabase, token, chatId, messageId),
+    "back_to_menu": async () => { await editMessage(token, chatId, messageId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
+    "check_channels": () => handleCheckChannels(supabase, token, chatId, messageId),
+    "contest": () => handleContestCommand(supabase, token, chatId, messageId),
+    "join_contest": () => handleJoinContest(supabase, token, chatId, messageId),
+    "my_contest_stats": () => handleMyContestStats(supabase, token, chatId, messageId),
+    "quiz": () => handleQuizCommand(supabase, token, chatId, messageId),
+    "quiz_next": () => sendQuizQuestion(supabase, token, chatId, messageId),
+    "quiz_stop": () => handleQuizStop(supabase, token, chatId, messageId),
+    "share_contest": () => handleShareContest(supabase, token, chatId, messageId),
   };
 
   const handler = handlers[data];
@@ -210,10 +210,19 @@ async function sendOrEdit(token: string, chatId: number, messageId: number | und
 }
 
 // Handle channel check callback
-async function handleCheckChannels(supabase: any, token: string, chatId: number) {
+async function handleCheckChannels(supabase: any, token: string, chatId: number, messageId?: number) {
   const channelsOk = await checkRequiredChannels(supabase, token, chatId);
   if (channelsOk) {
-    await sendWelcomeMessage(token, chatId);
+    await sendOrEdit(token, chatId, messageId, 
+      "👋 <b>Salom! Leitner App botiga xush kelibsiz!</b>\n\n" +
+      "🎓 Imkoniyatlar:\n" +
+      "• 📚 So'z qo'shish: <code>/add so'z - tarjima</code>\n" +
+      "• 🎯 Quiz: /quiz - so'zlarni takrorlash\n" +
+      "• 📤 Inline: @Leitner_robot so'z\n" +
+      "• 🏆 Challenge: /challenge\n\n" +
+      "📱 Hisobni ulash: Profil → Telegram → Ulash",
+      getMainMenuKeyboard()
+    );
   }
 }
 
@@ -255,11 +264,11 @@ async function handleTextCommand(supabase: any, token: string, chatId: number, t
 
 // ============ QUIZ HANDLERS ============
 
-async function handleQuizCommand(supabase: any, token: string, chatId: number) {
+async function handleQuizCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
     return;
   }
 
@@ -270,8 +279,8 @@ async function handleQuizCommand(supabase: any, token: string, chatId: number) {
     .eq("user_id", profile.userId);
 
   if (!count || count < 4) {
-    await sendMessage(
-      token, chatId,
+    await sendOrEdit(
+      token, chatId, messageId,
       "❌ <b>So'z kam!</b>\n\n" +
       `Sizda ${count || 0} ta so'z bor.\n` +
       "Quiz uchun kamida 4 ta so'z kerak.\n\n" +
@@ -289,8 +298,8 @@ async function handleQuizCommand(supabase: any, token: string, chatId: number) {
     .eq("user_id", profile.userId)
     .lte("next_review_time", new Date().toISOString());
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `🎯 <b>Quiz Mode</b>\n\n` +
     `📚 Jami so'zlar: ${count}\n` +
     `📖 Takrorlash kerak: ${reviewCount || 0}\n\n` +
@@ -304,11 +313,11 @@ async function handleQuizCommand(supabase: any, token: string, chatId: number) {
   );
 }
 
-async function sendQuizQuestion(supabase: any, token: string, chatId: number) {
+async function sendQuizQuestion(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -321,7 +330,7 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number) {
     .maybeSingle();
 
   if (!userLang) {
-    await sendMessage(token, chatId, "❌ Avval ilovada til tanlang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval ilovada til tanlang!", getWebAppButton());
     return;
   }
 
@@ -342,7 +351,7 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number) {
     .limit(50);
 
   if (!allWords || allWords.length < 4) {
-    await sendMessage(token, chatId, "❌ So'zlar yetarli emas. Kamida 4 ta so'z kerak.", getMainMenuKeyboard());
+    await sendOrEdit(token, chatId, messageId, "❌ So'zlar yetarli emas. Kamida 4 ta so'z kerak.", getMainMenuKeyboard());
     return;
   }
 
@@ -375,8 +384,8 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number) {
 
   const boxEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][targetWord.box_number - 1] || "📦";
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `🎯 <b>So'zni toping:</b>\n\n` +
     `📝 <b>${targetWord.original_word}</b>\n\n` +
     `${boxEmoji} Box ${targetWord.box_number}`,
@@ -580,12 +589,12 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   });
 }
 
-async function handleQuizStop(supabase: any, token: string, chatId: number) {
+async function handleQuizStop(supabase: any, token: string, chatId: number, messageId?: number) {
   quizCache.delete(chatId);
   
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "Quiz tugatildi!", getMainMenuKeyboard());
+    await sendOrEdit(token, chatId, messageId, "Quiz tugatildi!", getMainMenuKeyboard());
     return;
   }
 
@@ -599,8 +608,8 @@ async function handleQuizStop(supabase: any, token: string, chatId: number) {
   const todayCorrect = stats?.reduce((sum: number, s: any) => sum + (s.today_correct || 0), 0) || 0;
   const accuracy = todayReviewed > 0 ? Math.round((todayCorrect / todayReviewed) * 100) : 0;
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `🎉 <b>Quiz tugatildi!</b>\n\n` +
     `📊 <b>Bugungi natijalar:</b>\n` +
     `• Takrorlangan: ${todayReviewed} ta\n` +
@@ -976,11 +985,11 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
   );
 }
 
-async function handleChallengeCommand(supabase: any, token: string, chatId: number) {
+async function handleChallengeCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1039,7 +1048,7 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
       ? `✅ Siz qatnashyapsiz!\n💎 Sizning XP: ${userParticipation.data.xp_earned}`
       : `❌ Siz hali qo'shilmagansiz`);
 
-  await sendMessage(token, chatId, message, {
+  await sendOrEdit(token, chatId, messageId, message, {
     inline_keyboard: [
       isJoined 
         ? [{ text: "📱 O'ynashni davom ettirish", web_app: { url: WEBAPP_URL } }]
@@ -1049,11 +1058,11 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
   });
 }
 
-async function handleJoinChallenge(supabase: any, token: string, chatId: number) {
+async function handleJoinChallenge(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1071,12 +1080,12 @@ async function handleJoinChallenge(supabase: any, token: string, chatId: number)
 
   if (error) {
     console.error("Join challenge error:", error);
-    await sendMessage(token, chatId, "❌ Xatolik yuz berdi.");
+    await sendOrEdit(token, chatId, messageId, "❌ Xatolik yuz berdi.");
     return;
   }
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     "🎉 <b>Challenge'ga qo'shildingiz!</b>\n\n" +
     "Bu hafta eng ko'p XP yig'ing va g'olib bo'ling! 🏆\n\n" +
     "💡 XP yig'ish uchun:\n" +
@@ -1226,10 +1235,10 @@ async function handleStatusCommand(supabase: any, token: string, chatId: number)
   }
 }
 
-async function handleWeeklyReport(supabase: any, token: string, chatId: number) {
+async function handleWeeklyReport(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1280,8 +1289,8 @@ async function handleWeeklyReport(supabase: any, token: string, chatId: number) 
 
   const motivation = daysActive >= 5 ? "🌟 Ajoyib hafta!" : daysActive >= 3 ? "👍 Yaxshi!" : "💪 Ko'proq mashq!";
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `📊 <b>Haftalik Hisobot</b>\n━━━━━━━━━━━━━━━━\n\n` +
     `👤 <b>${profile.fullName || 'Foydalanuvchi'}</b>\n\n` +
     `📅 Oxirgi 7 kun:\n${weekBreakdown}\n\n` +
@@ -1292,10 +1301,10 @@ async function handleWeeklyReport(supabase: any, token: string, chatId: number) 
   );
 }
 
-async function handleToggleNotifications(supabase: any, token: string, chatId: number, enabled: boolean) {
+async function handleToggleNotifications(supabase: any, token: string, chatId: number, messageId: number | undefined, enabled: boolean) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1310,13 +1319,13 @@ async function handleToggleNotifications(supabase: any, token: string, chatId: n
     .maybeSingle();
 
   const msg = enabled ? "🔔 <b>Bildirishnomalar yoqildi!</b>" : "🔕 <b>Bildirishnomalar o'chirildi.</b>";
-  await sendMessage(token, chatId, msg, getSettingsKeyboard(enabled, settings?.daily_reminder_time?.slice(0, 5)));
+  await sendOrEdit(token, chatId, messageId, msg, getSettingsKeyboard(enabled, settings?.daily_reminder_time?.slice(0, 5)));
 }
 
-async function handleSetReminderTime(supabase: any, token: string, chatId: number, time: string) {
+async function handleSetReminderTime(supabase: any, token: string, chatId: number, messageId: number | undefined, time: string) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1324,8 +1333,8 @@ async function handleSetReminderTime(supabase: any, token: string, chatId: numbe
     .from("notification_settings")
     .upsert({ user_id: profile.userId, daily_reminder_time: time, telegram_enabled: true }, { onConflict: "user_id" });
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `✅ <b>Eslatma vaqti: ${time}</b>\n\nHar kuni shu vaqtda eslatma olasiz.`,
     getSettingsKeyboard(true, time)
   );
@@ -1333,7 +1342,7 @@ async function handleSetReminderTime(supabase: any, token: string, chatId: numbe
 
 // ============ CONTEST HANDLERS ============
 
-async function handleContestCommand(supabase: any, token: string, chatId: number) {
+async function handleContestCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   const { data: contest } = await supabase
@@ -1347,7 +1356,7 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
     .maybeSingle();
 
   if (!contest) {
-    await sendMessage(token, chatId, "📢 Hozirda faol konkurs yo'q.\n\nYangi konkurslar haqida xabar olish uchun kanalimizga obuna bo'ling!", getMainMenuKeyboard());
+    await sendOrEdit(token, chatId, messageId, "📢 Hozirda faol konkurs yo'q.\n\nYangi konkurslar haqida xabar olish uchun kanalimizga obuna bo'ling!", getMainMenuKeyboard());
     return;
   }
 
@@ -1447,19 +1456,20 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
         ],
       };
 
-  // Send with photo if available
-  if (contest.image_url) {
+  // For contest command with image, we need to send a new message since editMessage can't add photos
+  // If called from callback with image, send new message, otherwise edit
+  if (contest.image_url && !messageId) {
     await sendPhoto(token, chatId, contest.image_url, message, keyboard);
   } else {
-    await sendMessage(token, chatId, message, keyboard);
+    await sendOrEdit(token, chatId, messageId, message, keyboard);
   }
 }
 
-async function handleJoinContest(supabase: any, token: string, chatId: number) {
+async function handleJoinContest(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
     return;
   }
 
@@ -1473,7 +1483,7 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
     .maybeSingle();
 
   if (!contest) {
-    await sendMessage(token, chatId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
+    await sendOrEdit(token, chatId, messageId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
     return;
   }
 
@@ -1494,14 +1504,14 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
 
   if (error) {
     console.error("Join contest error:", error);
-    await sendMessage(token, chatId, "❌ Xatolik yuz berdi.");
+    await sendOrEdit(token, chatId, messageId, "❌ Xatolik yuz berdi.");
     return;
   }
 
   const referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `🎉 <b>Konkursga qo'shildingiz!</b>\n\n` +
     `🏆 ${contest.title}\n\n` +
     `Do'stlaringizni taklif qiling va sovg'a yutib oling!\n\n` +
@@ -1516,16 +1526,16 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
   );
 }
 
-async function handleMyContestStats(supabase: any, token: string, chatId: number) {
-  await handleContestCommand(supabase, token, chatId);
+async function handleMyContestStats(supabase: any, token: string, chatId: number, messageId?: number) {
+  await handleContestCommand(supabase, token, chatId, messageId);
 }
 
 // Handle share contest - send referral link for sharing
-async function handleShareContest(supabase: any, token: string, chatId: number) {
+async function handleShareContest(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1539,7 +1549,7 @@ async function handleShareContest(supabase: any, token: string, chatId: number) 
     .maybeSingle();
 
   if (!contest) {
-    await sendMessage(token, chatId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
+    await sendOrEdit(token, chatId, messageId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
     return;
   }
 
@@ -1552,7 +1562,7 @@ async function handleShareContest(supabase: any, token: string, chatId: number) 
     .maybeSingle();
 
   if (!participation) {
-    await sendMessage(token, chatId, "❌ Avval konkursga qo'shiling!", {
+    await sendOrEdit(token, chatId, messageId, "❌ Avval konkursga qo'shiling!", {
       inline_keyboard: [
         [{ text: "🚀 Qatnashish", callback_data: "join_contest" }],
       ],
@@ -1567,8 +1577,8 @@ async function handleShareContest(supabase: any, token: string, chatId: number) 
     `Men bu konkursda qatnashyapman! Sen ham qo'shil va sovg'a yutib ol!\n\n` +
     `👉 ${referralLink}`;
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `📤 <b>Do'stlaringizga ulashing!</b>\n\n` +
     `🔗 <b>Sizning havolangiz:</b>\n<code>${referralLink}</code>\n\n` +
     `👥 Sizning takliflaringiz: ${participation.referral_count} ta\n\n` +
@@ -1610,8 +1620,45 @@ async function getCachedProfile(supabase: any, chatId: number) {
 }
 
 function getLanguageEmoji(lang: string): string {
-  const emojis: Record<string, string> = { en: "🇬🇧", ru: "🇷🇺", uz: "🇺🇿", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸" };
+  const emojis: Record<string, string> = {
+    en: "🇬🇧",
+    ru: "🇷🇺",
+    uz: "🇺🇿",
+    de: "🇩🇪",
+    fr: "🇫🇷",
+    es: "🇪🇸",
+    ar: "🇸🇦",
+    ko: "🇰🇷",
+    ja: "🇯🇵",
+    zh: "🇨🇳",
+    tr: "🇹🇷",
+    it: "🇮🇹",
+    pt: "🇵🇹",
+    hi: "🇮🇳",
+    fa: "🇮🇷",
+  };
   return emojis[lang] || "🌐";
+}
+
+function getLanguageName(lang: string): string {
+  const names: Record<string, string> = {
+    en: "Inglizcha",
+    ru: "Ruscha",
+    uz: "O'zbekcha",
+    de: "Nemischa",
+    fr: "Fransuzcha",
+    es: "Ispancha",
+    ar: "Arabcha",
+    ko: "Koreyscha",
+    ja: "Yaponcha",
+    zh: "Xitoycha",
+    tr: "Turkcha",
+    it: "Italyancha",
+    pt: "Portugalcha",
+    hi: "Hindcha",
+    fa: "Forscha",
+  };
+  return names[lang] || lang.toUpperCase();
 }
 
 function getMainMenuKeyboard() {
@@ -1659,9 +1706,9 @@ async function sendWelcomeMessage(token: string, chatId: number) {
   );
 }
 
-async function sendHelpMessage(token: string, chatId: number) {
-  await sendMessage(
-    token, chatId,
+async function sendHelpMessage(token: string, chatId: number, messageId?: number) {
+  await sendOrEdit(
+    token, chatId, messageId,
     "📚 <b>Leitner App Bot - Yordam</b>\n\n" +
     "<b>Buyruqlar:</b>\n" +
     "/add so'z - tarjima - So'z qo'shish\n" +
@@ -1679,10 +1726,10 @@ async function sendHelpMessage(token: string, chatId: number) {
   );
 }
 
-async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
+async function sendSettingsMenu(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!", getWebAppButton());
     return;
   }
 
@@ -1692,15 +1739,15 @@ async function sendSettingsMenu(supabase: any, token: string, chatId: number) {
     .eq("user_id", profile.userId)
     .maybeSingle();
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     "⚙️ <b>Sozlamalar</b>",
     getSettingsKeyboard(settings?.telegram_enabled || false, settings?.daily_reminder_time?.slice(0, 5))
   );
 }
 
-async function sendTimeSettingsInfo(token: string, chatId: number) {
-  await sendMessage(token, chatId, "⏰ <b>Eslatma vaqtini tanlang</b>\n\nQuyidagi vaqtlardan birini tanlang:");
+async function sendTimeSettingsInfo(token: string, chatId: number, messageId?: number) {
+  await sendOrEdit(token, chatId, messageId, "⏰ <b>Eslatma vaqtini tanlang</b>\n\nQuyidagi vaqtlardan birini tanlang:");
 }
 
 // ============ TELEGRAM API FUNCTIONS ============
