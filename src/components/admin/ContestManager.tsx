@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { 
   Trophy, Plus, Calendar, Users, TrendingUp, 
   ToggleLeft, ToggleRight, Trash2, Eye, Gift,
-  Clock, CheckCircle, XCircle, Copy, Image
+  Clock, Copy
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import { useContests, Contest, ContestParticipant } from '@/hooks/useContests';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
+import ContestImageUpload from './ContestImageUpload';
 
 const ContestManager = () => {
   const {
@@ -185,11 +186,10 @@ const ContestManager = () => {
               </div>
 
               <div>
-                <Label>Rasm URL (ixtiyoriy)</Label>
-                <Input
+                <Label>Konkurs rasmi</Label>
+                <ContestImageUpload
                   value={newContest.image_url}
-                  onChange={(e) => setNewContest({ ...newContest, image_url: e.target.value })}
-                  placeholder="https://example.com/contest-banner.jpg"
+                  onChange={(url) => setNewContest({ ...newContest, image_url: url })}
                 />
               </div>
 
@@ -392,12 +392,12 @@ const ContestManager = () => {
                         <p className="text-xs text-muted-foreground">Jami taklif</p>
                       </div>
                       <div className="text-center">
-                        <CheckCircle className="h-4 w-4 mx-auto text-emerald-500 mb-1" />
+                        <Trophy className="h-4 w-4 mx-auto text-emerald-500 mb-1" />
                         <p className="text-lg font-bold">{stats.validReferrals || 0}</p>
                         <p className="text-xs text-muted-foreground">Valid</p>
                       </div>
                       <div className="text-center">
-                        <Trophy className="h-4 w-4 mx-auto text-yellow-500 mb-1" />
+                        <TrendingUp className="h-4 w-4 mx-auto text-yellow-500 mb-1" />
                         <p className="text-lg font-bold">{stats.conversionRate || 0}%</p>
                         <p className="text-xs text-muted-foreground">Konversiya</p>
                       </div>
@@ -438,25 +438,21 @@ const ContestManager = () => {
               {participants.map((participant, index) => (
                 <div
                   key={participant.id}
-                  className={`flex items-center justify-between p-3 rounded-lg ${
-                    index < 3 ? 'bg-primary/5 border border-primary/20' : 'bg-muted/50'
-                  }`}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">
+                    <span className="text-lg font-bold w-8 text-center">
                       {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
                     </span>
                     <div>
                       <p className="font-medium">{participant.full_name}</p>
                       {participant.telegram_username && (
-                        <p className="text-sm text-muted-foreground">
-                          @{participant.telegram_username}
-                        </p>
+                        <p className="text-xs text-muted-foreground">@{participant.telegram_username}</p>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-lg">{participant.referral_count}</p>
+                    <p className="font-bold text-primary">{participant.referral_count}</p>
                     <p className="text-xs text-muted-foreground">taklif</p>
                   </div>
                 </div>
