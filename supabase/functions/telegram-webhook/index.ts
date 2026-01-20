@@ -193,6 +193,7 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     "quiz": () => handleQuizCommand(supabase, token, chatId),
     "quiz_next": () => sendQuizQuestion(supabase, token, chatId),
     "quiz_stop": () => handleQuizStop(supabase, token, chatId),
+    "share_contest": () => handleShareContest(supabase, token, chatId),
   };
 
   const handler = handlers[data];
@@ -413,6 +414,11 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 
   if (!userLang) return;
 
+  // XP values
+  const XP_PER_CORRECT = 10;
+  const XP_PER_INCORRECT = 2;
+  let xpEarned = 0;
+
   // Update word stats
   if (isCorrect) {
     // Move to next box (max 5)
@@ -441,18 +447,63 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       })
       .eq("id", cached.wordId);
 
-    // Update user stats
+    // Update user stats with XP
+    xpEarned = XP_PER_CORRECT;
+    const { data: currentStats } = await supabase
+      .from("user_stats")
+      .select("xp, level")
+      .eq("user_id", profile.userId)
+      .eq("user_language_id", userLang.id)
+      .maybeSingle();
+
+    const currentXp = currentStats?.xp || 0;
+    const newXp = currentXp + xpEarned;
+    const newLevel = Math.floor(newXp / 100) + 1;
+
     await supabase
       .from("user_stats")
       .update({
-        today_reviewed: supabase.rpc("increment"),
-        today_correct: supabase.rpc("increment"),
+        today_reviewed: (currentStats?.today_reviewed || 0) + 1,
+        today_correct: (currentStats?.today_correct || 0) + 1,
+        xp: newXp,
+        level: newLevel,
       })
       .eq("user_id", profile.userId)
       .eq("user_language_id", userLang.id);
 
+    // Update daily stats
+    const today = new Date().toISOString().split('T')[0];
+    await supabase
+      .from("daily_stats")
+      .upsert({
+        user_id: profile.userId,
+        user_language_id: userLang.id,
+        date: today,
+        words_reviewed: 1,
+        words_correct: 1,
+        xp_earned: xpEarned,
+      }, { 
+        onConflict: "user_id,user_language_id,date",
+        ignoreDuplicates: false 
+      });
+
+    // Update weekly challenge if participating
+    const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
+    if (challengeId) {
+      await supabase
+        .from("weekly_challenge_participants")
+        .update({
+          xp_earned: supabase.rpc("increment", { amount: xpEarned }),
+          words_reviewed: supabase.rpc("increment"),
+          words_correct: supabase.rpc("increment"),
+        })
+        .eq("challenge_id", challengeId)
+        .eq("user_id", profile.userId);
+    }
+
   } else {
     // Move to box 1
+    xpEarned = XP_PER_INCORRECT;
     await supabase
       .from("words")
       .update({
@@ -464,22 +515,51 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       })
       .eq("id", cached.wordId);
 
+    const { data: currentStats } = await supabase
+      .from("user_stats")
+      .select("xp, level, today_reviewed")
+      .eq("user_id", profile.userId)
+      .eq("user_language_id", userLang.id)
+      .maybeSingle();
+
+    const currentXp = currentStats?.xp || 0;
+    const newXp = currentXp + xpEarned;
+    const newLevel = Math.floor(newXp / 100) + 1;
+
     await supabase
       .from("user_stats")
       .update({
-        today_reviewed: supabase.rpc("increment"),
+        today_reviewed: (currentStats?.today_reviewed || 0) + 1,
+        xp: newXp,
+        level: newLevel,
       })
       .eq("user_id", profile.userId)
       .eq("user_language_id", userLang.id);
+
+    // Update daily stats
+    const today = new Date().toISOString().split('T')[0];
+    await supabase
+      .from("daily_stats")
+      .upsert({
+        user_id: profile.userId,
+        user_language_id: userLang.id,
+        date: today,
+        words_reviewed: 1,
+        words_correct: 0,
+        xp_earned: xpEarned,
+      }, { 
+        onConflict: "user_id,user_language_id,date",
+        ignoreDuplicates: false 
+      });
   }
 
   // Clear quiz cache
   quizCache.delete(chatId);
 
-  // Edit message to show result
+  // Edit message to show result with XP earned
   const resultMessage = isCorrect
-    ? `✅ <b>To'g'ri!</b>\n\n📝 ${correctAnswer}`
-    : `❌ <b>Noto'g'ri!</b>\n\n` +
+    ? `✅ <b>To'g'ri!</b> +${xpEarned} XP 💎\n\n📝 ${correctAnswer}`
+    : `❌ <b>Noto'g'ri!</b> +${xpEarned} XP\n\n` +
       `Siz: ${selectedAnswer}\n` +
       `✅ To'g'ri: <b>${correctAnswer}</b>`;
 
