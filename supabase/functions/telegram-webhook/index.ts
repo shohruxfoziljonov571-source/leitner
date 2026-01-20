@@ -10,11 +10,11 @@ const WEBAPP_URL = "https://leitner.lovable.app";
 
 // Cache for user profiles to reduce DB calls
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes - increased for better performance
 
 // Quiz session cache
 const quizCache = new Map<number, { wordId: string; correctAnswer: string; options: string[]; expires: number }>();
-const QUIZ_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const QUIZ_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -783,8 +783,8 @@ async function autoCreateTelegramAccount(
     if (signUpData?.user) {
       console.log("User created:", signUpData.user.id);
       
-      // Wait for profile trigger
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait for profile trigger (reduced for faster response)
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Update profile with Telegram data
       await supabase
