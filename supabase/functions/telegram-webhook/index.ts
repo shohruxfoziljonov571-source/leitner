@@ -51,14 +51,18 @@ serve(async (req) => {
       const t0 = Date.now();
       await handleInlineQuery(supabase, TELEGRAM_BOT_TOKEN, update.inline_query);
       handlerMs = Date.now() - t0;
-      console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
+      const totalMs = Date.now() - startTime;
+      const slowTag = totalMs >= 1000 ? " SLOW" : "";
+      console.log(`[${requestId}]${slowTag} ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${totalMs}ms`);
       return quickResponse();
     }
 
     // Handle chosen inline result
     if (update.chosen_inline_result) {
-      console.log(`[${requestId}] inline result chosen:`, update.chosen_inline_result.result_id);
-      console.log(`[${requestId}] ok kind=other parse=${parseMs}ms handler=0ms total=${Date.now() - startTime}ms`);
+      const totalMs = Date.now() - startTime;
+      const slowTag = totalMs >= 1000 ? " SLOW" : "";
+      console.log(`[${requestId}]${slowTag} inline result chosen:`, update.chosen_inline_result.result_id);
+      console.log(`[${requestId}]${slowTag} ok kind=other parse=${parseMs}ms handler=0ms total=${totalMs}ms`);
       return quickResponse();
     }
 
@@ -71,7 +75,9 @@ serve(async (req) => {
       const t0 = Date.now();
       await handleCallbackQuery(supabase, TELEGRAM_BOT_TOKEN, update.callback_query);
       handlerMs = Date.now() - t0;
-      console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
+      const totalMs = Date.now() - startTime;
+      const slowTag = totalMs >= 1000 ? " SLOW" : "";
+      console.log(`[${requestId}]${slowTag} ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${totalMs}ms`);
       return quickResponse();
     }
 
@@ -83,7 +89,9 @@ serve(async (req) => {
       handlerMs = Date.now() - t0;
     }
 
-    console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
+    const totalMs = Date.now() - startTime;
+    const slowTag = totalMs >= 1000 ? " SLOW" : "";
+    console.log(`[${requestId}]${slowTag} ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${totalMs}ms`);
     return quickResponse();
   } catch (error) {
     console.error(`[${requestId}] Error:`, error);
@@ -1774,13 +1782,40 @@ async function handleMyContestStats(supabase: any, token: string, chatId: number
 
   const referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
 
-  const top5 = leaderboard.slice(0, 5)
-    .map((l: any) => {
+  // Build Top 20 leaderboard
+  const top20 = leaderboard.slice(0, 20);
+  let leaderboardText = "";
+  
+  if (top20.length > 0) {
+    leaderboardText = "\n\n🏆 <b>Top 20</b>\n";
+    for (const l of top20) {
       const medal = l.rank === 1 ? "🥇" : l.rank === 2 ? "🥈" : l.rank === 3 ? "🥉" : `${l.rank}.`;
       const name = l.full_name || l.telegram_username || "Noma'lum";
-      return `${medal} ${name} — ${l.referral_count} ta`;
-    })
-    .join("\n");
+      const isMe = l.user_id === profile.userId;
+      leaderboardText += `${medal} ${isMe ? "<b>" : ""}${name}${isMe ? "</b>" : ""} — ${l.referral_count} ta\n`;
+    }
+  }
+
+  // Show user's position ±3 if not in top 20
+  if (myRank > 20) {
+    const startRank = Math.max(1, myRank - 3);
+    const endRank = myRank + 3;
+    const nearbyUsers = leaderboard.filter((l: any) => l.rank >= startRank && l.rank <= endRank);
+    
+    if (nearbyUsers.length > 0) {
+      leaderboardText += "\n📍 <b>Sizning atrofingiz</b>\n";
+      for (const l of nearbyUsers) {
+        const name = l.full_name || l.telegram_username || "Noma'lum";
+        const isMe = l.user_id === profile.userId;
+        leaderboardText += `${l.rank}. ${isMe ? "<b>➡️ " : ""}${name}${isMe ? "</b>" : ""} — ${l.referral_count} ta\n`;
+      }
+    }
+  }
+
+  // Pending referrals explanation
+  const pendingExplanation = pendingReferrals > 0
+    ? `\n\n💡 <i>Kutilayotgan ${pendingReferrals} ta referral: taklif qilingan do'stlar hali kamida 1 ta so'z qo'shmagan.</i>`
+    : "";
 
   await sendOrEdit(
     token,
@@ -1796,7 +1831,8 @@ async function handleMyContestStats(supabase: any, token: string, chatId: number
       `• ⏳ Kutilayotgan: ${pendingReferrals} ta\n` +
       (minReferrals > 0 ? `• 🎯 Maqsad: ${minReferrals} ta (${remaining} ta qoldi)\n` : "") +
       `\n🔗 <b>Sizning havolangiz:</b>\n<code>${referralLink}</code>` +
-      (top5 ? `\n\n🏆 <b>Top 5</b>\n${top5}` : ""),
+      pendingExplanation +
+      leaderboardText,
     {
       inline_keyboard: [
         [{ text: "📤 Ulashish", callback_data: "share_contest" }],

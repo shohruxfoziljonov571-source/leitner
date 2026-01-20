@@ -250,4 +250,4 @@ const StreakHeatmap: React.FC = () => {
   );
 };
 
-export default StreakHeatmap;
+export default React.memo(StreakHeatmap);
