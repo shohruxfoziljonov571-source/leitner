@@ -42,15 +42,13 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Sen ingliz tili diktant tekshiruvchisisisan. Foydalanuvchi yozgan matnni original matn bilan solishtirib, xatolarni topishing va batafsil tushuntiring kerak.
+            content: `Sen ingliz tili diktant tekshiruvchisisisan. Foydalanuvchi yozgan matnni original matn bilan solishtirib, xatolarni topishing kerak.
 
-Javobingiz quyidagi formatda bo'lsin:
-1. Umumiy baho (0-100% aniqlik)
-2. Xatolar soni
-3. Har bir xato uchun:
-   - Noto'g'ri yozilgan so'z
-   - To'g'ri variant
-   - Qisqacha tushuntirish
+Har bir xatoni aniq ko'rsating:
+- wrong: noto'g'ri yozilgan so'z (agar tushib qolgan bo'lsa, bo'sh string)
+- correct: to'g'ri variant
+- position: so'z pozitsiyasi (0 dan boshlab)
+- type: xato turi (spelling - imlo, missing - tushib qolgan, extra - ortiqcha, punctuation - tinish belgisi)
 
 Javobni O'zbek tilida bering. Ijobiy va rag'batlantiruvchi uslubda yozing.`
           },
@@ -62,7 +60,7 @@ Javobni O'zbek tilida bering. Ijobiy va rag'batlantiruvchi uslubda yozing.`
 Foydalanuvchi yozgan matn:
 "${submittedText}"
 
-Iltimos, matnlarni solishtiring va xatolarni aniqlang.`
+Iltimos, matnlarni solishtiring va har bir xatoni aniq ko'rsating.`
           }
         ],
         tools: [
@@ -70,7 +68,7 @@ Iltimos, matnlarni solishtiring va xatolarni aniqlang.`
             type: "function",
             function: {
               name: "analyze_dictation",
-              description: "Analyze dictation submission and return structured feedback",
+              description: "Analyze dictation submission and return structured feedback with detailed errors",
               parameters: {
                 type: "object",
                 properties: {
@@ -82,16 +80,43 @@ Iltimos, matnlarni solishtiring va xatolarni aniqlang.`
                     type: "integer",
                     description: "Total number of errors found"
                   },
+                  errors: {
+                    type: "array",
+                    description: "List of detailed errors",
+                    items: {
+                      type: "object",
+                      properties: {
+                        wrong: {
+                          type: "string",
+                          description: "The incorrect word that was written (empty string if word was missing)"
+                        },
+                        correct: {
+                          type: "string",
+                          description: "The correct word that should have been written"
+                        },
+                        position: {
+                          type: "integer",
+                          description: "Position of the word in the text (0-indexed)"
+                        },
+                        type: {
+                          type: "string",
+                          enum: ["spelling", "missing", "extra", "punctuation"],
+                          description: "Type of error"
+                        }
+                      },
+                      required: ["wrong", "correct", "position", "type"]
+                    }
+                  },
                   feedback: {
                     type: "string",
-                    description: "Detailed feedback in Uzbek language explaining errors and suggestions"
+                    description: "General feedback and encouragement in Uzbek language"
                   },
                   xp_earned: {
                     type: "integer",
                     description: "XP to award based on accuracy (0-20)"
                   }
                 },
-                required: ["accuracy_percentage", "errors_count", "feedback", "xp_earned"],
+                required: ["accuracy_percentage", "errors_count", "errors", "feedback", "xp_earned"],
                 additionalProperties: false
               }
             }
@@ -127,6 +152,7 @@ Iltimos, matnlarni solishtiring va xatolarni aniqlang.`
     let result = {
       accuracy_percentage: 0,
       errors_count: 0,
+      errors: [] as Array<{ wrong: string; correct: string; position: number; type: string }>,
       feedback: "Xatolik yuz berdi",
       xp_earned: 0
     };
