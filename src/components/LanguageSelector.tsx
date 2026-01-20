@@ -6,45 +6,7 @@ import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-// Expanded language support
-const languageNames: Record<string, Record<string, string>> = {
-  uz: { uz: "O'zbekcha", ru: 'Узбекский', en: 'Uzbek' },
-  ru: { uz: 'Ruscha', ru: 'Русский', en: 'Russian' },
-  en: { uz: 'Inglizcha', ru: 'Английский', en: 'English' },
-  de: { uz: 'Nemischa', ru: 'Немецкий', en: 'German' },
-  fr: { uz: 'Fransuzcha', ru: 'Французский', en: 'French' },
-  es: { uz: 'Ispancha', ru: 'Испанский', en: 'Spanish' },
-  ar: { uz: 'Arabcha', ru: 'Арабский', en: 'Arabic' },
-  ko: { uz: 'Koreyscha', ru: 'Корейский', en: 'Korean' },
-  ja: { uz: 'Yaponcha', ru: 'Японский', en: 'Japanese' },
-  zh: { uz: 'Xitoycha', ru: 'Китайский', en: 'Chinese' },
-  tr: { uz: 'Turkcha', ru: 'Турецкий', en: 'Turkish' },
-  it: { uz: 'Italyancha', ru: 'Итальянский', en: 'Italian' },
-  pt: { uz: 'Portugalcha', ru: 'Португальский', en: 'Portuguese' },
-  hi: { uz: 'Hindcha', ru: 'Хинди', en: 'Hindi' },
-  fa: { uz: 'Forscha', ru: 'Персидский', en: 'Persian' },
-};
-
-const languageFlags: Record<string, string> = {
-  uz: '🇺🇿',
-  ru: '🇷🇺',
-  en: '🇬🇧',
-  de: '🇩🇪',
-  fr: '🇫🇷',
-  es: '🇪🇸',
-  ar: '🇸🇦',
-  ko: '🇰🇷',
-  ja: '🇯🇵',
-  zh: '🇨🇳',
-  tr: '🇹🇷',
-  it: '🇮🇹',
-  pt: '🇵🇹',
-  hi: '🇮🇳',
-  fa: '🇮🇷',
-};
-
-const allLanguages = Object.keys(languageNames);
+import { allLanguages, getLanguageName, getLanguageFlag } from '@/lib/languages';
 
 interface LanguageSelectorProps {
   showAddNew?: boolean;
@@ -102,13 +64,8 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
     }
   };
 
-  const getLanguageName = (code: string) => {
-    return languageNames[code]?.[language] || code.toUpperCase();
-  };
-
-  const getLanguageFlag = (code: string) => {
-    return languageFlags[code] || '🌐';
-  };
+  const getLangName = (code: string) => getLanguageName(code, language);
+  const getLangFlag = (code: string) => getLanguageFlag(code);
 
   if (userLanguages.length === 0 && !isAdding) {
     return (
@@ -140,10 +97,10 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
         {activeLanguage && (
           <>
             <span className="text-lg">
-              {getLanguageFlag(activeLanguage.source_language)} → {getLanguageFlag(activeLanguage.target_language)}
+              {getLangFlag(activeLanguage.source_language)} → {getLangFlag(activeLanguage.target_language)}
             </span>
             <span className="text-sm font-medium flex-1 text-left">
-              {getLanguageName(activeLanguage.source_language)} → {getLanguageName(activeLanguage.target_language)}
+              {getLangName(activeLanguage.source_language)} → {getLangName(activeLanguage.target_language)}
             </span>
           </>
         )}
@@ -171,10 +128,10 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
                 }`}
               >
                 <span className="text-lg">
-                  {getLanguageFlag(lang.source_language)} → {getLanguageFlag(lang.target_language)}
+                  {getLangFlag(lang.source_language)} → {getLangFlag(lang.target_language)}
                 </span>
                 <span className="text-sm flex-1">
-                  {getLanguageName(lang.source_language)} → {getLanguageName(lang.target_language)}
+                  {getLangName(lang.source_language)} → {getLangName(lang.target_language)}
                 </span>
                 {activeLanguage?.id === lang.id && (
                   <Check className="w-4 h-4 text-primary" />
@@ -228,7 +185,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
               <div className="space-y-4 flex-1 overflow-hidden">
                 <div>
                   <label className="text-sm font-medium mb-2 block">
-                    Qaysi tildan: {newSource && `${getLanguageFlag(newSource)} ${getLanguageName(newSource)}`}
+                    Qaysi tildan: {newSource && `${getLangFlag(newSource)} ${getLangName(newSource)}`}
                   </label>
                   <ScrollArea className="h-32 rounded-xl border p-2">
                     <div className="grid grid-cols-3 gap-2">
@@ -242,8 +199,8 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
                               : 'bg-muted hover:bg-muted/80'
                           }`}
                         >
-                          <span className="text-lg block">{getLanguageFlag(lang)}</span>
-                          <span className="text-xs truncate block">{getLanguageName(lang)}</span>
+                          <span className="text-lg block">{getLangFlag(lang)}</span>
+                          <span className="text-xs truncate block">{getLangName(lang)}</span>
                         </button>
                       ))}
                     </div>
@@ -252,7 +209,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">
-                    Qaysi tilga: {newTarget && `${getLanguageFlag(newTarget)} ${getLanguageName(newTarget)}`}
+                    Qaysi tilga: {newTarget && `${getLangFlag(newTarget)} ${getLangName(newTarget)}`}
                   </label>
                   <ScrollArea className="h-32 rounded-xl border p-2">
                     <div className="grid grid-cols-3 gap-2">
@@ -269,8 +226,8 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
                               : 'bg-muted hover:bg-muted/80'
                           }`}
                         >
-                          <span className="text-lg block">{getLanguageFlag(lang)}</span>
-                          <span className="text-xs truncate block">{getLanguageName(lang)}</span>
+                          <span className="text-lg block">{getLangFlag(lang)}</span>
+                          <span className="text-xs truncate block">{getLangName(lang)}</span>
                         </button>
                       ))}
                     </div>
@@ -282,10 +239,10 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }
               {newSource && newTarget && (
                 <div className="mt-4 p-3 bg-primary/10 rounded-xl text-center">
                   <span className="text-xl">
-                    {getLanguageFlag(newSource)} → {getLanguageFlag(newTarget)}
+                    {getLangFlag(newSource)} → {getLangFlag(newTarget)}
                   </span>
                   <p className="text-sm mt-1">
-                    {getLanguageName(newSource)} → {getLanguageName(newTarget)}
+                    {getLangName(newSource)} → {getLangName(newTarget)}
                   </p>
                 </div>
               )}

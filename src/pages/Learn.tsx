@@ -15,6 +15,7 @@ import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
 import StreakCombo from '@/components/learning/StreakCombo';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
+import { getLanguageFlag, getLanguageName } from '@/lib/languages';
 
 // Fisher-Yates shuffle algorithm
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -29,7 +30,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 type LearningMode = 'flashcard' | 'quiz' | 'speed';
 
 const Learn: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, XP_PER_INCORRECT, level } = useGamification();
@@ -267,6 +268,9 @@ const Learn: React.FC = () => {
             <h1 className="font-display font-bold text-2xl text-foreground mb-2">
               O'rganish rejimini tanlang
             </h1>
+            <p className="text-muted-foreground mb-1">
+              {getLanguageFlag(activeLanguage.source_language)} {getLanguageName(activeLanguage.source_language, language)} → {getLanguageFlag(activeLanguage.target_language)} {getLanguageName(activeLanguage.target_language, language)}
+            </p>
             <p className="text-muted-foreground">
               {totalToReview} ta so'z takrorlash uchun tayyor
             </p>
