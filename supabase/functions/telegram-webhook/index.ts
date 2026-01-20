@@ -907,7 +907,27 @@ async function handleContestReferral(supabase: any, token: string, chatId: numbe
 }
 
 // Process contest referral after finding contest
-async function processContestReferral(supabase: any, token: string, chatId: number, contest: any, referrerUserId: string, username?: string) {
+async function processContestReferral(supabase: any, token: string, chatId: number, contest: any, referrerShortId: string, username?: string) {
+  console.log(`Processing contest referral: contestId=${contest.id}, referrerShortId=${referrerShortId}, chatId=${chatId}`);
+  
+  // Find the full referrer user_id from the short ID
+  const { data: referrerParticipant } = await supabase
+    .from("contest_participants")
+    .select("user_id")
+    .eq("contest_id", contest.id)
+    .ilike("user_id", `${referrerShortId}%`)
+    .maybeSingle();
+  
+  if (!referrerParticipant) {
+    console.log(`Referrer not found for short ID: ${referrerShortId}`);
+    // Still show contest info even if referrer not found
+    await sendContestInviteMessage(token, chatId, contest);
+    return;
+  }
+  
+  const referrerUserId = referrerParticipant.user_id;
+  console.log(`Found referrer: ${referrerUserId}`);
+
   // Check if this user already exists in the system
   const { data: existingProfile } = await supabase
     .from("profiles")
@@ -916,45 +936,61 @@ async function processContestReferral(supabase: any, token: string, chatId: numb
     .maybeSingle();
 
   if (existingProfile) {
-    // Check if referral already exists
+    // User already has an account
+    // Check if this user is the referrer themselves
+    if (existingProfile.user_id === referrerUserId) {
+      console.log("User clicked their own referral link");
+      await handleContestCommand(supabase, token, chatId);
+      return;
+    }
+    
+    // Check if referral already exists for this user in this contest
     const { data: existingReferral } = await supabase
       .from("contest_referrals")
       .select("id")
       .eq("contest_id", contest.id)
-      .eq("referred_telegram_chat_id", chatId)
+      .eq("referred_user_id", existingProfile.user_id)
       .maybeSingle();
     
     if (!existingReferral) {
-      // Find referrer by matching user_id prefix
-      const { data: referrerParticipant } = await supabase
-        .from("contest_participants")
-        .select("user_id")
-        .eq("contest_id", contest.id)
-        .like("user_id", `${referrerUserId}%`)
-        .maybeSingle();
+      // Record the referral (pending validation - will be validated when user adds a word)
+      const { error: insertError } = await supabase.from("contest_referrals").insert({
+        contest_id: contest.id,
+        referrer_user_id: referrerUserId,
+        referred_user_id: existingProfile.user_id,
+        referred_telegram_chat_id: chatId,
+        is_valid: false, // Will be validated when user adds a word
+      });
       
-      if (referrerParticipant) {
-        // Record the referral
-        await supabase.from("contest_referrals").insert({
-          contest_id: contest.id,
-          referrer_user_id: referrerParticipant.user_id,
-          referred_user_id: existingProfile.user_id,
-          referred_telegram_chat_id: chatId,
-          is_valid: false, // Will be validated when user adds a word
-        });
-        console.log(`Referral recorded for existing user: ${existingProfile.user_id}`);
+      if (insertError) {
+        console.error("Error recording referral:", insertError);
+      } else {
+        console.log(`Referral recorded: referrer=${referrerUserId}, referred=${existingProfile.user_id}`);
+        
+        // Check if user already has words - if yes, validate immediately
+        const { count: wordCount } = await supabase
+          .from("words")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", existingProfile.user_id);
+        
+        if (wordCount && wordCount > 0) {
+          // User has words, validate the referral immediately
+          await validateContestReferral(supabase, existingProfile.user_id, contest.id);
+        }
       }
     }
     
-    // User already registered, just show contest info
+    // Show contest info
     await handleContestCommand(supabase, token, chatId);
     return;
   }
 
-  // Store pending referral info for new users
-  // This will be processed when user registers and adds a word
-  
-  // Send contest info with image if available
+  // New user - show invite message
+  await sendContestInviteMessage(token, chatId, contest);
+}
+
+// Send contest invite message for new users
+async function sendContestInviteMessage(token: string, chatId: number, contest: any) {
   const message =
     `🏆 <b>${contest.title}</b>\n\n` +
     `Siz konkursga taklif qilindingiz!\n\n` +
@@ -978,6 +1014,88 @@ async function processContestReferral(supabase: any, token: string, chatId: numb
         [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
       ],
     });
+  }
+}
+
+// Validate contest referral when user adds a word
+async function validateContestReferral(supabase: any, userId: string, contestId?: string) {
+  try {
+    console.log(`Validating referral for user: ${userId}, contestId: ${contestId || 'any active'}`);
+    
+    // Find pending referrals for this user
+    let query = supabase
+      .from("contest_referrals")
+      .select("id, contest_id, referrer_user_id")
+      .eq("referred_user_id", userId)
+      .eq("is_valid", false);
+    
+    if (contestId) {
+      query = query.eq("contest_id", contestId);
+    }
+    
+    const { data: pendingReferrals } = await query;
+    
+    if (!pendingReferrals || pendingReferrals.length === 0) {
+      console.log("No pending referrals to validate");
+      return;
+    }
+    
+    for (const referral of pendingReferrals) {
+      // Check if contest is still active
+      const { data: contest } = await supabase
+        .from("contests")
+        .select("is_active, end_date")
+        .eq("id", referral.contest_id)
+        .maybeSingle();
+      
+      if (!contest || !contest.is_active || new Date(contest.end_date) < new Date()) {
+        console.log(`Contest ${referral.contest_id} is no longer active`);
+        continue;
+      }
+      
+      // Mark referral as valid
+      const { error: updateError } = await supabase
+        .from("contest_referrals")
+        .update({ 
+          is_valid: true, 
+          validated_at: new Date().toISOString() 
+        })
+        .eq("id", referral.id);
+      
+      if (updateError) {
+        console.error("Error validating referral:", updateError);
+        continue;
+      }
+      
+      // Increment referrer's referral_count
+      const { error: incrementError } = await supabase.rpc("increment_referral_count", {
+        p_contest_id: referral.contest_id,
+        p_user_id: referral.referrer_user_id
+      });
+      
+      // If RPC doesn't exist, do it manually
+      if (incrementError) {
+        console.log("RPC not available, updating manually");
+        const { data: participant } = await supabase
+          .from("contest_participants")
+          .select("referral_count")
+          .eq("contest_id", referral.contest_id)
+          .eq("user_id", referral.referrer_user_id)
+          .maybeSingle();
+        
+        if (participant) {
+          await supabase
+            .from("contest_participants")
+            .update({ referral_count: (participant.referral_count || 0) + 1 })
+            .eq("contest_id", referral.contest_id)
+            .eq("user_id", referral.referrer_user_id);
+        }
+      }
+      
+      console.log(`Referral validated: ${referral.id}, referrer: ${referral.referrer_user_id}`);
+    }
+  } catch (error) {
+    console.error("Error in validateContestReferral:", error);
   }
 }
 
@@ -1139,6 +1257,9 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     await sendMessage(token, chatId, "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.");
     return;
   }
+
+  // Validate any pending contest referrals for this user
+  await validateContestReferral(supabase, profile.userId);
 
   await sendMessage(
     token, chatId,
