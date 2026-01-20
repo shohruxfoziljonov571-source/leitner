@@ -11,6 +11,7 @@ import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
 import DailyGoalProgress from '@/components/dashboard/DailyGoalProgress';
 import LanguageSelector from '@/components/LanguageSelector';
+import LanguageStats from '@/components/dashboard/LanguageStats';
 import XpBar from '@/components/gamification/XpBar';
 import WeeklyChallenge from '@/components/gamification/WeeklyChallenge';
 import UnclaimedRewards from '@/components/gamification/UnclaimedRewards';
@@ -106,6 +107,9 @@ const Dashboard: React.FC = () => {
         >
           <LanguageSelector />
         </motion.div>
+
+        {/* Language Statistics */}
+        <LanguageStats />
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
