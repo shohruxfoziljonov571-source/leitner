@@ -311,6 +311,7 @@ export type Database = {
           created_at: string
           id: string
           is_valid: boolean
+          notified_at: string | null
           referred_telegram_chat_id: number | null
           referred_user_id: string
           referrer_user_id: string
@@ -321,6 +322,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_valid?: boolean
+          notified_at?: string | null
           referred_telegram_chat_id?: number | null
           referred_user_id: string
           referrer_user_id: string
@@ -331,6 +333,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_valid?: boolean
+          notified_at?: string | null
           referred_telegram_chat_id?: number | null
           referred_user_id?: string
           referrer_user_id?: string
