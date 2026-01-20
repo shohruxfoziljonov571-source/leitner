@@ -8,9 +8,11 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const BroadcastMessage = () => {
+  const { session } = useAuth();
   const [message, setMessage] = useState('');
   const [includeButton, setIncludeButton] = useState(true);
   const [buttonText, setButtonText] = useState('📚 Ilovani ochish');
@@ -28,6 +30,11 @@ const BroadcastMessage = () => {
       return;
     }
 
+    if (!session?.access_token) {
+      toast.error("Sessiya topilmadi. Iltimos, qayta login qiling.");
+      return;
+    }
+
     const confirmed = window.confirm(
       `Haqiqatan ham ${targetGroup === 'all' ? 'barcha' : targetGroup === 'active' ? 'faol' : targetGroup === 'inactive' ? 'nofaol' : 'streak bor'} foydalanuvchilarga xabar yubormoqchimisiz?`
     );
@@ -39,6 +46,9 @@ const BroadcastMessage = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('broadcast-message', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           message,
           includeButton,
@@ -58,8 +68,17 @@ const BroadcastMessage = () => {
       toast.success(`${data.sent} ta foydalanuvchiga xabar yuborildi`);
       setMessage('');
     } catch (error: any) {
-      console.error('Broadcast error:', error);
-      toast.error(error.message || 'Xatolik yuz berdi');
+      const status = error?.context?.status;
+      const body = error?.context?.body;
+      console.error('Broadcast error:', { error, status, body });
+
+      if (status === 401) {
+        toast.error("Login talab qilinadi (401). Qayta login qiling.");
+      } else if (status === 403) {
+        toast.error("Admin ruxsati kerak (403).");
+      } else {
+        toast.error(error?.message || `Xatolik yuz berdi${status ? ` (${status})` : ''}`);
+      }
     } finally {
       setIsSending(false);
     }
