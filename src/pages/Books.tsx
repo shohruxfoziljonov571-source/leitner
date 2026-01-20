@@ -7,12 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import WordPopup from '@/components/books/WordPopup';
 
 interface BookType {
   id: string;
@@ -335,23 +335,15 @@ const Books: React.FC = () => {
                     {currentChapter.content.split('\n\n').map((paragraph, pIndex) => (
                       <p key={pIndex}>
                         {paragraph.split(/\s+/).map((word, wIndex) => (
-                          <Tooltip key={`${pIndex}-${wIndex}`}>
-                            <TooltipTrigger asChild>
-                              <span
-                                className={`cursor-pointer hover:bg-primary/10 rounded px-0.5 transition-colors ${
-                                  selectedWord === word.replace(/[.,!?;:'"]/g, '') 
-                                    ? 'bg-primary/20' 
-                                    : ''
-                                }`}
-                                onClick={() => handleWordClick(word)}
-                              >
-                                {word}{' '}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>🔊 Tinglash uchun bosing</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <WordPopup
+                            key={`${pIndex}-${wIndex}`}
+                            word={word}
+                            language={selectedBook?.language || 'en'}
+                            isSelected={selectedWord === word.replace(/[.,!?;:'"]/g, '')}
+                            onWordClick={handleWordClick}
+                          >
+                            {word}{' '}
+                          </WordPopup>
                         ))}
                       </p>
                     ))}
