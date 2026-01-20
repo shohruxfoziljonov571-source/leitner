@@ -164,13 +164,13 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     return;
   }
 
-  // Handle quiz answer
+  // Handle quiz answer - this one edits messages
   if (data.startsWith("quiz_")) {
     await handleQuizAnswer(supabase, token, chatId, messageId, data);
     return;
   }
 
-  // Use switch for other callbacks
+  // Standard handlers
   const handlers: Record<string, () => Promise<void>> = {
     "open_app": async () => { await sendMessage(token, chatId, "📱 <b>Ilovani ochish</b>", getWebAppButton()); },
     "my_stats": () => handleStatsCommand(supabase, token, chatId),
@@ -198,6 +198,15 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
 
   const handler = handlers[data];
   if (handler) await handler();
+}
+
+// Helper function to send new message or edit existing one
+async function sendOrEdit(token: string, chatId: number, messageId: number | undefined, text: string, replyMarkup?: any): Promise<void> {
+  if (messageId) {
+    await editMessage(token, chatId, messageId, text, replyMarkup);
+  } else {
+    await sendMessage(token, chatId, text, replyMarkup);
+  }
 }
 
 // Handle channel check callback
@@ -1083,10 +1092,10 @@ async function handleJoinChallenge(supabase: any, token: string, chatId: number)
   );
 }
 
-async function handleStatsCommand(supabase: any, token: string, chatId: number) {
+async function handleStatsCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
@@ -1096,7 +1105,7 @@ async function handleStatsCommand(supabase: any, token: string, chatId: number) 
     .eq("user_id", profile.userId);
 
   if (!stats?.length) {
-    await sendMessage(token, chatId, "📊 Hali statistika yo'q. So'z qo'shishni boshlang!");
+    await sendOrEdit(token, chatId, messageId, "📊 Hali statistika yo'q. So'z qo'shishni boshlang!");
     return;
   }
 
@@ -1108,8 +1117,8 @@ async function handleStatsCommand(supabase: any, token: string, chatId: number) 
   const todayReviewed = stats.reduce((sum: number, s: any) => sum + (s.today_reviewed || 0), 0);
   const todayCorrect = stats.reduce((sum: number, s: any) => sum + (s.today_correct || 0), 0);
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `📊 <b>${profile.fullName || "Sizning"} statistikangiz</b>\n\n` +
     `⭐ Daraja: ${maxLevel}\n💎 XP: ${totalXp.toLocaleString()}\n🔥 Streak: ${maxStreak} kun\n\n` +
     `📚 Jami: ${totalWords} | ✅ O'rganilgan: ${learnedWords}\n` +
@@ -1118,10 +1127,10 @@ async function handleStatsCommand(supabase: any, token: string, chatId: number) 
   );
 }
 
-async function handleWordsToReviewCommand(supabase: any, token: string, chatId: number) {
+async function handleWordsToReviewCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
@@ -1131,21 +1140,21 @@ async function handleWordsToReviewCommand(supabase: any, token: string, chatId: 
     .eq("user_id", profile.userId)
     .lte("next_review_time", new Date().toISOString());
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     count! > 0
       ? `📚 <b>Takrorlash kerak:</b> ${count} ta so'z\n\nQuiz orqali takrorlang!`
       : "🎉 <b>Ajoyib!</b> Hozircha takrorlash kerak so'z yo'q!",
     count! > 0
-      ? { inline_keyboard: [[{ text: "🎯 Quiz boshlash", callback_data: "quiz" }], [{ text: "📱 Ilova", web_app: { url: WEBAPP_URL } }]] }
-      : getWebAppButton()
+      ? { inline_keyboard: [[{ text: "🎯 Quiz boshlash", callback_data: "quiz" }], [{ text: "📱 Ilova", web_app: { url: WEBAPP_URL } }], [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }]] }
+      : { inline_keyboard: [[{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL } }], [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }]] }
   );
 }
 
-async function handleStreakCommand(supabase: any, token: string, chatId: number) {
+async function handleStreakCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
@@ -1166,17 +1175,17 @@ async function handleStreakCommand(supabase: any, token: string, chatId: number)
 
   const msg = messages.find(([threshold]) => maxStreak < threshold)![1];
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `🔥 <b>Sizning streak:</b> ${maxStreak} kun\n\n${msg}`,
     getMainMenuKeyboard()
   );
 }
 
-async function handleRankCommand(supabase: any, token: string, chatId: number) {
+async function handleRankCommand(supabase: any, token: string, chatId: number, messageId?: number) {
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
-    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!");
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!");
     return;
   }
 
@@ -1196,8 +1205,8 @@ async function handleRankCommand(supabase: any, token: string, chatId: number) {
               rank <= 3 ? "🌟 Top 3 dasiz!" : 
               rank <= 10 ? "💪 Top 10 ichida!" : "📈 Ko'proq XP yig'ing!";
 
-  await sendMessage(
-    token, chatId,
+  await sendOrEdit(
+    token, chatId, messageId,
     `${emoji} <b>Reytingdagi o'rningiz</b>\n\n🏅 O'rin: <b>#${rank}</b> / ${sorted.length}\n💎 XP: ${myXp.toLocaleString()}\n\n${msg}`,
     getMainMenuKeyboard()
   );
