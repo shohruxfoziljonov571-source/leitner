@@ -911,15 +911,19 @@ async function processContestReferral(supabase: any, token: string, chatId: numb
   console.log(`Processing contest referral: contestId=${contest.id}, referrerShortId=${referrerShortId}, chatId=${chatId}`);
   
   // Find the full referrer user_id from the short ID
-  const { data: referrerParticipant } = await supabase
+  // Note: user_id is UUID, so we need to cast it to text for pattern matching
+  const { data: allParticipants } = await supabase
     .from("contest_participants")
     .select("user_id")
-    .eq("contest_id", contest.id)
-    .ilike("user_id", `${referrerShortId}%`)
-    .maybeSingle();
+    .eq("contest_id", contest.id);
+  
+  // Find participant whose user_id starts with the short ID
+  const referrerParticipant = allParticipants?.find((p: any) => 
+    p.user_id.toLowerCase().startsWith(referrerShortId.toLowerCase())
+  );
   
   if (!referrerParticipant) {
-    console.log(`Referrer not found for short ID: ${referrerShortId}`);
+    console.log(`Referrer not found for short ID: ${referrerShortId}, checking all ${allParticipants?.length || 0} participants`);
     // Still show contest info even if referrer not found
     await sendContestInviteMessage(token, chatId, contest);
     return;
