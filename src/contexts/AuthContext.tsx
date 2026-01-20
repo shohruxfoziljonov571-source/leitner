@@ -143,9 +143,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
       // Check if we're in Telegram Mini App environment
       const tgWebApp = getTelegramWebApp();
       
@@ -158,25 +155,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         tgWebApp.ready();
         tgWebApp.expand();
         
-        // If no session, try to auto-login with Telegram
-        if (!session) {
+        // CRITICAL: Check if current session belongs to a DIFFERENT Telegram user
+        // This happens when user switches Telegram accounts on the same device
+        if (session) {
+          const currentEmail = session.user.email;
+          const expectedEmail = `${tgUser.id}@leitner.uz`;
+          
+          // If emails don't match, the session is from a different Telegram account
+          if (currentEmail !== expectedEmail) {
+            console.log('Telegram account mismatch detected!');
+            console.log('Current session email:', currentEmail);
+            console.log('Expected email:', expectedEmail);
+            
+            // Sign out the old session first
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            
+            // Now authenticate with the correct Telegram account
+            console.log('Re-authenticating with correct Telegram account...');
+            await authenticateWithTelegram(tgUser);
+          } else {
+            // Session matches current Telegram user, just update profile data
+            console.log('Session matches Telegram user, updating profile...');
+            await supabase
+              .from('profiles')
+              .update({
+                telegram_chat_id: tgUser.id,
+                telegram_username: tgUser.username || null,
+                avatar_url: tgUser.photo_url || null,
+                telegram_connected_at: new Date().toISOString(),
+              })
+              .eq('user_id', session.user.id);
+            
+            setSession(session);
+            setUser(session.user);
+          }
+        } else {
+          // No session, try to auto-login with Telegram
           console.log('No session, attempting Telegram auto-login...');
           await authenticateWithTelegram(tgUser);
-        } else {
-          // User already logged in, just update Telegram data
-          console.log('User already logged in, updating Telegram data...');
-          await supabase
-            .from('profiles')
-            .update({
-              telegram_chat_id: tgUser.id,
-              telegram_username: tgUser.username || null,
-              avatar_url: tgUser.photo_url || null,
-              telegram_connected_at: new Date().toISOString(),
-            })
-            .eq('user_id', session.user.id);
         }
         
         setTelegramAuthAttempted(true);
+      } else {
+        // Not in Telegram environment, use existing session
+        setSession(session);
+        setUser(session?.user ?? null);
       }
       
       setIsLoading(false);
