@@ -8,18 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import CategorySelect from '@/components/CategorySelect';
-
-const languageFlags: Record<string, string> = {
-  uz: '🇺🇿',
-  ru: '🇷🇺',
-  en: '🇬🇧',
-};
-
-const languageNames: Record<string, Record<string, string>> = {
-  uz: { uz: "O'zbekcha", ru: 'Узбекский', en: 'Uzbek' },
-  ru: { uz: 'Ruscha', ru: 'Русский', en: 'Russian' },
-  en: { uz: 'Inglizcha', ru: 'Английский', en: 'English' },
-};
+import { getLanguageName, getLanguageFlag } from '@/lib/languages';
 
 interface AddWordFormProps {
   sourceLanguage: string;
@@ -93,17 +82,17 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
     >
       {/* Language Direction */}
       <div className="flex items-center justify-center gap-3 p-4 bg-muted rounded-xl">
-        <span className="text-2xl">{languageFlags[sourceLanguage]}</span>
-        <span className="font-medium">{languageNames[sourceLanguage][language]}</span>
+        <span className="text-2xl">{getLanguageFlag(sourceLanguage)}</span>
+        <span className="font-medium">{getLanguageName(sourceLanguage, language)}</span>
         <span className="text-muted-foreground">→</span>
-        <span className="text-2xl">{languageFlags[targetLanguage]}</span>
-        <span className="font-medium">{languageNames[targetLanguage][language]}</span>
+        <span className="text-2xl">{getLanguageFlag(targetLanguage)}</span>
+        <span className="font-medium">{getLanguageName(targetLanguage, language)}</span>
       </div>
 
       {/* Word Input */}
       <div className="space-y-2">
         <Label htmlFor="originalWord" className="text-sm font-medium">
-          {t('enterWord')} ({languageNames[sourceLanguage][language]})
+          {t('enterWord')} ({getLanguageName(sourceLanguage, language)})
         </Label>
         <div className="relative">
           <Input
@@ -120,7 +109,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
       {/* Translation Input */}
       <div className="space-y-2">
         <Label htmlFor="translatedWord" className="text-sm font-medium">
-          {t('translation')} ({languageNames[targetLanguage][language]})
+          {t('translation')} ({getLanguageName(targetLanguage, language)})
         </Label>
         <Input
           id="translatedWord"
