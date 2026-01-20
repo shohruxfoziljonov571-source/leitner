@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.notify-duel]
 verify_jwt = false
+
+[functions.broadcast-message]
+verify_jwt = false

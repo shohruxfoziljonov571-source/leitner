@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
-  Copy, BarChart3, MessageSquare, Link2, Shield, Trophy
+  Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useAdmin } from '@/hooks/useAdmin';
 import ContestManager from '@/components/admin/ContestManager';
+import BroadcastMessage from '@/components/admin/BroadcastMessage';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -130,22 +131,26 @@ const Admin = () => {
         </motion.div>
 
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="analytics" className="flex items-center gap-1 text-xs sm:text-sm">
               <BarChart3 className="h-4 w-4" />
-              Analitika
+              <span className="hidden sm:inline">Analitika</span>
             </TabsTrigger>
-            <TabsTrigger value="contests" className="flex items-center gap-2">
+            <TabsTrigger value="broadcast" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">Xabar</span>
+            </TabsTrigger>
+            <TabsTrigger value="contests" className="flex items-center gap-1 text-xs sm:text-sm">
               <Trophy className="h-4 w-4" />
-              Konkurslar
+              <span className="hidden sm:inline">Konkurslar</span>
             </TabsTrigger>
-            <TabsTrigger value="channels" className="flex items-center gap-2">
+            <TabsTrigger value="channels" className="flex items-center gap-1 text-xs sm:text-sm">
               <MessageSquare className="h-4 w-4" />
-              Kanallar
+              <span className="hidden sm:inline">Kanallar</span>
             </TabsTrigger>
-            <TabsTrigger value="referrals" className="flex items-center gap-2">
+            <TabsTrigger value="referrals" className="flex items-center gap-1 text-xs sm:text-sm">
               <Link2 className="h-4 w-4" />
-              Referrallar
+              <span className="hidden sm:inline">Referrallar</span>
             </TabsTrigger>
           </TabsList>
 
@@ -328,6 +333,11 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Broadcast Tab */}
+          <TabsContent value="broadcast">
+            <BroadcastMessage />
           </TabsContent>
 
           {/* Contests Tab */}
