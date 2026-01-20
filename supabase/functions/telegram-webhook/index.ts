@@ -238,7 +238,7 @@ async function handleTextCommand(supabase: any, token: string, chatId: number, t
 
   // Simple command routing
   const commands: Record<string, () => Promise<void>> = {
-    "/start": () => handleStartCommand(supabase, token, chatId, text, username),
+    "/start": () => handleStartCommand(supabase, token, chatId, text, username, message),
     "/menu": async () => { await sendMessage(token, chatId, "📋 <b>Asosiy menyu</b>", getMainMenuKeyboard()); },
     "/help": () => sendHelpMessage(token, chatId),
     "/status": () => handleStatusCommand(supabase, token, chatId),
@@ -622,8 +622,10 @@ async function handleQuizStop(supabase: any, token: string, chatId: number, mess
 
 // ============ COMMAND HANDLERS ============
 
-async function handleStartCommand(supabase: any, token: string, chatId: number, text: string, username?: string) {
+async function handleStartCommand(supabase: any, token: string, chatId: number, text: string, username?: string, message?: any) {
   const parts = text.split(" ");
+  const firstName = message?.from?.first_name || "Foydalanuvchi";
+  const lastName = message?.from?.last_name || "";
   
   if (parts.length > 1) {
     const param = parts[1];
@@ -688,7 +690,148 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     return; // User needs to join channels first
   }
 
+  // Check if user already has account linked
+  const existingProfile = await getCachedProfile(supabase, chatId);
+  
+  if (!existingProfile) {
+    // Auto-create account for Telegram user
+    const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName);
+    
+    if (autoCreated) {
+      await sendMessage(
+        token, chatId,
+        `✅ <b>Xush kelibsiz, ${firstName}!</b>\n\n` +
+        "Hisobingiz avtomatik yaratildi va Telegramga ulandi.\n\n" +
+        "💡 <b>Boshlash uchun:</b>\n" +
+        "• /add so'z - tarjima - so'z qo'shish\n" +
+        "• /quiz - so'zlarni takrorlash\n" +
+        "• @Leitner_robot yozing - so'zlarni ulashing\n\n" +
+        "📱 Ilovani to'liq ochish uchun:",
+        getMainMenuKeyboard()
+      );
+      return;
+    }
+  }
+
   await sendWelcomeMessage(token, chatId);
+}
+
+// Auto-create Telegram account
+async function autoCreateTelegramAccount(
+  supabase: any, 
+  chatId: number, 
+  username?: string, 
+  firstName?: string, 
+  lastName?: string
+): Promise<boolean> {
+  try {
+    console.log(`Auto-creating account for Telegram user: ${chatId} (${firstName})`);
+    
+    const email = `${chatId}@leitner.uz`;
+    const password = `tg_secure_${chatId}_leitner_app_2024`;
+    const fullName = `${firstName || ""}${lastName ? " " + lastName : ""}`.trim() || "Telegram User";
+
+    // Try to sign up
+    const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        telegram_id: chatId,
+        telegram_username: username,
+      }
+    });
+
+    if (signUpError) {
+      console.error("Sign up error:", signUpError);
+      
+      // User might exist, try to find and link
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .ilike("user_id", `%`)
+        .limit(1);
+        
+      // Just link by email pattern
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      const matchingUser = authUsers?.users?.find((u: any) => u.email === email);
+      
+      if (matchingUser) {
+        await supabase
+          .from("profiles")
+          .update({
+            telegram_chat_id: chatId,
+            telegram_username: username || null,
+            full_name: fullName,
+            telegram_connected_at: new Date().toISOString(),
+          })
+          .eq("user_id", matchingUser.id);
+
+        // Enable notifications
+        await supabase
+          .from("notification_settings")
+          .upsert({ user_id: matchingUser.id, telegram_enabled: true }, { onConflict: "user_id" });
+
+        profileCache.delete(chatId);
+        return true;
+      }
+      
+      return false;
+    }
+
+    if (signUpData?.user) {
+      console.log("User created:", signUpData.user.id);
+      
+      // Wait for profile trigger
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Update profile with Telegram data
+      await supabase
+        .from("profiles")
+        .update({
+          telegram_chat_id: chatId,
+          telegram_username: username || null,
+          full_name: fullName,
+          telegram_connected_at: new Date().toISOString(),
+        })
+        .eq("user_id", signUpData.user.id);
+
+      // Enable notifications
+      await supabase
+        .from("notification_settings")
+        .upsert({ user_id: signUpData.user.id, telegram_enabled: true }, { onConflict: "user_id" });
+
+      // Create default user language (Uzbek → English)
+      const { data: langData } = await supabase
+        .from("user_languages")
+        .insert({
+          user_id: signUpData.user.id,
+          source_language: "uz",
+          target_language: "en",
+        })
+        .select()
+        .single();
+
+      if (langData) {
+        // Create user stats
+        await supabase
+          .from("user_stats")
+          .insert({
+            user_id: signUpData.user.id,
+            user_language_id: langData.id,
+          });
+      }
+
+      profileCache.delete(chatId);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Auto-create account error:", error);
+    return false;
+  }
 }
 
 // Handle contest referral
