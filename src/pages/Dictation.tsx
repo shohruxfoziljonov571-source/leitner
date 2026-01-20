@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useGamification } from '@/hooks/useGamification';
 import XpPopup from '@/components/gamification/XpPopup';
+import ErrorHighlight from '@/components/dictation/ErrorHighlight';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
@@ -28,9 +29,17 @@ interface Dictation {
   duration_seconds: number | null;
 }
 
+interface ErrorDetail {
+  wrong: string;
+  correct: string;
+  position: number;
+  type: 'missing' | 'extra' | 'spelling' | 'punctuation';
+}
+
 interface DictationResult {
   accuracy_percentage: number;
   errors_count: number;
+  errors: ErrorDetail[];
   feedback: string;
   xp_earned: number;
 }
@@ -443,17 +452,29 @@ const Dictation: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Detailed errors */}
+                      {result.errors && result.errors.length > 0 && selectedDictation && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Xatolar tahlili</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ErrorHighlight 
+                              originalText={selectedDictation.audio_text}
+                              submittedText={userText}
+                              errors={result.errors}
+                            />
+                          </CardContent>
+                        </Card>
+                      )}
+
                       {/* Feedback */}
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-lg">AI Tahlili</CardTitle>
+                          <CardTitle className="text-lg">AI Fikri</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <ScrollArea className="h-[200px]">
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <p className="whitespace-pre-wrap">{result.feedback}</p>
-                            </div>
-                          </ScrollArea>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{result.feedback}</p>
                         </CardContent>
                       </Card>
 
