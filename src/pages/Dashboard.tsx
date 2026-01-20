@@ -176,10 +176,10 @@ const Dashboard: React.FC = () => {
           className="grid grid-cols-2 gap-4 mb-6"
         >
           <Link to="/dictation">
-            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-2xl p-4 hover:from-purple-500/20 hover:to-purple-600/10 transition-colors border border-purple-500/10">
+            <div className="bg-gradient-to-br from-feature-dictation/10 to-feature-dictation/5 rounded-2xl p-4 hover:from-feature-dictation/20 hover:to-feature-dictation/10 transition-colors border border-feature-dictation/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                  <Mic className="w-5 h-5 text-purple-500" />
+                <div className="w-10 h-10 rounded-xl bg-feature-dictation/10 flex items-center justify-center">
+                  <Mic className="w-5 h-5 text-feature-dictation" />
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">Audio Diktant</p>
@@ -189,10 +189,10 @@ const Dashboard: React.FC = () => {
             </div>
           </Link>
           <Link to="/books">
-            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 rounded-2xl p-4 hover:from-emerald-500/20 hover:to-emerald-600/10 transition-colors border border-emerald-500/10">
+            <div className="bg-gradient-to-br from-feature-books/10 to-feature-books/5 rounded-2xl p-4 hover:from-feature-books/20 hover:to-feature-books/10 transition-colors border border-feature-books/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <Book className="w-5 h-5 text-emerald-500" />
+                <div className="w-10 h-10 rounded-xl bg-feature-books/10 flex items-center justify-center">
+                  <Book className="w-5 h-5 text-feature-books" />
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">Kitoblar</p>

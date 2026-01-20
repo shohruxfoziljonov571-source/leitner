@@ -17,7 +17,7 @@ const AnswerFlash: React.FC<AnswerFlashProps> = ({ isCorrect, show }) => {
           animate={{ opacity: 0.3 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className={`fixed inset-0 pointer-events-none z-30 ${
+          className={`fixed inset-0 pointer-events-none z-modal-backdrop ${
             isCorrect 
               ? 'bg-primary' 
               : 'bg-destructive'

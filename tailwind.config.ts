@@ -58,6 +58,19 @@ export default {
           4: "hsl(var(--box-4))",
           5: "hsl(var(--box-5))",
         },
+        feature: {
+          dictation: "hsl(var(--feature-dictation))",
+          "dictation-foreground": "hsl(var(--feature-dictation-foreground))",
+          books: "hsl(var(--feature-books))",
+          "books-foreground": "hsl(var(--feature-books-foreground))",
+          warning: "hsl(var(--feature-warning))",
+          "warning-foreground": "hsl(var(--feature-warning-foreground))",
+        },
+        rank: {
+          gold: "hsl(var(--rank-gold))",
+          silver: "hsl(var(--rank-silver))",
+          bronze: "hsl(var(--rank-bronze))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
