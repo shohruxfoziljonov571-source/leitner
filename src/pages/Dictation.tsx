@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, Play, Pause, Send, Check, X, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Volume2, Play, Pause, Send, Check, X, ArrowLeft, RotateCcw, FileAudio } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
@@ -23,6 +24,8 @@ interface Dictation {
   level: string;
   language: string;
   audio_text: string;
+  audio_url: string | null;
+  duration_seconds: number | null;
 }
 
 interface DictationResult {
@@ -36,6 +39,7 @@ const Dictation: React.FC = () => {
   const { user } = useAuth();
   const { speak, stop, isSpeaking } = useSpeech();
   const { addXp } = useGamification();
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   const [dictations, setDictations] = useState<Dictation[]>([]);
   const [selectedDictation, setSelectedDictation] = useState<Dictation | null>(null);
@@ -47,6 +51,12 @@ const Dictation: React.FC = () => {
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [lastXpGain, setLastXpGain] = useState(0);
   const [playCount, setPlayCount] = useState(0);
+  
+  // Audio player state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   useEffect(() => {
     fetchDictations();
@@ -56,7 +66,7 @@ const Dictation: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('audio_dictations')
-        .select('id, title, description, level, language, audio_text')
+        .select('id, title, description, level, language, audio_text, audio_url, duration_seconds')
         .eq('is_active', true)
         .order('level', { ascending: true });
 
@@ -73,16 +83,70 @@ const Dictation: React.FC = () => {
   const handlePlayAudio = useCallback(() => {
     if (!selectedDictation) return;
     
-    if (isSpeaking) {
-      stop();
+    if (selectedDictation.audio_url) {
+      // Play uploaded audio
+      if (audioRef.current) {
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioRef.current.playbackRate = playbackRate;
+          audioRef.current.play();
+          setIsPlaying(true);
+          setPlayCount(prev => prev + 1);
+        }
+      }
     } else {
-      speak(selectedDictation.audio_text, { 
-        lang: selectedDictation.language, 
-        rate: 0.75 
-      });
-      setPlayCount(prev => prev + 1);
+      // Use TTS
+      if (isSpeaking) {
+        stop();
+      } else {
+        speak(selectedDictation.audio_text, { 
+          lang: selectedDictation.language, 
+          rate: 0.75 
+        });
+        setPlayCount(prev => prev + 1);
+      }
     }
-  }, [selectedDictation, isSpeaking, speak, stop]);
+  }, [selectedDictation, isPlaying, isSpeaking, speak, stop, playbackRate]);
+
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current) {
+      setAudioProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+    }
+  };
+
+  const handleAudioLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+    setAudioProgress(0);
+  };
+
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current) {
+      const time = (value[0] / 100) * audioRef.current.duration;
+      audioRef.current.currentTime = time;
+      setAudioProgress(value[0]);
+    }
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    setPlaybackRate(rate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = rate;
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleSubmit = async () => {
     if (!selectedDictation || !userText.trim() || !user) {
@@ -128,6 +192,12 @@ const Dictation: React.FC = () => {
     setResult(null);
     setPlayCount(0);
     stop();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+    setAudioProgress(0);
   };
 
   const handleBack = () => {
@@ -163,9 +233,24 @@ const Dictation: React.FC = () => {
 
   // Dictation in progress
   if (selectedDictation) {
+    const hasUploadedAudio = !!selectedDictation.audio_url;
+
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <XpPopup amount={lastXpGain} show={showXpPopup} />
+        
+        {/* Hidden audio element */}
+        {hasUploadedAudio && (
+          <audio
+            ref={audioRef}
+            src={selectedDictation.audio_url!}
+            onTimeUpdate={handleAudioTimeUpdate}
+            onLoadedMetadata={handleAudioLoadedMetadata}
+            onEnded={handleAudioEnded}
+            onPause={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+          />
+        )}
         
         <div className="container mx-auto px-4 py-6 max-w-2xl">
           <motion.div
@@ -191,6 +276,12 @@ const Dictation: React.FC = () => {
                       <Badge variant="outline">
                         {selectedDictation.language === 'en' ? '🇬🇧' : selectedDictation.language === 'ru' ? '🇷🇺' : '🇩🇪'}
                       </Badge>
+                      {hasUploadedAudio && (
+                        <Badge variant="secondary" className="gap-1">
+                          <FileAudio className="h-3 w-3" />
+                          Audio
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -201,19 +292,71 @@ const Dictation: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Audio controls */}
-                <div className="flex justify-center">
-                  <Button
-                    size="lg"
-                    variant={isSpeaking ? 'destructive' : 'default'}
-                    onClick={handlePlayAudio}
-                    className="gap-2 min-w-[200px]"
-                  >
-                    {isSpeaking ? (
-                      <><Pause className="h-5 w-5" /> To'xtatish</>
-                    ) : (
-                      <><Play className="h-5 w-5" /> Tinglash</>
-                    )}
-                  </Button>
+                <div className="space-y-4">
+                  {hasUploadedAudio ? (
+                    <>
+                      {/* Audio player with progress */}
+                      <div className="flex justify-center">
+                        <Button
+                          size="lg"
+                          variant={isPlaying ? 'destructive' : 'default'}
+                          onClick={handlePlayAudio}
+                          className="gap-2 min-w-[200px]"
+                        >
+                          {isPlaying ? (
+                            <><Pause className="h-5 w-5" /> To'xtatish</>
+                          ) : (
+                            <><Play className="h-5 w-5" /> Tinglash</>
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {/* Progress bar */}
+                      <div className="space-y-2">
+                        <Slider
+                          value={[audioProgress]}
+                          onValueChange={handleSeek}
+                          max={100}
+                          step={0.1}
+                          className="cursor-pointer"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{formatTime((audioProgress / 100) * audioDuration)}</span>
+                          <span>{formatTime(audioDuration)}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Playback speed */}
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-sm text-muted-foreground">Tezlik:</span>
+                        {[0.5, 0.75, 1, 1.25, 1.5].map((rate) => (
+                          <Button
+                            key={rate}
+                            variant={playbackRate === rate ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handlePlaybackRateChange(rate)}
+                          >
+                            {rate}x
+                          </Button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-center">
+                      <Button
+                        size="lg"
+                        variant={isSpeaking ? 'destructive' : 'default'}
+                        onClick={handlePlayAudio}
+                        className="gap-2 min-w-[200px]"
+                      >
+                        {isSpeaking ? (
+                          <><Pause className="h-5 w-5" /> To'xtatish</>
+                        ) : (
+                          <><Play className="h-5 w-5" /> Tinglash</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Text input */}
@@ -412,6 +555,17 @@ const Dictation: React.FC = () => {
                           <Badge variant="outline">
                             {dictation.audio_text.split(/\s+/).length} so'z
                           </Badge>
+                          {dictation.audio_url && (
+                            <Badge variant="secondary" className="gap-1">
+                              <FileAudio className="h-3 w-3" />
+                              Audio
+                            </Badge>
+                          )}
+                          {dictation.duration_seconds && dictation.duration_seconds > 0 && (
+                            <Badge variant="outline">
+                              {Math.floor(dictation.duration_seconds / 60)}:{(dictation.duration_seconds % 60).toString().padStart(2, '0')}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button size="icon" variant="ghost">
