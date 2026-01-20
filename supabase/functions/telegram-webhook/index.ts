@@ -975,7 +975,7 @@ async function processContestReferral(supabase: any, token: string, chatId: numb
         
         if (wordCount && wordCount > 0) {
           // User has words, validate the referral immediately
-          await validateContestReferral(supabase, existingProfile.user_id, contest.id);
+          await validateContestReferral(supabase, existingProfile.user_id, contest.id, token);
         }
       }
     }
@@ -1018,14 +1018,14 @@ async function sendContestInviteMessage(token: string, chatId: number, contest: 
 }
 
 // Validate contest referral when user adds a word
-async function validateContestReferral(supabase: any, userId: string, contestId?: string) {
+async function validateContestReferral(supabase: any, userId: string, contestId?: string, token?: string) {
   try {
     console.log(`Validating referral for user: ${userId}, contestId: ${contestId || 'any active'}`);
     
     // Find pending referrals for this user
     let query = supabase
       .from("contest_referrals")
-      .select("id, contest_id, referrer_user_id")
+      .select("id, contest_id, referrer_user_id, referred_telegram_chat_id")
       .eq("referred_user_id", userId)
       .eq("is_valid", false);
     
@@ -1040,11 +1040,20 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
       return;
     }
     
+    // Get referred user's profile for notification
+    const { data: referredProfile } = await supabase
+      .from("profiles")
+      .select("full_name, telegram_username")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    const referredName = referredProfile?.full_name || referredProfile?.telegram_username || "Yangi foydalanuvchi";
+    
     for (const referral of pendingReferrals) {
       // Check if contest is still active
       const { data: contest } = await supabase
         .from("contests")
-        .select("is_active, end_date")
+        .select("id, title, is_active, end_date")
         .eq("id", referral.contest_id)
         .maybeSingle();
       
@@ -1068,31 +1077,56 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
       }
       
       // Increment referrer's referral_count
-      const { error: incrementError } = await supabase.rpc("increment_referral_count", {
-        p_contest_id: referral.contest_id,
-        p_user_id: referral.referrer_user_id
-      });
+      const { data: participant } = await supabase
+        .from("contest_participants")
+        .select("referral_count, telegram_chat_id")
+        .eq("contest_id", referral.contest_id)
+        .eq("user_id", referral.referrer_user_id)
+        .maybeSingle();
       
-      // If RPC doesn't exist, do it manually
-      if (incrementError) {
-        console.log("RPC not available, updating manually");
-        const { data: participant } = await supabase
-          .from("contest_participants")
-          .select("referral_count")
-          .eq("contest_id", referral.contest_id)
-          .eq("user_id", referral.referrer_user_id)
-          .maybeSingle();
+      if (participant) {
+        const newCount = (participant.referral_count || 0) + 1;
         
-        if (participant) {
-          await supabase
-            .from("contest_participants")
-            .update({ referral_count: (participant.referral_count || 0) + 1 })
-            .eq("contest_id", referral.contest_id)
-            .eq("user_id", referral.referrer_user_id);
+        await supabase
+          .from("contest_participants")
+          .update({ referral_count: newCount })
+          .eq("contest_id", referral.contest_id)
+          .eq("user_id", referral.referrer_user_id);
+        
+        console.log(`Referral validated: ${referral.id}, referrer: ${referral.referrer_user_id}, new count: ${newCount}`);
+        
+        // Send notification to referrer
+        if (participant.telegram_chat_id && token) {
+          const notificationMessage = 
+            `🎉 <b>Yangi referral tasdiqlandi!</b>\n\n` +
+            `👤 <b>${referredName}</b> sizning havolangiz orqali ro'yxatdan o'tdi va birinchi so'zini qo'shdi!\n\n` +
+            `🏆 <b>${contest.title}</b>\n` +
+            `📊 Sizning referallaringiz: <b>${newCount}</b> ta\n\n` +
+            `💪 Davom eting! Ko'proq do'stlaringizni taklif qiling!`;
+          
+          try {
+            await sendMessage(token, participant.telegram_chat_id, notificationMessage, {
+              inline_keyboard: [
+                [{ text: "📊 Statistikam", callback_data: "my_contest_stats" }],
+                [{ text: "📤 Yana taklif qilish", callback_data: "share_contest" }],
+              ],
+            });
+            console.log(`Notification sent to referrer: ${participant.telegram_chat_id}`);
+          } catch (notifError) {
+            console.error("Error sending referral notification:", notifError);
+          }
+        }
+      } else {
+        // Referrer is not a participant yet, try RPC
+        const { error: incrementError } = await supabase.rpc("increment_referral_count", {
+          p_contest_id: referral.contest_id,
+          p_user_id: referral.referrer_user_id
+        });
+        
+        if (incrementError) {
+          console.error("Error incrementing referral count:", incrementError);
         }
       }
-      
-      console.log(`Referral validated: ${referral.id}, referrer: ${referral.referrer_user_id}`);
     }
   } catch (error) {
     console.error("Error in validateContestReferral:", error);
@@ -1258,8 +1292,9 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Validate any pending contest referrals for this user
-  await validateContestReferral(supabase, profile.userId);
+  // Validate any pending contest referrals for this user (with notification)
+  const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  await validateContestReferral(supabase, profile.userId, undefined, TELEGRAM_BOT_TOKEN);
 
   await sendMessage(
     token, chatId,
