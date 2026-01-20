@@ -5,7 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,8 @@ import AchievementManager from '@/components/admin/AchievementManager';
 import ScheduledMessages from '@/components/admin/ScheduledMessages';
 import FeedbackSupport from '@/components/admin/FeedbackSupport';
 import LeaderboardManager from '@/components/admin/LeaderboardManager';
+import DictationManager from '@/components/admin/DictationManager';
+import BookManager from '@/components/admin/BookManager';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -176,6 +178,14 @@ const Admin = () => {
               <TabsTrigger value="feedback" className="flex items-center gap-1 text-xs sm:text-sm">
                 <HeadphonesIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">Murojaat</span>
+              </TabsTrigger>
+              <TabsTrigger value="dictations" className="flex items-center gap-1 text-xs sm:text-sm">
+                <FileAudio className="h-4 w-4" />
+                <span className="hidden sm:inline">Diktantlar</span>
+              </TabsTrigger>
+              <TabsTrigger value="books" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Book className="h-4 w-4" />
+                <span className="hidden sm:inline">Kitoblar</span>
               </TabsTrigger>
               <TabsTrigger value="channels" className="flex items-center gap-1 text-xs sm:text-sm">
                 <MessageSquare className="h-4 w-4" />
@@ -408,6 +418,16 @@ const Admin = () => {
           {/* Feedback Tab */}
           <TabsContent value="feedback">
             <FeedbackSupport />
+          </TabsContent>
+
+          {/* Dictations Tab */}
+          <TabsContent value="dictations">
+            <DictationManager />
+          </TabsContent>
+
+          {/* Books Tab */}
+          <TabsContent value="books">
+            <BookManager />
           </TabsContent>
 
           {/* Channels Tab */}

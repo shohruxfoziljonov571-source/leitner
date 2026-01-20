@@ -59,6 +59,134 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_dictations: {
+        Row: {
+          audio_text: string
+          audio_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          is_active: boolean
+          language: string
+          level: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audio_text: string
+          audio_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          level?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audio_text?: string
+          audio_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          level?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      book_chapters: {
+        Row: {
+          book_id: string
+          chapter_number: number
+          content: string
+          created_at: string
+          id: string
+          title: string
+          word_count: number | null
+        }
+        Insert: {
+          book_id: string
+          chapter_number: number
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+          word_count?: number | null
+        }
+        Update: {
+          book_id?: string
+          chapter_number?: number
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_chapters_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      books: {
+        Row: {
+          author: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          language: string
+          level: string
+          title: string
+          total_chapters: number | null
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          level?: string
+          title: string
+          total_chapters?: number | null
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          level?: string
+          title?: string
+          total_chapters?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
@@ -304,6 +432,50 @@ export type Database = {
           },
         ]
       }
+      dictation_submissions: {
+        Row: {
+          accuracy_percentage: number | null
+          ai_feedback: string | null
+          created_at: string
+          dictation_id: string
+          errors_count: number | null
+          id: string
+          submitted_text: string
+          user_id: string
+          xp_earned: number | null
+        }
+        Insert: {
+          accuracy_percentage?: number | null
+          ai_feedback?: string | null
+          created_at?: string
+          dictation_id: string
+          errors_count?: number | null
+          id?: string
+          submitted_text: string
+          user_id: string
+          xp_earned?: number | null
+        }
+        Update: {
+          accuracy_percentage?: number | null
+          ai_feedback?: string | null
+          created_at?: string
+          dictation_id?: string
+          errors_count?: number | null
+          id?: string
+          submitted_text?: string
+          user_id?: string
+          xp_earned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dictation_submissions_dictation_id_fkey"
+            columns: ["dictation_id"]
+            isOneToOne: false
+            referencedRelation: "audio_dictations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       duel_responses: {
         Row: {
           created_at: string
@@ -497,6 +669,44 @@ export type Database = {
           words_reviewed?: number | null
         }
         Relationships: []
+      }
+      reading_progress: {
+        Row: {
+          book_id: string
+          completed_chapters: number[] | null
+          created_at: string
+          current_chapter: number | null
+          id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          completed_chapters?: number[] | null
+          created_at?: string
+          current_chapter?: number | null
+          id?: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          completed_chapters?: number[] | null
+          created_at?: string
+          current_chapter?: number | null
+          id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_progress_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referral_visits: {
         Row: {

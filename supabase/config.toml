@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.send-scheduled-messages]
 verify_jwt = false
+
+[functions.check-dictation]
+verify_jwt = false
