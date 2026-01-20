@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { Word } from '@/types/word';
+import { getLanguageName, getLanguageFlag } from '@/lib/languages';
 
 interface QuizCardProps {
   word: Word;
@@ -12,18 +13,6 @@ interface QuizCardProps {
   onAnswer: (isCorrect: boolean) => void;
   isReversed?: boolean;
 }
-
-const languageNames: Record<string, string> = {
-  uz: "O'zbekcha",
-  ru: 'Русский',
-  en: 'English',
-};
-
-const languageFlags: Record<string, string> = {
-  uz: '🇺🇿',
-  ru: '🇷🇺',
-  en: '🇬🇧',
-};
 
 // Fisher-Yates shuffle
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -118,15 +107,15 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
 
         {/* Language badges */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-2xl">{languageFlags[questionLang]}</span>
+          <span className="text-2xl">{getLanguageFlag(questionLang)}</span>
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
-          <span className="text-2xl">{languageFlags[answerLang]}</span>
+          <span className="text-2xl">{getLanguageFlag(answerLang)}</span>
         </div>
 
         {/* Question */}
         <div className="text-center mb-8">
           <p className="text-sm text-muted-foreground mb-2">
-            {languageNames[questionLang]}
+            {getLanguageName(questionLang)}
           </p>
           <div className="flex items-center justify-center gap-3">
             <h2 className="font-display font-bold text-3xl text-foreground">

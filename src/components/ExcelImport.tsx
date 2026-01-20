@@ -1,9 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, Check, AlertCircle, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getLanguageName } from '@/lib/languages';
 import { toast } from 'sonner';
 
 interface ImportedWord {
@@ -18,7 +19,8 @@ interface ExcelImportProps {
   onImport: (words: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => Promise<void>;
 }
 
-const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguage, onImport }) => {
+// ForwardRef wrapper to fix AnimatePresence warning
+const ExcelImport = forwardRef<HTMLDivElement, ExcelImportProps>(({ sourceLanguage, targetLanguage, onImport }, ref) => {
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,12 +30,6 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
   const [previewData, setPreviewData] = useState<ImportedWord[]>([]);
   const [fileName, setFileName] = useState<string>('');
   const [error, setError] = useState<string>('');
-
-  const languageNames: Record<string, Record<string, string>> = {
-    uz: { uz: "O'zbekcha", ru: 'Узбекский', en: 'Uzbek' },
-    ru: { uz: 'Ruscha', ru: 'Русский', en: 'Russian' },
-    en: { uz: 'Inglizcha', ru: 'Английский', en: 'English' },
-  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,7 +185,7 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
     const XLSX = await import('xlsx');
     
     const templateData = [
-      [languageNames[sourceLanguage][language], languageNames[targetLanguage][language], 'Misollar (ixtiyoriy)'],
+      [getLanguageName(sourceLanguage, language), getLanguageName(targetLanguage, language), 'Misollar (ixtiyoriy)'],
       ['Hello', 'Salom', 'Hello, how are you?; Hello world'],
       ['Book', 'Kitob', 'I read a book'],
     ];
@@ -323,6 +319,8 @@ const ExcelImport: React.FC<ExcelImportProps> = ({ sourceLanguage, targetLanguag
       </AnimatePresence>
     </motion.div>
   );
-};
+});
+
+ExcelImport.displayName = 'ExcelImport';
 
 export default ExcelImport;
