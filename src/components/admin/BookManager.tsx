@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit2, Trash2, Book, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, Book, ChevronDown, ChevronUp, Upload, FileText, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -36,10 +38,15 @@ interface BookType {
   total_chapters: number;
   is_active: boolean;
   created_at: string;
+  pdf_url?: string | null;
+  is_pdf_book?: boolean;
 }
 
 const BookManager: React.FC = () => {
   const { user } = useAuth();
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  
   const [books, setBooks] = useState<BookType[]>([]);
   const [chapters, setChapters] = useState<Record<string, BookChapter[]>>({});
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
@@ -49,6 +56,9 @@ const BookManager: React.FC = () => {
   const [editingBook, setEditingBook] = useState<BookType | null>(null);
   const [editingChapter, setEditingChapter] = useState<BookChapter | null>(null);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [bookType, setBookType] = useState<'chapters' | 'pdf'>('chapters');
 
   const [bookForm, setBookForm] = useState({
     title: '',
@@ -57,7 +67,9 @@ const BookManager: React.FC = () => {
     cover_image_url: '',
     language: 'en',
     level: 'beginner',
-    is_active: true
+    is_active: true,
+    pdf_url: '',
+    is_pdf_book: false
   });
 
   const [chapterForm, setChapterForm] = useState({
@@ -107,10 +119,110 @@ const BookManager: React.FC = () => {
       setExpandedBook(null);
     } else {
       setExpandedBook(bookId);
-      if (!chapters[bookId]) {
+      const book = books.find(b => b.id === bookId);
+      if (!book?.is_pdf_book && !chapters[bookId]) {
         fetchChapters(bookId);
       }
     }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Faqat PDF fayllar yuklash mumkin');
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('Fayl hajmi 100MB dan oshmasligi kerak');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const fileName = `${crypto.randomUUID()}.pdf`;
+      const filePath = `books/${fileName}`;
+
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 100);
+
+      const { error: uploadError } = await supabase.storage
+        .from('book-pdfs')
+        .upload(filePath, file);
+
+      clearInterval(progressInterval);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-pdfs')
+        .getPublicUrl(filePath);
+
+      setBookForm(prev => ({ ...prev, pdf_url: publicUrl, is_pdf_book: true }));
+      setUploadProgress(100);
+      toast.success('PDF fayl yuklandi');
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      toast.error('PDF yuklashda xatolik');
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Faqat rasm fayllar yuklash mumkin');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `covers/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('book-pdfs')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('book-pdfs')
+        .getPublicUrl(fileName);
+
+      setBookForm(prev => ({ ...prev, cover_image_url: publicUrl }));
+      toast.success('Muqova rasmi yuklandi');
+    } catch (error) {
+      console.error('Error uploading cover:', error);
+      toast.error('Rasm yuklashda xatolik');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemovePdf = async () => {
+    if (bookForm.pdf_url) {
+      const urlParts = bookForm.pdf_url.split('/');
+      const filePath = urlParts.slice(-2).join('/');
+      
+      try {
+        await supabase.storage.from('book-pdfs').remove([filePath]);
+      } catch (error) {
+        console.error('Error removing PDF:', error);
+      }
+    }
+    
+    setBookForm(prev => ({ ...prev, pdf_url: '', is_pdf_book: false }));
   };
 
   const handleSaveBook = async () => {
@@ -119,12 +231,29 @@ const BookManager: React.FC = () => {
       return;
     }
 
+    if (bookType === 'pdf' && !bookForm.pdf_url) {
+      toast.error('PDF fayl yuklang');
+      return;
+    }
+
     try {
+      const bookData = {
+        title: bookForm.title,
+        author: bookForm.author || null,
+        description: bookForm.description || null,
+        cover_image_url: bookForm.cover_image_url || null,
+        language: bookForm.language,
+        level: bookForm.level,
+        is_active: bookForm.is_active,
+        pdf_url: bookType === 'pdf' ? bookForm.pdf_url : null,
+        is_pdf_book: bookType === 'pdf'
+      };
+
       if (editingBook) {
         const { error } = await supabase
           .from('books')
           .update({
-            ...bookForm,
+            ...bookData,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingBook.id);
@@ -135,7 +264,7 @@ const BookManager: React.FC = () => {
         const { error } = await supabase
           .from('books')
           .insert({
-            ...bookForm,
+            ...bookData,
             created_by: user?.id
           });
 
@@ -187,7 +316,6 @@ const BookManager: React.FC = () => {
 
         if (error) throw error;
 
-        // Update total chapters count
         const book = books.find(b => b.id === selectedBookId);
         if (book) {
           await supabase
@@ -209,14 +337,21 @@ const BookManager: React.FC = () => {
     }
   };
 
-  const handleDeleteBook = async (id: string) => {
+  const handleDeleteBook = async (book: BookType) => {
     if (!confirm('Kitob va barcha boblarini o\'chirishni xohlaysizmi?')) return;
 
     try {
+      // Delete PDF if exists
+      if (book.pdf_url) {
+        const urlParts = book.pdf_url.split('/');
+        const filePath = urlParts.slice(-2).join('/');
+        await supabase.storage.from('book-pdfs').remove([filePath]);
+      }
+
       const { error } = await supabase
         .from('books')
         .delete()
-        .eq('id', id);
+        .eq('id', book.id);
 
       if (error) throw error;
       toast.success('Kitob o\'chirildi');
@@ -238,7 +373,6 @@ const BookManager: React.FC = () => {
 
       if (error) throw error;
 
-      // Update total chapters count
       const book = books.find(b => b.id === chapter.book_id);
       if (book && book.total_chapters > 0) {
         await supabase
@@ -258,6 +392,7 @@ const BookManager: React.FC = () => {
 
   const handleEditBook = (book: BookType) => {
     setEditingBook(book);
+    setBookType(book.is_pdf_book ? 'pdf' : 'chapters');
     setBookForm({
       title: book.title,
       author: book.author || '',
@@ -265,7 +400,9 @@ const BookManager: React.FC = () => {
       cover_image_url: book.cover_image_url || '',
       language: book.language,
       level: book.level,
-      is_active: book.is_active
+      is_active: book.is_active,
+      pdf_url: book.pdf_url || '',
+      is_pdf_book: book.is_pdf_book || false
     });
     setIsBookDialogOpen(true);
   };
@@ -300,9 +437,12 @@ const BookManager: React.FC = () => {
       cover_image_url: '',
       language: 'en',
       level: 'beginner',
-      is_active: true
+      is_active: true,
+      pdf_url: '',
+      is_pdf_book: false
     });
     setEditingBook(null);
+    setBookType('chapters');
   };
 
   const resetChapterForm = () => {
@@ -339,7 +479,7 @@ const BookManager: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold">Kitoblar</h2>
           <p className="text-sm text-muted-foreground">
-            O'qish uchun kitoblar va boblarni boshqaring
+            PDF yoki bobli kitoblarni boshqaring
           </p>
         </div>
         <Dialog open={isBookDialogOpen} onOpenChange={(open) => {
@@ -352,13 +492,23 @@ const BookManager: React.FC = () => {
               Kitob qo'shish
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingBook ? 'Kitobni tahrirlash' : 'Yangi kitob'}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Book Type Selector */}
+              {!editingBook && (
+                <Tabs value={bookType} onValueChange={(v) => setBookType(v as 'chapters' | 'pdf')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="chapters">Bobli kitob</TabsTrigger>
+                    <TabsTrigger value="pdf">PDF kitob</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+
               <div>
                 <Label>Kitob nomi *</Label>
                 <Input
@@ -386,14 +536,101 @@ const BookManager: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <Label>Muqova rasmi (URL)</Label>
-                <Input
-                  value={bookForm.cover_image_url}
-                  onChange={(e) => setBookForm({ ...bookForm, cover_image_url: e.target.value })}
-                  placeholder="https://example.com/cover.jpg"
-                />
+              {/* Cover Image Upload */}
+              <div className="space-y-2">
+                <Label>Muqova rasmi</Label>
+                {bookForm.cover_image_url ? (
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={bookForm.cover_image_url} 
+                      alt="Cover" 
+                      className="w-16 h-24 object-cover rounded"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBookForm(prev => ({ ...prev, cover_image_url: '' }))}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      O'chirish
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Rasm yuklash
+                    </Button>
+                  </>
+                )}
               </div>
+
+              {/* PDF Upload (only for PDF type) */}
+              {bookType === 'pdf' && (
+                <div className="space-y-2">
+                  <Label>PDF fayl *</Label>
+                  <div className="border-2 border-dashed rounded-lg p-4 space-y-3">
+                    {bookForm.pdf_url ? (
+                      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-8 w-8 text-primary" />
+                          <div>
+                            <p className="text-sm font-medium">PDF yuklangan</p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemovePdf}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          ref={pdfInputRef}
+                          type="file"
+                          accept=".pdf"
+                          onChange={handlePdfUpload}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => pdfInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="w-full"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {isUploading ? 'Yuklanmoqda...' : 'PDF yuklash'}
+                        </Button>
+                        {isUploading && (
+                          <Progress value={uploadProgress} className="h-2" />
+                        )}
+                        <p className="text-xs text-muted-foreground text-center">
+                          Faqat PDF (max 100MB)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -546,6 +783,12 @@ const BookManager: React.FC = () => {
                             <Badge variant="outline">
                               {book.language === 'en' ? '🇬🇧' : '🇷🇺'}
                             </Badge>
+                            {book.is_pdf_book && (
+                              <Badge variant="secondary" className="gap-1">
+                                <FileText className="h-3 w-3" />
+                                PDF
+                              </Badge>
+                            )}
                           </div>
                           {book.author && (
                             <p className="text-sm text-muted-foreground">{book.author}</p>
@@ -555,21 +798,25 @@ const BookManager: React.FC = () => {
                               {book.description}
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {book.total_chapters} ta bob
-                          </p>
+                          {!book.is_pdf_book && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {book.total_chapters} ta bob
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            {expandedBook === book.id ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </CollapsibleTrigger>
+                        {!book.is_pdf_book && (
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              {expandedBook === book.id ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -580,7 +827,7 @@ const BookManager: React.FC = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteBook(book.id)}
+                          onClick={() => handleDeleteBook(book)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -588,63 +835,65 @@ const BookManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <CollapsibleContent className="mt-4">
-                      <div className="border-t pt-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-medium">Boblar</h4>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAddChapter(book.id)}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Bob qo'shish
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {(chapters[book.id] || []).map((chapter) => (
-                            <motion.div
-                              key={chapter.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    {!book.is_pdf_book && (
+                      <CollapsibleContent className="mt-4">
+                        <div className="border-t pt-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-medium">Boblar</h4>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAddChapter(book.id)}
                             >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {chapter.chapter_number}. {chapter.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {chapter.word_count} so'z
-                                </p>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditChapter(chapter)}
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive"
-                                  onClick={() => handleDeleteChapter(chapter)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </motion.div>
-                          ))}
-                          {chapters[book.id]?.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              Hali bob qo'shilmagan
-                            </p>
-                          )}
+                              <Plus className="h-4 w-4 mr-1" />
+                              Bob qo'shish
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            {(chapters[book.id] || []).map((chapter) => (
+                              <motion.div
+                                key={chapter.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                              >
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {chapter.chapter_number}. {chapter.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {chapter.word_count} so'z
+                                  </p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditChapter(chapter)}
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive"
+                                    onClick={() => handleDeleteChapter(chapter)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            ))}
+                            {chapters[book.id]?.length === 0 && (
+                              <p className="text-sm text-muted-foreground text-center py-4">
+                                Hali bob qo'shilmagan
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CollapsibleContent>
+                      </CollapsibleContent>
+                    )}
                   </CardContent>
                 </Card>
               </Collapsible>

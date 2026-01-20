@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, Bookmark, Plus } from 'lucide-react';
+import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, FileText, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import WordPopup from '@/components/books/WordPopup';
 
+const PdfViewer = lazy(() => import('@/components/books/PdfViewer'));
+
 interface BookType {
   id: string;
   title: string;
@@ -23,6 +25,8 @@ interface BookType {
   language: string;
   level: string;
   total_chapters: number;
+  pdf_url?: string | null;
+  is_pdf_book?: boolean;
 }
 
 interface Chapter {
@@ -63,7 +67,7 @@ const Books: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('books')
-        .select('id, title, author, description, cover_image_url, language, level, total_chapters')
+        .select('id, title, author, description, cover_image_url, language, level, total_chapters, pdf_url, is_pdf_book')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -235,7 +239,33 @@ const Books: React.FC = () => {
     );
   }
 
-  // Reading mode
+  // PDF Reading mode
+  if (selectedBook?.is_pdf_book && selectedBook.pdf_url) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-4xl h-[calc(100vh-8rem)]">
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="ghost" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Orqaga
+            </Button>
+            <h2 className="font-semibold">{selectedBook.title}</h2>
+          </div>
+          <Card className="h-[calc(100%-3rem)] overflow-hidden">
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            }>
+              <PdfViewer pdfUrl={selectedBook.pdf_url} />
+            </Suspense>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Chapter Reading mode
   if (selectedBook && currentChapter) {
     const progress = ((currentChapter.chapter_number) / chapters.length) * 100;
 
@@ -457,9 +487,16 @@ const Books: React.FC = () => {
                         )}
                         <div className="flex items-center gap-2 mt-3">
                           {getLevelBadge(book.level)}
-                          <Badge variant="outline">
-                            {book.total_chapters} bob
-                          </Badge>
+                          {book.is_pdf_book ? (
+                            <Badge variant="secondary" className="gap-1">
+                              <FileText className="h-3 w-3" />
+                              PDF
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              {book.total_chapters} bob
+                            </Badge>
+                          )}
                           <Badge variant="outline">
                             {book.language === 'en' ? '🇬🇧' : '🇷🇺'}
                           </Badge>

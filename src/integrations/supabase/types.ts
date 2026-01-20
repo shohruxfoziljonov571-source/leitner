@@ -151,8 +151,10 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_pdf_book: boolean | null
           language: string
           level: string
+          pdf_url: string | null
           title: string
           total_chapters: number | null
           updated_at: string
@@ -165,8 +167,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_pdf_book?: boolean | null
           language?: string
           level?: string
+          pdf_url?: string | null
           title: string
           total_chapters?: number | null
           updated_at?: string
@@ -179,8 +183,10 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_pdf_book?: boolean | null
           language?: string
           level?: string
+          pdf_url?: string | null
           title?: string
           total_chapters?: number | null
           updated_at?: string
