@@ -405,6 +405,45 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_sessions: {
+        Row: {
+          current_word_id: string | null
+          id: string
+          is_active: boolean | null
+          last_activity: string | null
+          started_at: string | null
+          telegram_chat_id: number
+          user_id: string
+          user_language_id: string
+          words_correct: number | null
+          words_reviewed: number | null
+        }
+        Insert: {
+          current_word_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          started_at?: string | null
+          telegram_chat_id: number
+          user_id: string
+          user_language_id: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+        }
+        Update: {
+          current_word_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          started_at?: string | null
+          telegram_chat_id?: number
+          user_id?: string
+          user_language_id?: string
+          words_correct?: number | null
+          words_reviewed?: number | null
+        }
+        Relationships: []
+      }
       referral_visits: {
         Row: {
           created_at: string

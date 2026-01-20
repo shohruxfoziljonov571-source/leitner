@@ -12,6 +12,10 @@ const WEBAPP_URL = "https://leitner.lovable.app";
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Quiz session cache
+const quizCache = new Map<number, { wordId: string; correctAnswer: string; options: string[]; expires: number }>();
+const QUIZ_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -148,6 +152,7 @@ async function handleInlineQuery(supabase: any, token: string, inlineQuery: any)
 async function handleCallbackQuery(supabase: any, token: string, callbackQuery: any) {
   const data = callbackQuery.data;
   const chatId = callbackQuery.message.chat.id;
+  const messageId = callbackQuery.message.message_id;
   
   // Answer immediately to remove loading
   answerCallbackQuery(token, callbackQuery.id);
@@ -156,6 +161,12 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
   if (data.startsWith("time_")) {
     const time = data.replace("time_", "");
     await handleSetReminderTime(supabase, token, chatId, time);
+    return;
+  }
+
+  // Handle quiz answer
+  if (data.startsWith("quiz_")) {
+    await handleQuizAnswer(supabase, token, chatId, messageId, data);
     return;
   }
 
@@ -179,6 +190,9 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     "contest": () => handleContestCommand(supabase, token, chatId),
     "join_contest": () => handleJoinContest(supabase, token, chatId),
     "my_contest_stats": () => handleMyContestStats(supabase, token, chatId),
+    "quiz": () => handleQuizCommand(supabase, token, chatId),
+    "quiz_next": () => sendQuizQuestion(supabase, token, chatId),
+    "quiz_stop": () => handleQuizStop(supabase, token, chatId),
   };
 
   const handler = handlers[data];
@@ -216,6 +230,7 @@ async function handleTextCommand(supabase: any, token: string, chatId: number, t
     "/challenge": () => handleChallengeCommand(supabase, token, chatId),
     "/contest": () => handleContestCommand(supabase, token, chatId),
     "/konkurs": () => handleContestCommand(supabase, token, chatId),
+    "/quiz": () => handleQuizCommand(supabase, token, chatId),
     "/app": async () => { await sendMessage(token, chatId, "📱 <b>Leitner App</b>", getWebAppButton()); },
   };
 
@@ -226,6 +241,285 @@ async function handleTextCommand(supabase: any, token: string, chatId: number, t
       return;
     }
   }
+}
+
+// ============ QUIZ HANDLERS ============
+
+async function handleQuizCommand(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    return;
+  }
+
+  // Get user's word count
+  const { count } = await supabase
+    .from("words")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", profile.userId);
+
+  if (!count || count < 4) {
+    await sendMessage(
+      token, chatId,
+      "❌ <b>So'z kam!</b>\n\n" +
+      `Sizda ${count || 0} ta so'z bor.\n` +
+      "Quiz uchun kamida 4 ta so'z kerak.\n\n" +
+      "📱 Ilovada so'z qo'shing yoki:\n" +
+      "<code>/add so'z - tarjima</code>",
+      getWebAppButton()
+    );
+    return;
+  }
+
+  // Get words to review count
+  const { count: reviewCount } = await supabase
+    .from("words")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", profile.userId)
+    .lte("next_review_time", new Date().toISOString());
+
+  await sendMessage(
+    token, chatId,
+    `🎯 <b>Quiz Mode</b>\n\n` +
+    `📚 Jami so'zlar: ${count}\n` +
+    `📖 Takrorlash kerak: ${reviewCount || 0}\n\n` +
+    `Quiz boshlash uchun tugmani bosing!`,
+    {
+      inline_keyboard: [
+        [{ text: "🎯 Quiz boshlash", callback_data: "quiz_next" }],
+        [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
+      ],
+    }
+  );
+}
+
+async function sendQuizQuestion(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  // Get user's language
+  const { data: userLang } = await supabase
+    .from("user_languages")
+    .select("id")
+    .eq("user_id", profile.userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!userLang) {
+    await sendMessage(token, chatId, "❌ Avval ilovada til tanlang!", getWebAppButton());
+    return;
+  }
+
+  // Get words to review first, then random words
+  const { data: wordsToReview } = await supabase
+    .from("words")
+    .select("id, original_word, translated_word, box_number")
+    .eq("user_id", profile.userId)
+    .lte("next_review_time", new Date().toISOString())
+    .order("next_review_time", { ascending: true })
+    .limit(10);
+
+  // Get random words for options
+  const { data: allWords } = await supabase
+    .from("words")
+    .select("id, original_word, translated_word")
+    .eq("user_id", profile.userId)
+    .limit(50);
+
+  if (!allWords || allWords.length < 4) {
+    await sendMessage(token, chatId, "❌ So'zlar yetarli emas. Kamida 4 ta so'z kerak.", getMainMenuKeyboard());
+    return;
+  }
+
+  // Pick the word to quiz (prioritize words to review)
+  let targetWord;
+  if (wordsToReview && wordsToReview.length > 0) {
+    targetWord = wordsToReview[Math.floor(Math.random() * wordsToReview.length)];
+  } else {
+    targetWord = allWords[Math.floor(Math.random() * allWords.length)];
+  }
+
+  // Generate wrong options
+  const wrongWords = allWords
+    .filter((w: any) => w.id !== targetWord.id)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
+
+  const options = [
+    { text: targetWord.translated_word, isCorrect: true },
+    ...wrongWords.map((w: any) => ({ text: w.translated_word, isCorrect: false }))
+  ].sort(() => Math.random() - 0.5);
+
+  // Cache the quiz for verification
+  quizCache.set(chatId, {
+    wordId: targetWord.id,
+    correctAnswer: targetWord.translated_word,
+    options: options.map(o => o.text),
+    expires: Date.now() + QUIZ_CACHE_TTL,
+  });
+
+  const boxEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][targetWord.box_number - 1] || "📦";
+
+  await sendMessage(
+    token, chatId,
+    `🎯 <b>So'zni toping:</b>\n\n` +
+    `📝 <b>${targetWord.original_word}</b>\n\n` +
+    `${boxEmoji} Box ${targetWord.box_number}`,
+    {
+      inline_keyboard: [
+        ...options.map((opt, i) => [
+          { text: `${["A", "B", "C", "D"][i]}. ${opt.text}`, callback_data: `quiz_${i}_${opt.isCorrect ? "1" : "0"}` }
+        ]),
+        [
+          { text: "⏭ O'tkazish", callback_data: "quiz_next" },
+          { text: "🛑 Tugatish", callback_data: "quiz_stop" }
+        ],
+      ],
+    }
+  );
+}
+
+async function handleQuizAnswer(supabase: any, token: string, chatId: number, messageId: number, data: string) {
+  const parts = data.split("_");
+  const optionIndex = parseInt(parts[1]);
+  const isCorrect = parts[2] === "1";
+  
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) return;
+
+  const cached = quizCache.get(chatId);
+  if (!cached || cached.expires < Date.now()) {
+    await sendMessage(token, chatId, "⏰ Quiz vaqti tugadi. Qaytadan boshlang.", {
+      inline_keyboard: [[{ text: "🎯 Qayta boshlash", callback_data: "quiz" }]]
+    });
+    return;
+  }
+
+  const selectedAnswer = cached.options[optionIndex];
+  const correctAnswer = cached.correctAnswer;
+
+  // Get user's language
+  const { data: userLang } = await supabase
+    .from("user_languages")
+    .select("id")
+    .eq("user_id", profile.userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!userLang) return;
+
+  // Update word stats
+  if (isCorrect) {
+    // Move to next box (max 5)
+    const { data: word } = await supabase
+      .from("words")
+      .select("box_number")
+      .eq("id", cached.wordId)
+      .maybeSingle();
+
+    const currentBox = word?.box_number || 1;
+    const newBox = Math.min(currentBox + 1, 5);
+    
+    // Calculate next review time based on box
+    const reviewIntervals = [1, 3, 7, 14, 30]; // days
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + reviewIntervals[newBox - 1]);
+
+    await supabase
+      .from("words")
+      .update({
+        box_number: newBox,
+        times_correct: supabase.rpc("increment"),
+        times_reviewed: supabase.rpc("increment"),
+        last_reviewed: new Date().toISOString(),
+        next_review_time: nextReview.toISOString(),
+      })
+      .eq("id", cached.wordId);
+
+    // Update user stats
+    await supabase
+      .from("user_stats")
+      .update({
+        today_reviewed: supabase.rpc("increment"),
+        today_correct: supabase.rpc("increment"),
+      })
+      .eq("user_id", profile.userId)
+      .eq("user_language_id", userLang.id);
+
+  } else {
+    // Move to box 1
+    await supabase
+      .from("words")
+      .update({
+        box_number: 1,
+        times_incorrect: supabase.rpc("increment"),
+        times_reviewed: supabase.rpc("increment"),
+        last_reviewed: new Date().toISOString(),
+        next_review_time: new Date().toISOString(),
+      })
+      .eq("id", cached.wordId);
+
+    await supabase
+      .from("user_stats")
+      .update({
+        today_reviewed: supabase.rpc("increment"),
+      })
+      .eq("user_id", profile.userId)
+      .eq("user_language_id", userLang.id);
+  }
+
+  // Clear quiz cache
+  quizCache.delete(chatId);
+
+  // Edit message to show result
+  const resultMessage = isCorrect
+    ? `✅ <b>To'g'ri!</b>\n\n📝 ${correctAnswer}`
+    : `❌ <b>Noto'g'ri!</b>\n\n` +
+      `Siz: ${selectedAnswer}\n` +
+      `✅ To'g'ri: <b>${correctAnswer}</b>`;
+
+  await editMessage(token, chatId, messageId, resultMessage, {
+    inline_keyboard: [
+      [{ text: "➡️ Keyingi savol", callback_data: "quiz_next" }],
+      [{ text: "🛑 Tugatish", callback_data: "quiz_stop" }],
+    ],
+  });
+}
+
+async function handleQuizStop(supabase: any, token: string, chatId: number) {
+  quizCache.delete(chatId);
+  
+  const profile = await getCachedProfile(supabase, chatId);
+  if (!profile) {
+    await sendMessage(token, chatId, "Quiz tugatildi!", getMainMenuKeyboard());
+    return;
+  }
+
+  // Get today's stats
+  const { data: stats } = await supabase
+    .from("user_stats")
+    .select("today_reviewed, today_correct")
+    .eq("user_id", profile.userId);
+
+  const todayReviewed = stats?.reduce((sum: number, s: any) => sum + (s.today_reviewed || 0), 0) || 0;
+  const todayCorrect = stats?.reduce((sum: number, s: any) => sum + (s.today_correct || 0), 0) || 0;
+  const accuracy = todayReviewed > 0 ? Math.round((todayCorrect / todayReviewed) * 100) : 0;
+
+  await sendMessage(
+    token, chatId,
+    `🎉 <b>Quiz tugatildi!</b>\n\n` +
+    `📊 <b>Bugungi natijalar:</b>\n` +
+    `• Takrorlangan: ${todayReviewed} ta\n` +
+    `• To'g'ri: ${todayCorrect} ta\n` +
+    `• Aniqlik: ${accuracy}%\n\n` +
+    `Ajoyib ish! Davom eting! 💪`,
+    getMainMenuKeyboard()
+  );
 }
 
 // ============ COMMAND HANDLERS ============
@@ -255,13 +549,6 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
       const [userId] = decoded.split(":");
       
       if (userId) {
-        // Get referral source from profile if any
-        const { data: existingProfile } = await supabase
-          .from("profiles")
-          .select("referral_source")
-          .eq("user_id", userId)
-          .maybeSingle();
-
         await supabase
           .from("profiles")
           .update({
@@ -284,6 +571,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
           "Endi siz eslatmalar olasiz va bot orqali so'z qo'shishingiz mumkin.\n\n" +
           "💡 <b>Foydali:</b>\n" +
           "• /add so'z - tarjima - tezkor so'z qo'shish\n" +
+          "• /quiz - so'z takrorlash\n" +
           "• @Leitner_robot yozing - so'zlarni ulashing\n" +
           "• /challenge - haftalik musobaqaga qo'shiling\n" +
           "• /contest - konkursda qatnashing",
@@ -292,7 +580,6 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
         return;
       }
     } catch (e) {
-      // Not a base64 encoded link, might be just a referral
       console.log("Param parsing:", e);
     }
   }
@@ -312,7 +599,7 @@ async function handleContestReferral(supabase: any, token: string, chatId: numbe
     // Find the contest
     const { data: contest } = await supabase
       .from("contests")
-      .select("id, title, is_active, end_date")
+      .select("id, title, image_url, is_active, end_date")
       .ilike("id", `${contestShortId}%`)
       .eq("is_active", true)
       .gt("end_date", new Date().toISOString())
@@ -336,27 +623,31 @@ async function handleContestReferral(supabase: any, token: string, chatId: numbe
       return;
     }
 
-    // Store pending referral info in cache or similar mechanism
-    // For now, we'll send a message explaining they need to register
-    await sendMessage(
-      token, chatId,
+    // Send contest info with image if available
+    const message =
       `🏆 <b>${contest.title}</b>\n\n` +
       `Siz konkursga taklif qilindingiz!\n\n` +
       `Qatnashish uchun:\n` +
       `1️⃣ Ilovada ro'yxatdan o'ting\n` +
       `2️⃣ Profildan Telegramni ulang\n` +
       `3️⃣ Kamida 1 ta so'z qo'shing\n\n` +
-      `Shundan so'ng siz konkurs ishtirokchisi bo'lasiz!`,
-      {
+      `Shundan so'ng siz konkurs ishtirokchisi bo'lasiz!`;
+
+    if (contest.image_url) {
+      await sendPhoto(token, chatId, contest.image_url, message, {
         inline_keyboard: [
           [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
           [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
         ],
-      }
-    );
-
-    // Store the referral attempt (will be validated when user adds first word)
-    // We need to create a temp profile or store in session
+      });
+    } else {
+      await sendMessage(token, chatId, message, {
+        inline_keyboard: [
+          [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
+          [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
+        ],
+      });
+    }
   } catch (e) {
     console.error("Contest referral error:", e);
     await sendWelcomeMessage(token, chatId);
@@ -366,7 +657,6 @@ async function handleContestReferral(supabase: any, token: string, chatId: numbe
 // Track referral visit
 async function trackReferralVisit(supabase: any, refCode: string, chatId: number, username?: string) {
   try {
-    // Find referral
     const { data: referral } = await supabase
       .from("referrals")
       .select("id, is_active")
@@ -379,16 +669,9 @@ async function trackReferralVisit(supabase: any, refCode: string, chatId: number
       return;
     }
 
-    // Increment clicks
-    await supabase
-      .from("referrals")
-      .update({ clicks: supabase.rpc("increment_clicks") })
-      .eq("id", referral.id);
-
-    // Log visit
     await supabase.from("referral_visits").insert({
       referral_id: referral.id,
-      ip_hash: String(chatId), // Using chatId as identifier
+      ip_hash: String(chatId),
       user_agent: username || "telegram",
     });
 
@@ -406,7 +689,7 @@ async function checkRequiredChannels(supabase: any, token: string, chatId: numbe
     .eq("is_active", true);
 
   if (!channels || channels.length === 0) {
-    return true; // No required channels
+    return true;
   }
 
   const notJoined: any[] = [];
@@ -452,7 +735,7 @@ async function checkChannelMembership(token: string, channelId: string, userId: 
     return false;
   } catch (e) {
     console.error("Check membership error:", e);
-    return true; // On error, allow access
+    return true;
   }
 }
 
@@ -464,7 +747,6 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Parse: "word - translation" or "word = translation" or "word : translation"
   const separators = [" - ", " = ", " : ", "-", "=", ":"];
   let word = "", translation = "";
 
@@ -492,7 +774,6 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Get user's default language pair
   const { data: userLang } = await supabase
     .from("user_languages")
     .select("id, source_language, target_language")
@@ -505,7 +786,6 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Check for duplicate
   const { data: existing } = await supabase
     .from("words")
     .select("id")
@@ -518,7 +798,6 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Add word
   const { error } = await supabase.from("words").insert({
     user_id: profile.userId,
     user_language_id: userLang.id,
@@ -534,13 +813,6 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Update stats
-  await supabase
-    .from("user_stats")
-    .update({ total_words: supabase.rpc("increment_total_words") })
-    .eq("user_id", profile.userId)
-    .eq("user_language_id", userLang.id);
-
   await sendMessage(
     token, chatId,
     `✅ <b>So'z qo'shildi!</b>\n\n` +
@@ -549,8 +821,8 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     `📦 Box 1 ga joylashtirildi`,
     {
       inline_keyboard: [
-        [{ text: "➕ Yana qo'shish", callback_data: "add_more" }],
-        [{ text: "📚 O'rganishni boshlash", web_app: { url: WEBAPP_URL } }],
+        [{ text: "🎯 Quiz boshlash", callback_data: "quiz" }],
+        [{ text: "📚 Ilovada o'rganish", web_app: { url: WEBAPP_URL } }],
       ],
     }
   );
@@ -564,20 +836,13 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
     return;
   }
 
-  // Get or create current week's challenge
   const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
 
-  // Get challenge info and participants
   const [challengeResult, participantsResult, userParticipation] = await Promise.all([
     supabase.from("weekly_challenges").select("*").eq("id", challengeId).maybeSingle(),
     supabase
       .from("weekly_challenge_participants")
-      .select(`
-        user_id,
-        xp_earned,
-        words_reviewed,
-        days_active
-      `)
+      .select("user_id, xp_earned, words_reviewed, days_active")
       .eq("challenge_id", challengeId)
       .order("xp_earned", { ascending: false })
       .limit(10),
@@ -593,7 +858,6 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
   const participants = participantsResult.data || [];
   const isJoined = !!userParticipation.data;
 
-  // Get participant names
   const userIds = participants.map((p: any) => p.user_id);
   const { data: profiles } = await supabase
     .from("profiles")
@@ -602,7 +866,6 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
 
   const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p.full_name]) || []);
 
-  // Calculate days left
   const endDate = new Date(challenge.week_end);
   const now = new Date();
   const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
@@ -669,12 +932,12 @@ async function handleJoinChallenge(supabase: any, token: string, chatId: number)
     "🎉 <b>Challenge'ga qo'shildingiz!</b>\n\n" +
     "Bu hafta eng ko'p XP yig'ing va g'olib bo'ling! 🏆\n\n" +
     "💡 XP yig'ish uchun:\n" +
-    "• So'zlarni takrorlang\n" +
+    "• So'zlarni takrorlang (/quiz)\n" +
     "• Har kuni o'ynang (streak bonus)\n" +
     "• To'g'ri javob bering",
     {
       inline_keyboard: [
-        [{ text: "📱 O'ynashni boshlash", web_app: { url: WEBAPP_URL } }],
+        [{ text: "🎯 Quiz boshlash", callback_data: "quiz" }],
         [{ text: "🏆 Reytingni ko'rish", callback_data: "challenge" }],
       ],
     }
@@ -732,9 +995,11 @@ async function handleWordsToReviewCommand(supabase: any, token: string, chatId: 
   await sendMessage(
     token, chatId,
     count! > 0
-      ? `📚 <b>Takrorlash kerak:</b> ${count} ta so'z\n\nHoziroq boshlang!`
+      ? `📚 <b>Takrorlash kerak:</b> ${count} ta so'z\n\nQuiz orqali takrorlang!`
       : "🎉 <b>Ajoyib!</b> Hozircha takrorlash kerak so'z yo'q!",
-    getWebAppButton()
+    count! > 0
+      ? { inline_keyboard: [[{ text: "🎯 Quiz boshlash", callback_data: "quiz" }], [{ text: "📱 Ilova", web_app: { url: WEBAPP_URL } }]] }
+      : getWebAppButton()
   );
 }
 
@@ -923,7 +1188,6 @@ async function handleSetReminderTime(supabase: any, token: string, chatId: numbe
 async function handleContestCommand(supabase: any, token: string, chatId: number) {
   const profile = await getCachedProfile(supabase, chatId);
   
-  // Get active contest
   const { data: contest } = await supabase
     .from("contests")
     .select("*")
@@ -939,17 +1203,14 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
     return;
   }
 
-  // Calculate days left
   const endDate = new Date(contest.end_date);
   const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
-  // Get participant count
   const { count: participantCount } = await supabase
     .from("contest_participants")
     .select("*", { count: "exact", head: true })
     .eq("contest_id", contest.id);
 
-  // Check if user is participating
   let isParticipating = false;
   let userStats = null;
   let userRank = 0;
@@ -967,7 +1228,6 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
     userStats = participation;
 
     if (isParticipating) {
-      // Get rank
       const { data: allParticipants } = await supabase
         .from("contest_participants")
         .select("user_id, referral_count")
@@ -979,7 +1239,6 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
     }
   }
 
-  // Get top 5 leaderboard
   const { data: leaders } = await supabase
     .from("contest_participants")
     .select("user_id, referral_count, telegram_username")
@@ -988,12 +1247,11 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
     .order("referral_count", { ascending: false })
     .limit(5);
 
-  // Get leader names
-  const leaderIds = leaders?.map((l: any) => l.user_id) || [];
+  const leaderUserIds = leaders?.map((l: any) => l.user_id) || [];
   const { data: leaderProfiles } = await supabase
     .from("profiles")
     .select("user_id, full_name")
-    .in("user_id", leaderIds);
+    .in("user_id", leaderUserIds);
 
   const profileMap = new Map(leaderProfiles?.map((p: any) => [p.user_id, p.full_name]) || []);
 
@@ -1041,7 +1299,12 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
         ],
       };
 
-  await sendMessage(token, chatId, message, keyboard);
+  // Send with photo if available
+  if (contest.image_url) {
+    await sendPhoto(token, chatId, contest.image_url, message, keyboard);
+  } else {
+    await sendMessage(token, chatId, message, keyboard);
+  }
 }
 
 async function handleJoinContest(supabase: any, token: string, chatId: number) {
@@ -1052,7 +1315,6 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
     return;
   }
 
-  // Get active contest
   const { data: contest } = await supabase
     .from("contests")
     .select("id, title")
@@ -1067,14 +1329,12 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
     return;
   }
 
-  // Get telegram username
   const { data: profileData } = await supabase
     .from("profiles")
     .select("telegram_username")
     .eq("user_id", profile.userId)
     .maybeSingle();
 
-  // Join contest
   const { error } = await supabase
     .from("contest_participants")
     .upsert({
@@ -1147,8 +1407,8 @@ function getMainMenuKeyboard() {
   return {
     inline_keyboard: [
       [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
-      [{ text: "📊 Statistika", callback_data: "my_stats" }, { text: "🔥 Streak", callback_data: "my_streak" }],
-      [{ text: "📚 Takrorlash", callback_data: "words_to_review" }, { text: "🏆 Reyting", callback_data: "my_rank" }],
+      [{ text: "🎯 Quiz", callback_data: "quiz" }, { text: "📊 Statistika", callback_data: "my_stats" }],
+      [{ text: "📚 Takrorlash", callback_data: "words_to_review" }, { text: "🔥 Streak", callback_data: "my_streak" }],
       [{ text: "🎯 Challenge", callback_data: "challenge" }, { text: "🏆 Konkurs", callback_data: "contest" }],
       [{ text: "⚙️ Sozlamalar", callback_data: "settings" }],
     ],
@@ -1180,6 +1440,7 @@ async function sendWelcomeMessage(token: string, chatId: number) {
     "👋 <b>Salom! Leitner App botiga xush kelibsiz!</b>\n\n" +
     "🎓 Imkoniyatlar:\n" +
     "• 📚 So'z qo'shish: <code>/add so'z - tarjima</code>\n" +
+    "• 🎯 Quiz: /quiz - so'zlarni takrorlash\n" +
     "• 📤 Inline: @Leitner_robot so'z\n" +
     "• 🏆 Challenge: /challenge\n\n" +
     "📱 Hisobni ulash: Profil → Telegram → Ulash",
@@ -1193,11 +1454,13 @@ async function sendHelpMessage(token: string, chatId: number) {
     "📚 <b>Leitner App Bot - Yordam</b>\n\n" +
     "<b>Buyruqlar:</b>\n" +
     "/add so'z - tarjima - So'z qo'shish\n" +
+    "/quiz - So'zlarni takrorlash\n" +
     "/stats - Statistika\n" +
     "/review - Takrorlash kerak so'zlar\n" +
     "/streak - Streak\n" +
     "/rank - Reyting\n" +
     "/challenge - Haftalik musobaqa\n" +
+    "/contest - Konkurs\n" +
     "/menu - Menyu\n\n" +
     "<b>Inline:</b>\n" +
     "@Leitner_robot so'z - so'zlarni ulashing",
@@ -1242,6 +1505,48 @@ async function sendMessage(token: string, chatId: number, text: string, replyMar
   });
 
   if (!response.ok) console.error("Send error:", await response.text());
+  return response;
+}
+
+async function sendPhoto(token: string, chatId: number, photoUrl: string, caption: string, replyMarkup?: any) {
+  const body: any = { 
+    chat_id: chatId, 
+    photo: photoUrl,
+    caption,
+    parse_mode: "HTML" 
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    console.error("Send photo error:", await response.text());
+    // Fallback to text message if photo fails
+    return sendMessage(token, chatId, caption, replyMarkup);
+  }
+  return response;
+}
+
+async function editMessage(token: string, chatId: number, messageId: number, text: string, replyMarkup?: any) {
+  const body: any = { 
+    chat_id: chatId, 
+    message_id: messageId,
+    text, 
+    parse_mode: "HTML" 
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) console.error("Edit error:", await response.text());
   return response;
 }
 
