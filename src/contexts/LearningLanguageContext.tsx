@@ -4,8 +4,8 @@ import { useAuth } from './AuthContext';
 
 interface UserLanguage {
   id: string;
-  source_language: 'uz' | 'ru' | 'en';
-  target_language: 'uz' | 'ru' | 'en';
+  source_language: string;
+  target_language: string;
   created_at: string;
 }
 
