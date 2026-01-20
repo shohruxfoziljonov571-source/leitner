@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          requirement_type: string
+          requirement_value: number
+          updated_at: string
+          xp_reward: number
+        }
+        Insert: {
+          category?: string
+          code: string
+          created_at?: string
+          description: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          requirement_type: string
+          requirement_value: number
+          updated_at?: string
+          xp_reward?: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          requirement_type?: string
+          requirement_value?: number
+          updated_at?: string
+          xp_reward?: number
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
@@ -361,10 +406,13 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          blocked_at: string | null
+          blocked_reason: string | null
           created_at: string
           friend_code: string | null
           full_name: string | null
           id: string
+          is_blocked: boolean | null
           preferred_language: string | null
           referral_source: string | null
           telegram_chat_id: number | null
@@ -376,10 +424,13 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           created_at?: string
           friend_code?: string | null
           full_name?: string | null
           id?: string
+          is_blocked?: boolean | null
           preferred_language?: string | null
           referral_source?: string | null
           telegram_chat_id?: number | null
@@ -391,10 +442,13 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           created_at?: string
           friend_code?: string | null
           full_name?: string | null
           id?: string
+          is_blocked?: boolean | null
           preferred_language?: string | null
           referral_source?: string | null
           telegram_chat_id?: number | null
@@ -548,6 +602,93 @@ export type Database = {
           id?: string
           is_active?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scheduled_messages: {
+        Row: {
+          button_text: string | null
+          created_at: string
+          created_by: string
+          id: string
+          include_button: boolean | null
+          message: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          target_group: string
+          total_failed: number | null
+          total_sent: number | null
+        }
+        Insert: {
+          button_text?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          include_button?: boolean | null
+          message: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          target_group?: string
+          total_failed?: number | null
+          total_sent?: number | null
+        }
+        Update: {
+          button_text?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          include_button?: boolean | null
+          message?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          target_group?: string
+          total_failed?: number | null
+          total_sent?: number | null
+        }
+        Relationships: []
+      }
+      user_feedback: {
+        Row: {
+          admin_response: string | null
+          category: string
+          created_at: string
+          id: string
+          message: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
