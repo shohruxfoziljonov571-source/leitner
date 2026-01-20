@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { 
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
-  Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send
+  Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
+  Award, Clock, HeadphonesIcon, Crown
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,9 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useAdmin } from '@/hooks/useAdmin';
 import ContestManager from '@/components/admin/ContestManager';
 import BroadcastMessage from '@/components/admin/BroadcastMessage';
+import UserManagement from '@/components/admin/UserManagement';
+import AdvancedStatistics from '@/components/admin/AdvancedStatistics';
+import AchievementManager from '@/components/admin/AchievementManager';
+import ScheduledMessages from '@/components/admin/ScheduledMessages';
+import FeedbackSupport from '@/components/admin/FeedbackSupport';
+import LeaderboardManager from '@/components/admin/LeaderboardManager';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -131,28 +139,55 @@ const Admin = () => {
         </motion.div>
 
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="analytics" className="flex items-center gap-1 text-xs sm:text-sm">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Analitika</span>
-            </TabsTrigger>
-            <TabsTrigger value="broadcast" className="flex items-center gap-1 text-xs sm:text-sm">
-              <Send className="h-4 w-4" />
-              <span className="hidden sm:inline">Xabar</span>
-            </TabsTrigger>
-            <TabsTrigger value="contests" className="flex items-center gap-1 text-xs sm:text-sm">
-              <Trophy className="h-4 w-4" />
-              <span className="hidden sm:inline">Konkurslar</span>
-            </TabsTrigger>
-            <TabsTrigger value="channels" className="flex items-center gap-1 text-xs sm:text-sm">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Kanallar</span>
-            </TabsTrigger>
-            <TabsTrigger value="referrals" className="flex items-center gap-1 text-xs sm:text-sm">
-              <Link2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Referrallar</span>
-            </TabsTrigger>
-          </TabsList>
+          <ScrollArea className="w-full">
+            <TabsList className="inline-flex w-max">
+              <TabsTrigger value="analytics" className="flex items-center gap-1 text-xs sm:text-sm">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Analitika</span>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Foydalanuvchilar</span>
+              </TabsTrigger>
+              <TabsTrigger value="stats" className="flex items-center gap-1 text-xs sm:text-sm">
+                <TrendingUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Statistika</span>
+              </TabsTrigger>
+              <TabsTrigger value="achievements" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Award className="h-4 w-4" />
+                <span className="hidden sm:inline">Yutuqlar</span>
+              </TabsTrigger>
+              <TabsTrigger value="broadcast" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">Xabar</span>
+              </TabsTrigger>
+              <TabsTrigger value="scheduled" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">Rejali</span>
+              </TabsTrigger>
+              <TabsTrigger value="contests" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Trophy className="h-4 w-4" />
+                <span className="hidden sm:inline">Konkurslar</span>
+              </TabsTrigger>
+              <TabsTrigger value="leaderboard" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Crown className="h-4 w-4" />
+                <span className="hidden sm:inline">Reyting</span>
+              </TabsTrigger>
+              <TabsTrigger value="feedback" className="flex items-center gap-1 text-xs sm:text-sm">
+                <HeadphonesIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Murojaat</span>
+              </TabsTrigger>
+              <TabsTrigger value="channels" className="flex items-center gap-1 text-xs sm:text-sm">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Kanallar</span>
+              </TabsTrigger>
+              <TabsTrigger value="referrals" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Link2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Referrallar</span>
+              </TabsTrigger>
+            </TabsList>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
@@ -335,14 +370,44 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <UserManagement />
+          </TabsContent>
+
+          {/* Advanced Stats Tab */}
+          <TabsContent value="stats">
+            <AdvancedStatistics />
+          </TabsContent>
+
+          {/* Achievements Tab */}
+          <TabsContent value="achievements">
+            <AchievementManager />
+          </TabsContent>
+
           {/* Broadcast Tab */}
           <TabsContent value="broadcast">
             <BroadcastMessage />
           </TabsContent>
 
+          {/* Scheduled Messages Tab */}
+          <TabsContent value="scheduled">
+            <ScheduledMessages />
+          </TabsContent>
+
           {/* Contests Tab */}
           <TabsContent value="contests">
             <ContestManager />
+          </TabsContent>
+
+          {/* Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <LeaderboardManager />
+          </TabsContent>
+
+          {/* Feedback Tab */}
+          <TabsContent value="feedback">
+            <FeedbackSupport />
           </TabsContent>
 
           {/* Channels Tab */}
