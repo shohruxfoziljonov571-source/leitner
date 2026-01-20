@@ -1252,6 +1252,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_referral_count: {
+        Args: { p_contest_id: string; p_user_id: string }
+        Returns: undefined
+      }
       process_challenge_winners: {
         Args: { p_challenge_id: string }
         Returns: undefined
