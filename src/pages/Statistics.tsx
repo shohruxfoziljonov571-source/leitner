@@ -11,6 +11,7 @@ import XpBar from '@/components/gamification/XpBar';
 import AchievementBadge from '@/components/gamification/AchievementBadge';
 import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/LazyCharts';
 import StreakHeatmap from '@/components/statistics/StreakHeatmap';
+import DictationStats from '@/components/statistics/DictationStats';
 
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
@@ -155,6 +156,16 @@ const Statistics: React.FC = () => {
           <LazyWeeklyChart />
           <LazyAccuracyChart correct={totalCorrect} incorrect={totalIncorrect} />
         </div>
+
+        {/* Dictation Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.42 }}
+          className="mb-8"
+        >
+          <DictationStats />
+        </motion.div>
 
         {/* Box Distribution */}
         <motion.div
