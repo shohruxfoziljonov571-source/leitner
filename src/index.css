@@ -43,6 +43,19 @@
     --box-4: 152 60% 45%;
     --box-5: 200 70% 50%;
 
+    /* Feature colors - semantic */
+    --feature-dictation: 270 60% 55%;
+    --feature-dictation-foreground: 0 0% 100%;
+    --feature-books: 152 60% 45%;
+    --feature-books-foreground: 0 0% 100%;
+    --feature-warning: 38 92% 50%;
+    --feature-warning-foreground: 0 0% 100%;
+
+    /* Rank colors */
+    --rank-gold: 45 93% 47%;
+    --rank-silver: 0 0% 70%;
+    --rank-bronze: 30 60% 40%;
+
     /* Custom gradients */
     --gradient-primary: linear-gradient(135deg, hsl(152, 60%, 42%) 0%, hsl(180, 50%, 40%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(152, 60%, 95%) 0%, hsl(200, 70%, 95%) 100%);
@@ -53,6 +66,18 @@
     --shadow-md: 0 8px 24px -8px hsl(152 60% 42% / 0.15);
     --shadow-lg: 0 16px 48px -16px hsl(152 60% 42% / 0.2);
     --shadow-card: 0 4px 20px -4px hsl(160 25% 12% / 0.08);
+
+    /* Z-index hierarchy */
+    --z-base: 0;
+    --z-dropdown: 50;
+    --z-sticky: 100;
+    --z-fixed: 200;
+    --z-modal-backdrop: 300;
+    --z-modal: 400;
+    --z-popover: 500;
+    --z-tooltip: 600;
+    --z-notification: 700;
+    --z-overlay: 800;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -92,6 +117,11 @@
     --border: 160 15% 20%;
     --input: 160 15% 20%;
     --ring: 152 60% 50%;
+
+    /* Feature colors - dark mode */
+    --feature-dictation: 270 50% 60%;
+    --feature-books: 152 50% 50%;
+    --feature-warning: 38 85% 55%;
 
     --gradient-primary: linear-gradient(135deg, hsl(152, 60%, 50%) 0%, hsl(180, 50%, 45%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(160, 25%, 12%) 0%, hsl(180, 20%, 15%) 100%);
@@ -143,4 +173,15 @@
   .shadow-elevated {
     box-shadow: var(--shadow-md);
   }
+
+  /* Z-index utilities */
+  .z-dropdown { z-index: var(--z-dropdown); }
+  .z-sticky { z-index: var(--z-sticky); }
+  .z-fixed { z-index: var(--z-fixed); }
+  .z-modal-backdrop { z-index: var(--z-modal-backdrop); }
+  .z-modal { z-index: var(--z-modal); }
+  .z-popover { z-index: var(--z-popover); }
+  .z-tooltip { z-index: var(--z-tooltip); }
+  .z-notification { z-index: var(--z-notification); }
+  .z-overlay { z-index: var(--z-overlay); }
 }

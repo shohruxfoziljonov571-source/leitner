@@ -81,9 +81,9 @@ const Friends: React.FC = () => {
   }
 
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="w-5 h-5 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-5 h-5 text-gray-400" />;
-    if (rank === 3) return <Medal className="w-5 h-5 text-amber-700" />;
+    if (rank === 1) return <Crown className="w-5 h-5 text-rank-gold" />;
+    if (rank === 2) return <Medal className="w-5 h-5 text-rank-silver" />;
+    if (rank === 3) return <Medal className="w-5 h-5 text-rank-bronze" />;
     return null;
   };
 
@@ -91,9 +91,9 @@ const Friends: React.FC = () => {
     if (isCurrentUser) {
       return 'bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 ring-2 ring-primary/20';
     }
-    if (rank === 1) return 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/5 border border-yellow-500/30';
-    if (rank === 2) return 'bg-gradient-to-r from-gray-400/20 to-gray-400/5 border border-gray-400/30';
-    if (rank === 3) return 'bg-gradient-to-r from-amber-700/20 to-amber-700/5 border border-amber-700/30';
+    if (rank === 1) return 'bg-gradient-to-r from-rank-gold/20 to-rank-gold/5 border border-rank-gold/30';
+    if (rank === 2) return 'bg-gradient-to-r from-rank-silver/20 to-rank-silver/5 border border-rank-silver/30';
+    if (rank === 3) return 'bg-gradient-to-r from-rank-bronze/20 to-rank-bronze/5 border border-rank-bronze/30';
     return 'bg-muted/50';
   };
 
@@ -114,11 +114,11 @@ const Friends: React.FC = () => {
       {/* Rank */}
       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
         entry.rank === 1
-          ? 'bg-yellow-500 text-yellow-950'
+          ? 'bg-rank-gold text-foreground'
           : entry.rank === 2
-          ? 'bg-gray-400 text-gray-950'
+          ? 'bg-rank-silver text-foreground'
           : entry.rank === 3
-          ? 'bg-amber-700 text-white'
+          ? 'bg-rank-bronze text-primary-foreground'
           : 'bg-muted text-muted-foreground'
       }`}>
         {getRankIcon(entry.rank) || entry.rank}
@@ -146,7 +146,7 @@ const Friends: React.FC = () => {
             Lvl {entry.level}
           </span>
           <span className="flex items-center gap-1">
-            <Flame className="w-3 h-3 text-orange-500" />
+            <Flame className="w-3 h-3 text-accent" />
             {entry.streak}
           </span>
           <span className="flex items-center gap-1">
@@ -209,7 +209,7 @@ const Friends: React.FC = () => {
                 className="h-12 w-12"
               >
                 {copied ? (
-                  <Check className="w-5 h-5 text-green-500" />
+                  <Check className="w-5 h-5 text-primary" />
                 ) : (
                   <Copy className="w-5 h-5" />
                 )}
@@ -256,10 +256,10 @@ const Friends: React.FC = () => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
-              <Card className="border-yellow-500/20 bg-yellow-500/5">
+              <Card className="border-accent/20 bg-accent/5">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-yellow-500/20">
+                    <Badge variant="secondary" className="bg-accent/20">
                       {pendingRequests.length}
                     </Badge>
                     Kutilayotgan so'rovlar
@@ -287,7 +287,7 @@ const Friends: React.FC = () => {
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-9 w-9 text-green-500 hover:bg-green-500/10"
+                          className="h-9 w-9 text-primary hover:bg-primary/10"
                           onClick={() => acceptRequest(request.id)}
                         >
                           <UserCheck className="w-4 h-4" />
@@ -295,7 +295,7 @@ const Friends: React.FC = () => {
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-9 w-9 text-red-500 hover:bg-red-500/10"
+                          className="h-9 w-9 text-destructive hover:bg-destructive/10"
                           onClick={() => rejectRequest(request.id)}
                         >
                           <UserX className="w-4 h-4" />
@@ -330,7 +330,7 @@ const Friends: React.FC = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <Trophy className="w-5 h-5 text-rank-gold" />
                   Top 50 - Global Reyting
                 </CardTitle>
               </CardHeader>
@@ -359,7 +359,7 @@ const Friends: React.FC = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <Trophy className="w-5 h-5 text-rank-gold" />
                   Do'stlar Reytingi
                 </CardTitle>
               </CardHeader>
