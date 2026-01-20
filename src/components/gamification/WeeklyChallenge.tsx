@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Users, Clock, ChevronRight, Zap, Target, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ const WeeklyChallenge: React.FC = () => {
     isLoading,
     joinChallenge,
   } = useWeeklyChallenge();
+
+  const top3 = useMemo(() => participants.slice(0, 3), [participants]);
 
   const handleJoin = async () => {
     const success = await joinChallenge();
@@ -39,8 +41,6 @@ const WeeklyChallenge: React.FC = () => {
   if (!challenge) {
     return null;
   }
-
-  const top3 = participants.slice(0, 3);
 
   return (
     <motion.div
@@ -204,4 +204,4 @@ const WeeklyChallenge: React.FC = () => {
   );
 };
 
-export default WeeklyChallenge;
+export default React.memo(WeeklyChallenge);
