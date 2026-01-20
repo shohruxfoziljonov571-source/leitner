@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Trash2, Volume2, Check, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,15 @@ const WordList: React.FC = () => {
   const [editForm, setEditForm] = useState({ original: '', translated: '' });
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredWords = words.filter(word =>
-    word.original_word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    word.translated_word.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredWords = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return words;
+
+    return words.filter(word =>
+      word.original_word.toLowerCase().includes(q) ||
+      word.translated_word.toLowerCase().includes(q)
+    );
+  }, [words, searchQuery]);
 
   const handleEdit = (word: typeof words[0]) => {
     setEditingId(word.id);
@@ -226,4 +231,4 @@ const WordList: React.FC = () => {
   );
 };
 
-export default WordList;
+export default React.memo(WordList);

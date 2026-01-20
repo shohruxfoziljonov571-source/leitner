@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, Plus, BookOpen, BarChart3, Settings, Languages, Users } from 'lucide-react';
@@ -15,19 +15,19 @@ const Navigation: React.FC = () => {
   const location = useLocation();
   const { t, language, setLanguage } = useLanguage();
 
-  const navItems = [
+  const navItems = useMemo(() => ([
     { path: '/', icon: Home, label: 'dashboard' },
     { path: '/add', icon: Plus, label: 'addWord' },
     { path: '/learn', icon: BookOpen, label: 'learn' },
     { path: '/friends', icon: Users, label: 'friends' },
     { path: '/settings', icon: Settings, label: 'settings' },
-  ];
+  ]), []);
 
-  const languages: { code: Language; name: string; flag: string }[] = [
+  const languages: { code: Language; name: string; flag: string }[] = useMemo(() => ([
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
     { code: 'ru', name: 'Русский', flag: '🇷🇺' },
     { code: 'en', name: 'English', flag: '🇬🇧' },
-  ];
+  ]), [ ]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border z-50 md:top-0 md:bottom-auto">
@@ -106,4 +106,4 @@ const Navigation: React.FC = () => {
   );
 };
 
-export default Navigation;
+export default React.memo(Navigation);

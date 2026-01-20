@@ -21,6 +21,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestId = crypto.randomUUID();
   const startTime = Date.now();
 
   try {
@@ -36,17 +37,28 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    const parseStart = Date.now();
     const update = await req.json();
-    
+    const parseMs = Date.now() - parseStart;
+
+    let kind: "inline_query" | "callback_query" | "text" | "other" = "other";
+    let handlerMs = 0;
+
     // Handle inline queries (for sharing words)
     if (update.inline_query) {
+      kind = "inline_query";
+      const t0 = Date.now();
       await handleInlineQuery(supabase, TELEGRAM_BOT_TOKEN, update.inline_query);
+      handlerMs = Date.now() - t0;
+      console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
       return quickResponse();
     }
 
     // Handle chosen inline result
     if (update.chosen_inline_result) {
-      console.log("Inline result chosen:", update.chosen_inline_result.result_id);
+      console.log(`[${requestId}] inline result chosen:`, update.chosen_inline_result.result_id);
+      console.log(`[${requestId}] ok kind=other parse=${parseMs}ms handler=0ms total=${Date.now() - startTime}ms`);
       return quickResponse();
     }
 
@@ -55,19 +67,26 @@ serve(async (req) => {
 
     // Handle callback queries with early return
     if (update.callback_query) {
+      kind = "callback_query";
+      const t0 = Date.now();
       await handleCallbackQuery(supabase, TELEGRAM_BOT_TOKEN, update.callback_query);
+      handlerMs = Date.now() - t0;
+      console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
       return quickResponse();
     }
 
     // Handle text commands
     if (update.message?.text) {
+      kind = "text";
+      const t0 = Date.now();
       await handleTextCommand(supabase, TELEGRAM_BOT_TOKEN, chatId, messageText, update.message);
+      handlerMs = Date.now() - t0;
     }
 
-    console.log(`Request processed in ${Date.now() - startTime}ms`);
+    console.log(`[${requestId}] ok kind=${kind} parse=${parseMs}ms handler=${handlerMs}ms total=${Date.now() - startTime}ms`);
     return quickResponse();
   } catch (error) {
-    console.error("Error:", error);
+    console.error(`[${requestId}] Error:`, error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1670,7 +1689,122 @@ async function handleJoinContest(supabase: any, token: string, chatId: number, m
 }
 
 async function handleMyContestStats(supabase: any, token: string, chatId: number, messageId?: number) {
-  await handleContestCommand(supabase, token, chatId, messageId);
+  const profile = await getCachedProfile(supabase, chatId);
+
+  if (!profile) {
+    await sendOrEdit(token, chatId, messageId, "❌ Avval hisobingizni ulang!\n\nProfil → Telegram → Ulash", getWebAppButton());
+    return;
+  }
+
+  const { data: contest } = await supabase
+    .from("contests")
+    .select("id, title, end_date, min_referrals, contest_type")
+    .eq("is_active", true)
+    .lte("start_date", new Date().toISOString())
+    .gt("end_date", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!contest) {
+    await sendOrEdit(token, chatId, messageId, "📢 Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
+    return;
+  }
+
+  const [
+    participationRes,
+    totalParticipantsRes,
+    validReferralsRes,
+    pendingReferralsRes,
+    leaderboardRes,
+  ] = await Promise.all([
+    supabase
+      .from("contest_participants")
+      .select("referral_count, words_added, xp_earned, joined_at")
+      .eq("contest_id", contest.id)
+      .eq("user_id", profile.userId)
+      .maybeSingle(),
+    supabase
+      .from("contest_participants")
+      .select("*", { count: "exact", head: true })
+      .eq("contest_id", contest.id),
+    supabase
+      .from("contest_referrals")
+      .select("*", { count: "exact", head: true })
+      .eq("contest_id", contest.id)
+      .eq("referrer_user_id", profile.userId)
+      .eq("is_valid", true),
+    supabase
+      .from("contest_referrals")
+      .select("*", { count: "exact", head: true })
+      .eq("contest_id", contest.id)
+      .eq("referrer_user_id", profile.userId)
+      .eq("is_valid", false),
+    supabase.rpc("get_contest_leaderboard", { p_contest_id: contest.id }),
+  ]);
+
+  const participation = participationRes.data;
+
+  if (!participation) {
+    await sendOrEdit(token, chatId, messageId, "❌ Avval konkursga qo'shiling!", {
+      inline_keyboard: [[{ text: "🚀 Qatnashish", callback_data: "join_contest" }]],
+    });
+    return;
+  }
+
+  const leaderboard = leaderboardRes.data || [];
+  const myRow = leaderboard.find((r: any) => r.user_id === profile.userId);
+  const myRank = myRow?.rank || 0;
+
+  const endDate = new Date(contest.end_date);
+  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+
+  const referralCount = participation.referral_count || 0;
+  const minReferrals = contest.min_referrals || 0;
+  const remaining = Math.max(0, minReferrals - referralCount);
+
+  const validReferrals = validReferralsRes.count || 0;
+  const pendingReferrals = pendingReferralsRes.count || 0;
+  const totalParticipants = totalParticipantsRes.count || 0;
+
+  const metricLabel =
+    contest.contest_type === "xp_earned" ? "XP" :
+    contest.contest_type === "words_added" ? "So'z" :
+    "Taklif";
+
+  const referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
+
+  const top5 = leaderboard.slice(0, 5)
+    .map((l: any) => {
+      const medal = l.rank === 1 ? "🥇" : l.rank === 2 ? "🥈" : l.rank === 3 ? "🥉" : `${l.rank}.`;
+      const name = l.full_name || l.telegram_username || "Noma'lum";
+      return `${medal} ${name} — ${l.referral_count} ta`;
+    })
+    .join("\n");
+
+  await sendOrEdit(
+    token,
+    chatId,
+    messageId,
+    `📊 <b>${contest.title}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `⏰ ${daysLeft} kun qoldi\n` +
+      `👥 ${totalParticipants} ishtirokchi\n\n` +
+      `👤 <b>Sizning natijangiz</b>\n` +
+      `• 🏅 Reyting: ${myRank ? `#${myRank}` : "—"}\n` +
+      `• ${metricLabel}: ${referralCount} ta\n` +
+      `• ✅ Valid referral: ${validReferrals} ta\n` +
+      `• ⏳ Kutilayotgan: ${pendingReferrals} ta\n` +
+      (minReferrals > 0 ? `• 🎯 Maqsad: ${minReferrals} ta (${remaining} ta qoldi)\n` : "") +
+      `\n🔗 <b>Sizning havolangiz:</b>\n<code>${referralLink}</code>` +
+      (top5 ? `\n\n🏆 <b>Top 5</b>\n${top5}` : ""),
+    {
+      inline_keyboard: [
+        [{ text: "📤 Ulashish", callback_data: "share_contest" }],
+        [{ text: "🏆 Konkurs", callback_data: "contest" }],
+        [{ text: "⬅️ Menyu", callback_data: "back_to_menu" }],
+      ],
+    }
+  );
 }
 
 // Handle share contest - send referral link for sharing
