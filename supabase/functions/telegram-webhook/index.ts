@@ -1024,12 +1024,14 @@ async function sendContestInviteMessage(token: string, chatId: number, contest: 
 // Validate contest referral when user adds a word
 async function validateContestReferral(supabase: any, userId: string, contestId?: string, token?: string) {
   try {
-    console.log(`Validating referral for user: ${userId}, contestId: ${contestId || 'any active'}`);
+    // Use environment token if not provided
+    const botToken = token || Deno.env.get("TELEGRAM_BOT_TOKEN");
+    console.log(`Validating referral for user: ${userId}, contestId: ${contestId || 'any active'}, hasToken: ${!!botToken}`);
     
     // Find pending referrals for this user
     let query = supabase
       .from("contest_referrals")
-      .select("id, contest_id, referrer_user_id, referred_telegram_chat_id")
+      .select("id, contest_id, referrer_user_id, referred_telegram_chat_id, notified_at")
       .eq("referred_user_id", userId)
       .eq("is_valid", false);
     
@@ -1037,12 +1039,19 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
       query = query.eq("contest_id", contestId);
     }
     
-    const { data: pendingReferrals } = await query;
+    const { data: pendingReferrals, error: queryError } = await query;
+    
+    if (queryError) {
+      console.error("Error fetching pending referrals:", queryError);
+      return;
+    }
     
     if (!pendingReferrals || pendingReferrals.length === 0) {
       console.log("No pending referrals to validate");
       return;
     }
+    
+    console.log(`Found ${pendingReferrals.length} pending referrals to validate`);
     
     // Get referred user's profile for notification
     const { data: referredProfile } = await supabase
@@ -1080,6 +1089,8 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
         continue;
       }
       
+      console.log(`Referral ${referral.id} marked as valid`);
+      
       // Increment referrer's referral_count
       const { data: participant } = await supabase
         .from("contest_participants")
@@ -1097,10 +1108,10 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
           .eq("contest_id", referral.contest_id)
           .eq("user_id", referral.referrer_user_id);
         
-        console.log(`Referral validated: ${referral.id}, referrer: ${referral.referrer_user_id}, new count: ${newCount}`);
+        console.log(`Referral count updated: referrer=${referral.referrer_user_id}, new count=${newCount}`);
         
-        // Send notification to referrer
-        if (participant.telegram_chat_id && token) {
+        // Send notification to referrer (only if not already notified)
+        if (participant.telegram_chat_id && botToken && !referral.notified_at) {
           const notificationMessage = 
             `🎉 <b>Yangi referral tasdiqlandi!</b>\n\n` +
             `👤 <b>${referredName}</b> sizning havolangiz orqali ro'yxatdan o'tdi va birinchi so'zini qo'shdi!\n\n` +
@@ -1109,19 +1120,31 @@ async function validateContestReferral(supabase: any, userId: string, contestId?
             `💪 Davom eting! Ko'proq do'stlaringizni taklif qiling!`;
           
           try {
-            await sendMessage(token, participant.telegram_chat_id, notificationMessage, {
+            console.log(`Sending notification to referrer: chatId=${participant.telegram_chat_id}`);
+            
+            await sendMessage(botToken, participant.telegram_chat_id, notificationMessage, {
               inline_keyboard: [
                 [{ text: "📊 Statistikam", callback_data: "my_contest_stats" }],
                 [{ text: "📤 Yana taklif qilish", callback_data: "share_contest" }],
               ],
             });
+            
+            // Mark as notified
+            await supabase
+              .from("contest_referrals")
+              .update({ notified_at: new Date().toISOString() })
+              .eq("id", referral.id);
+            
             console.log(`Notification sent to referrer: ${participant.telegram_chat_id}`);
           } catch (notifError) {
             console.error("Error sending referral notification:", notifError);
           }
+        } else {
+          console.log(`Skipping notification: chatId=${participant.telegram_chat_id}, hasToken=${!!botToken}, alreadyNotified=${!!referral.notified_at}`);
         }
       } else {
         // Referrer is not a participant yet, try RPC
+        console.log(`Referrer not a participant, using RPC: ${referral.referrer_user_id}`);
         const { error: incrementError } = await supabase.rpc("increment_referral_count", {
           p_contest_id: referral.contest_id,
           p_user_id: referral.referrer_user_id
@@ -1297,8 +1320,7 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
   }
 
   // Validate any pending contest referrals for this user (with notification)
-  const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  await validateContestReferral(supabase, profile.userId, undefined, TELEGRAM_BOT_TOKEN);
+  await validateContestReferral(supabase, profile.userId, undefined, token);
 
   await sendMessage(
     token, chatId,
