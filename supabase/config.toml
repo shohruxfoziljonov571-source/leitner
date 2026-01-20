@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.check-dictation]
 verify_jwt = false
+
+[functions.notify-referral]
+verify_jwt = false
