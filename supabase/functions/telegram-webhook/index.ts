@@ -676,61 +676,120 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
 // Handle contest referral
 async function handleContestReferral(supabase: any, token: string, chatId: number, contestShortId: string, referrerUserId: string, username?: string) {
   try {
-    // Find the contest
-    const { data: contest } = await supabase
+    console.log(`Contest referral: contestShortId=${contestShortId}, referrerUserId=${referrerUserId}`);
+    
+    // Find the contest - search by id starting with the short id
+    const { data: allContests } = await supabase
       .from("contests")
       .select("id, title, image_url, is_active, end_date")
-      .ilike("id", `${contestShortId}%`)
       .eq("is_active", true)
-      .gt("end_date", new Date().toISOString())
-      .maybeSingle();
+      .gt("end_date", new Date().toISOString());
+    
+    // Find contest matching the short ID
+    const contest = allContests?.find((c: any) => c.id.startsWith(contestShortId));
+    
+    console.log(`Found contests: ${allContests?.length}, matched: ${contest?.id}`);
 
     if (!contest) {
+      // Try to find any active contest as fallback
+      const { data: activeContest } = await supabase
+        .from("contests")
+        .select("id, title, image_url, is_active, end_date")
+        .eq("is_active", true)
+        .gt("end_date", new Date().toISOString())
+        .limit(1)
+        .maybeSingle();
+      
+      if (activeContest) {
+        console.log(`Fallback to active contest: ${activeContest.id}`);
+        await processContestReferral(supabase, token, chatId, activeContest, referrerUserId, username);
+        return;
+      }
+      
       await sendMessage(token, chatId, "❌ Konkurs topilmadi yoki tugagan.", getMainMenuKeyboard());
       return;
     }
+    
+    await processContestReferral(supabase, token, chatId, contest, referrerUserId, username);
 
-    // Check if this user already exists in the system
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .eq("telegram_chat_id", chatId)
-      .maybeSingle();
-
-    if (existingProfile) {
-      // User already registered, just show contest info
-      await handleContestCommand(supabase, token, chatId);
-      return;
-    }
-
-    // Send contest info with image if available
-    const message =
-      `🏆 <b>${contest.title}</b>\n\n` +
-      `Siz konkursga taklif qilindingiz!\n\n` +
-      `Qatnashish uchun:\n` +
-      `1️⃣ Ilovada ro'yxatdan o'ting\n` +
-      `2️⃣ Profildan Telegramni ulang\n` +
-      `3️⃣ Kamida 1 ta so'z qo'shing\n\n` +
-      `Shundan so'ng siz konkurs ishtirokchisi bo'lasiz!`;
-
-    if (contest.image_url) {
-      await sendPhoto(token, chatId, contest.image_url, message, {
-        inline_keyboard: [
-          [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
-          [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
-        ],
-      });
-    } else {
-      await sendMessage(token, chatId, message, {
-        inline_keyboard: [
-          [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
-          [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
-        ],
-      });
-    }
   } catch (e) {
     console.error("Contest referral error:", e);
     await sendWelcomeMessage(token, chatId);
+  }
+}
+
+// Process contest referral after finding contest
+async function processContestReferral(supabase: any, token: string, chatId: number, contest: any, referrerUserId: string, username?: string) {
+  // Check if this user already exists in the system
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (existingProfile) {
+    // Check if referral already exists
+    const { data: existingReferral } = await supabase
+      .from("contest_referrals")
+      .select("id")
+      .eq("contest_id", contest.id)
+      .eq("referred_telegram_chat_id", chatId)
+      .maybeSingle();
+    
+    if (!existingReferral) {
+      // Find referrer by matching user_id prefix
+      const { data: referrerParticipant } = await supabase
+        .from("contest_participants")
+        .select("user_id")
+        .eq("contest_id", contest.id)
+        .like("user_id", `${referrerUserId}%`)
+        .maybeSingle();
+      
+      if (referrerParticipant) {
+        // Record the referral
+        await supabase.from("contest_referrals").insert({
+          contest_id: contest.id,
+          referrer_user_id: referrerParticipant.user_id,
+          referred_user_id: existingProfile.user_id,
+          referred_telegram_chat_id: chatId,
+          is_valid: false, // Will be validated when user adds a word
+        });
+        console.log(`Referral recorded for existing user: ${existingProfile.user_id}`);
+      }
+    }
+    
+    // User already registered, just show contest info
+    await handleContestCommand(supabase, token, chatId);
+    return;
+  }
+
+  // Store pending referral info for new users
+  // This will be processed when user registers and adds a word
+  
+  // Send contest info with image if available
+  const message =
+    `🏆 <b>${contest.title}</b>\n\n` +
+    `Siz konkursga taklif qilindingiz!\n\n` +
+    `Qatnashish uchun:\n` +
+    `1️⃣ Ilovada ro'yxatdan o'ting\n` +
+    `2️⃣ Profildan Telegramni ulang\n` +
+    `3️⃣ Kamida 1 ta so'z qo'shing\n\n` +
+    `Shundan so'ng siz konkurs ishtirokchisi bo'lasiz!`;
+
+  if (contest.image_url) {
+    await sendPhoto(token, chatId, contest.image_url, message, {
+      inline_keyboard: [
+        [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
+        [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
+      ],
+    });
+  } else {
+    await sendMessage(token, chatId, message, {
+      inline_keyboard: [
+        [{ text: "📱 Ro'yxatdan o'tish", web_app: { url: WEBAPP_URL } }],
+        [{ text: "🏆 Konkurs haqida", callback_data: "contest" }],
+      ],
+    });
   }
 }
 
@@ -1367,7 +1426,7 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
   const keyboard = isParticipating
     ? {
         inline_keyboard: [
-          [{ text: "📋 Havolani nusxalash", callback_data: "copy_contest_link" }],
+          [{ text: "📤 Ulashish", callback_data: "share_contest" }],
           [{ text: "📊 Statistikam", callback_data: "my_contest_stats" }],
           [{ text: "⬅️ Orqaga", callback_data: "back_to_menu" }],
         ],
@@ -1450,6 +1509,69 @@ async function handleJoinContest(supabase: any, token: string, chatId: number) {
 
 async function handleMyContestStats(supabase: any, token: string, chatId: number) {
   await handleContestCommand(supabase, token, chatId);
+}
+
+// Handle share contest - send referral link for sharing
+async function handleShareContest(supabase: any, token: string, chatId: number) {
+  const profile = await getCachedProfile(supabase, chatId);
+  
+  if (!profile) {
+    await sendMessage(token, chatId, "❌ Avval hisobingizni ulang!", getWebAppButton());
+    return;
+  }
+
+  const { data: contest } = await supabase
+    .from("contests")
+    .select("id, title")
+    .eq("is_active", true)
+    .gt("end_date", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!contest) {
+    await sendMessage(token, chatId, "❌ Hozirda faol konkurs yo'q.", getMainMenuKeyboard());
+    return;
+  }
+
+  // Check if user is participating
+  const { data: participation } = await supabase
+    .from("contest_participants")
+    .select("referral_count")
+    .eq("contest_id", contest.id)
+    .eq("user_id", profile.userId)
+    .maybeSingle();
+
+  if (!participation) {
+    await sendMessage(token, chatId, "❌ Avval konkursga qo'shiling!", {
+      inline_keyboard: [
+        [{ text: "🚀 Qatnashish", callback_data: "join_contest" }],
+      ],
+    });
+    return;
+  }
+
+  const referralLink = `https://t.me/Leitner_robot?start=cref_${contest.id.slice(0, 8)}_${profile.userId.slice(0, 8)}`;
+
+  const shareText = 
+    `🏆 ${contest.title}\n\n` +
+    `Men bu konkursda qatnashyapman! Sen ham qo'shil va sovg'a yutib ol!\n\n` +
+    `👉 ${referralLink}`;
+
+  await sendMessage(
+    token, chatId,
+    `📤 <b>Do'stlaringizga ulashing!</b>\n\n` +
+    `🔗 <b>Sizning havolangiz:</b>\n<code>${referralLink}</code>\n\n` +
+    `👥 Sizning takliflaringiz: ${participation.referral_count} ta\n\n` +
+    `💡 Havolani do'stlaringizga yuboring yoki ijtimoiy tarmoqlarda ulashing!`,
+    {
+      inline_keyboard: [
+        [{ text: "📨 Telegram orqali ulashish", url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}` }],
+        [{ text: "🏆 Konkurs sahifasi", callback_data: "contest" }],
+        [{ text: "⬅️ Menyu", callback_data: "back_to_menu" }],
+      ],
+    }
+  );
 }
 
 // ============ HELPER FUNCTIONS ============
