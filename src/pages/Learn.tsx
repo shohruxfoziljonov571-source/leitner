@@ -8,12 +8,11 @@ import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
+import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
-import XpPopup from '@/components/gamification/XpPopup';
 import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
-import StreakCombo from '@/components/learning/StreakCombo';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
 import { getLanguageFlag, getLanguageName } from '@/lib/languages';
 
@@ -35,16 +34,13 @@ const Learn: React.FC = () => {
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, XP_PER_INCORRECT, level } = useGamification();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
+  const { showXp, showStreak } = useNotificationQueue();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
-  const [showXpPopup, setShowXpPopup] = useState(false);
-  const [lastXpGain, setLastXpGain] = useState(0);
   const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
   const [comboStreak, setComboStreak] = useState(0);
-  const [showCombo, setShowCombo] = useState(false);
   const [speedResetTrigger, setSpeedResetTrigger] = useState(0);
   const [isOnBreak, setIsOnBreak] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get words for review - memoized based on words array content
@@ -110,36 +106,26 @@ const Learn: React.FC = () => {
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
-      // Update combo streak
-      if (isCorrect) {
-        setComboStreak(prev => prev + 1);
-        setShowCombo(true);
-        if (comboTimeoutRef.current) {
-          clearTimeout(comboTimeoutRef.current);
-        }
-        comboTimeoutRef.current = setTimeout(() => setShowCombo(false), 2000);
-      } else {
-        setComboStreak(0);
-        setShowCombo(false);
-      }
-
+      // Update combo streak and show notifications
+      const newStreak = isCorrect ? comboStreak + 1 : 0;
+      setComboStreak(newStreak);
+      
       // Calculate XP with combo bonus
       const comboBonus = comboStreak >= 10 ? 5 : comboStreak >= 5 ? 3 : comboStreak >= 3 ? 1 : 0;
       const xpGain = isCorrect ? XP_PER_CORRECT + comboBonus : XP_PER_INCORRECT;
-      setLastXpGain(xpGain);
-      setShowXpPopup(true);
+      
+      // Show unified notifications (they queue automatically)
+      if (isCorrect && newStreak >= 3) {
+        showStreak(newStreak);
+      }
+      showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
+      
       await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
       
       // Update weekly challenge stats if user is participating
       if (userParticipation) {
         await updateParticipantStats(xpGain, 1, isCorrect ? 1 : 0);
       }
-      
-      // Clear previous timeout to prevent memory leaks
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => setShowXpPopup(false), 1500);
 
       const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
       await checkAndUnlockAchievements({
@@ -154,14 +140,11 @@ const Learn: React.FC = () => {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showXp, showStreak]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       if (comboTimeoutRef.current) {
         clearTimeout(comboTimeoutRef.current);
       }
@@ -376,8 +359,6 @@ const Learn: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-      <XpPopup amount={lastXpGain} show={showXpPopup} />
-      <StreakCombo streak={comboStreak} show={showCombo} />
       
       {/* Break overlay */}
       <AnimatePresence>

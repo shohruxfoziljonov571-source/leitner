@@ -76,8 +76,11 @@
     --z-modal: 400;
     --z-popover: 500;
     --z-tooltip: 600;
-    --z-notification: 700;
-    --z-overlay: 800;
+    --z-notification: 9999;
+    --z-overlay: 10000;
+    
+    /* RGB values for glow effects */
+    --primary-rgb: 58, 145, 95;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;

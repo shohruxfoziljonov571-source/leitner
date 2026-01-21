@@ -7,8 +7,8 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LearningLanguageProvider } from "@/contexts/LearningLanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { NotificationProvider } from "@/components/notifications/NotificationQueue";
 import Navigation from "@/components/layout/Navigation";
-
 // Lazy load pages for better initial load performance
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const AddWord = lazy(() => import("@/pages/AddWord"));
@@ -103,10 +103,12 @@ const App = () => (
         <LanguageProvider>
           <LearningLanguageProvider>
             <TooltipProvider>
-              <Toaster position="top-center" richColors closeButton />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
+              <NotificationProvider>
+                <Toaster position="top-center" richColors closeButton />
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </NotificationProvider>
             </TooltipProvider>
           </LearningLanguageProvider>
         </LanguageProvider>
