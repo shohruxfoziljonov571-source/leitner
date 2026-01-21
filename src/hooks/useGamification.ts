@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
-import { toast } from 'sonner';
+import { notificationEmitter } from '@/components/notifications/NotificationQueue';
 
 export interface Achievement {
   id: string;
@@ -144,9 +144,7 @@ export const useGamification = () => {
         });
 
       if (leveledUp) {
-        toast.success(`🎉 Tabriklaymiz! ${newLevel}-darajaga yetdingiz!`, {
-          duration: 4000,
-        });
+        notificationEmitter.showLevelUp(newLevel);
       }
     } catch (error) {
       console.error('Error adding XP:', error);
@@ -194,10 +192,8 @@ export const useGamification = () => {
 
       if (unlocked) {
         newAchievements.push(achievement.id);
-        toast.success(`🏆 Yangi yutuq: ${achievement.name}!`, {
-          description: achievement.description,
-          duration: 5000,
-        });
+        // Use global emitter for notifications from hooks
+        notificationEmitter.showAchievement(achievement.name, achievement.description, achievement.icon);
       }
     }
 
