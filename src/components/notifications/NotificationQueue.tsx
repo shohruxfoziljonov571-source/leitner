@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Zap, Sparkles, CheckCircle2, XCircle, Trophy, Star } from 'lucide-react';
+import { Flame, Zap, Sparkles, CheckCircle2, XCircle, Trophy, Star, TrendingUp } from 'lucide-react';
 
 // Notification types
-type NotificationType = 'xp' | 'streak' | 'success' | 'error' | 'achievement' | 'custom';
+type NotificationType = 'xp' | 'streak' | 'success' | 'error' | 'achievement' | 'levelUp' | 'custom';
 
 interface NotificationItem {
   id: string;
@@ -13,6 +13,7 @@ interface NotificationItem {
   icon?: React.ReactNode;
   duration?: number;
   timestamp: number;
+  priority?: number; // Higher = shown first
 }
 
 interface NotificationContextType {
@@ -21,10 +22,41 @@ interface NotificationContextType {
   showStreak: (streak: number) => void;
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
-  showAchievement: (title: string, description?: string) => void;
+  showAchievement: (title: string, description?: string, icon?: string) => void;
+  showLevelUp: (newLevel: number) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
+
+// Global emitter for use outside React components (hooks, etc.)
+type NotificationCallback = (notification: Omit<NotificationItem, 'id' | 'timestamp'>) => void;
+let globalNotificationCallback: NotificationCallback | null = null;
+
+export const notificationEmitter = {
+  emit: (notification: Omit<NotificationItem, 'id' | 'timestamp'>) => {
+    if (globalNotificationCallback) {
+      globalNotificationCallback(notification);
+    }
+  },
+  showAchievement: (title: string, description?: string, icon?: string) => {
+    notificationEmitter.emit({
+      type: 'achievement',
+      message: `${icon || '🏆'} ${title}`,
+      subMessage: description,
+      duration: 3500,
+      priority: 10, // High priority for achievements
+    });
+  },
+  showLevelUp: (newLevel: number) => {
+    notificationEmitter.emit({
+      type: 'levelUp',
+      message: `Level ${newLevel}!`,
+      subMessage: 'Tabriklaymiz! 🎉',
+      duration: 3000,
+      priority: 15, // Highest priority for level ups
+    });
+  },
+};
 
 export const useNotificationQueue = () => {
   const context = useContext(NotificationContext);
@@ -76,6 +108,12 @@ const LiquidGlassNotification: React.FC<{
           glow: 'shadow-[0_0_30px_rgba(139,92,246,0.4)]',
           icon: <Trophy className="w-5 h-5" />,
         };
+      case 'levelUp':
+        return {
+          gradient: 'from-yellow-500/90 via-amber-500/80 to-orange-500/70',
+          glow: 'shadow-[0_0_40px_rgba(245,158,11,0.5)]',
+          icon: <TrendingUp className="w-5 h-5" />,
+        };
       default:
         return {
           gradient: 'from-foreground/20 via-foreground/15 to-foreground/10',
@@ -86,6 +124,7 @@ const LiquidGlassNotification: React.FC<{
   };
 
   const styles = getTypeStyles();
+  const isHighPriority = notification.type === 'levelUp' || notification.type === 'achievement';
 
   return (
     <motion.div
@@ -104,7 +143,7 @@ const LiquidGlassNotification: React.FC<{
       <div
         className={`
           relative overflow-hidden
-          px-5 py-3 rounded-[20px]
+          ${isHighPriority ? 'px-6 py-4' : 'px-5 py-3'} rounded-[20px]
           bg-gradient-to-r ${styles.gradient}
           ${styles.glow}
           backdrop-blur-xl
@@ -117,15 +156,16 @@ const LiquidGlassNotification: React.FC<{
         
         {/* Content */}
         <div className="relative flex items-center gap-3">
-          {/* Icon with subtle animation */}
+          {/* Icon with animation */}
           <motion.div
             animate={{ 
-              scale: [1, 1.1, 1],
-              rotate: notification.type === 'streak' ? [0, -5, 5, 0] : 0
+              scale: isHighPriority ? [1, 1.2, 1] : [1, 1.1, 1],
+              rotate: notification.type === 'streak' ? [0, -5, 5, 0] : 
+                      notification.type === 'levelUp' ? [0, -10, 10, 0] : 0
             }}
             transition={{ 
-              repeat: notification.type === 'streak' ? Infinity : 0, 
-              duration: 0.5 
+              repeat: (notification.type === 'streak' || notification.type === 'levelUp') ? Infinity : 0, 
+              duration: notification.type === 'levelUp' ? 0.6 : 0.5 
             }}
             className="flex-shrink-0 text-white drop-shadow-lg"
           >
@@ -133,12 +173,12 @@ const LiquidGlassNotification: React.FC<{
           </motion.div>
           
           {/* Text content */}
-          <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-white drop-shadow-md whitespace-nowrap">
+          <div className={`flex ${isHighPriority ? 'flex-col' : 'flex-row items-center'} gap-1`}>
+            <span className={`font-display font-bold text-white drop-shadow-md whitespace-nowrap ${isHighPriority ? 'text-lg' : ''}`}>
               {notification.message}
             </span>
             {notification.subMessage && (
-              <span className="text-white/80 text-sm font-medium">
+              <span className={`text-white/80 font-medium ${isHighPriority ? 'text-sm' : 'text-sm'}`}>
                 {notification.subMessage}
               </span>
             )}
@@ -151,9 +191,9 @@ const LiquidGlassNotification: React.FC<{
           animate={{ x: '200%' }}
           transition={{ 
             repeat: Infinity, 
-            duration: 2,
+            duration: isHighPriority ? 1.5 : 2,
             ease: 'linear',
-            repeatDelay: 1
+            repeatDelay: isHighPriority ? 0.5 : 1
           }}
           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 pointer-events-none"
         />
@@ -170,6 +210,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const processQueue = useCallback(() => {
     if (isShowingRef.current || queueRef.current.length === 0) return;
+    
+    // Sort by priority (higher first), then by timestamp (older first)
+    queueRef.current.sort((a, b) => {
+      const priorityDiff = (b.priority || 0) - (a.priority || 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      return a.timestamp - b.timestamp;
+    });
     
     const next = queueRef.current.shift();
     if (next) {
@@ -192,15 +239,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       timestamp: Date.now(),
     };
     
-    // Merge similar notifications (e.g., rapid XP gains)
-    if (notification.type === 'xp' && currentNotification?.type === 'xp') {
-      // Skip if we're already showing XP
-      return;
-    }
+    // Smart deduplication: skip if same type is currently showing or in queue
+    const isDuplicate = 
+      (currentNotification?.type === notification.type && notification.type === 'xp') ||
+      queueRef.current.some(n => n.type === notification.type && notification.type === 'xp');
+    
+    if (isDuplicate) return;
     
     queueRef.current.push(newNotification);
     processQueue();
   }, [processQueue, currentNotification]);
+
+  // Register global callback
+  useEffect(() => {
+    globalNotificationCallback = showNotification;
+    return () => {
+      globalNotificationCallback = null;
+    };
+  }, [showNotification]);
 
   const showXp = useCallback((amount: number, bonusText?: string) => {
     showNotification({
@@ -208,11 +264,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       message: `+${amount} XP`,
       subMessage: bonusText,
       duration: 1800,
+      priority: 1,
     });
   }, [showNotification]);
 
   const showStreak = useCallback((streak: number) => {
-    if (streak < 2) return;
+    if (streak < 3) return; // Only show for meaningful streaks
     
     const getStreakLabel = () => {
       if (streak >= 20) return '🔥 UNSTOPPABLE!';
@@ -228,6 +285,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       message: `x${streak}`,
       subMessage: getStreakLabel(),
       duration: 2000,
+      priority: 2,
     });
   }, [showNotification]);
 
@@ -236,6 +294,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       type: 'success',
       message,
       duration: 2500,
+      priority: 3,
     });
   }, [showNotification]);
 
@@ -244,15 +303,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       type: 'error',
       message,
       duration: 3000,
+      priority: 5, // Errors are important
     });
   }, [showNotification]);
 
-  const showAchievement = useCallback((title: string, description?: string) => {
+  const showAchievement = useCallback((title: string, description?: string, icon?: string) => {
     showNotification({
       type: 'achievement',
-      message: title,
+      message: `${icon || '🏆'} ${title}`,
       subMessage: description,
       duration: 3500,
+      priority: 10, // High priority
+    });
+  }, [showNotification]);
+
+  const showLevelUp = useCallback((newLevel: number) => {
+    showNotification({
+      type: 'levelUp',
+      message: `Level ${newLevel}!`,
+      subMessage: 'Tabriklaymiz! 🎉',
+      duration: 3000,
+      priority: 15, // Highest priority
     });
   }, [showNotification]);
 
@@ -263,7 +334,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       showStreak, 
       showSuccess, 
       showError, 
-      showAchievement 
+      showAchievement,
+      showLevelUp
     }}>
       {children}
       

@@ -106,7 +106,7 @@ const Learn: React.FC = () => {
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
-      // Update combo streak and show notifications
+      // Update combo streak
       const newStreak = isCorrect ? comboStreak + 1 : 0;
       setComboStreak(newStreak);
       
@@ -114,11 +114,18 @@ const Learn: React.FC = () => {
       const comboBonus = comboStreak >= 10 ? 5 : comboStreak >= 5 ? 3 : comboStreak >= 3 ? 1 : 0;
       const xpGain = isCorrect ? XP_PER_CORRECT + comboBonus : XP_PER_INCORRECT;
       
-      // Show unified notifications (they queue automatically)
-      if (isCorrect && newStreak >= 3) {
+      // Smart notifications: prioritize milestones over every XP gain
+      // Only show streak notification at milestone levels (3, 5, 10, 15, 20)
+      const streakMilestones = [3, 5, 10, 15, 20];
+      const isStreakMilestone = streakMilestones.includes(newStreak);
+      
+      if (isCorrect && isStreakMilestone) {
+        // Streak milestone - show streak notification (XP is implicit)
         showStreak(newStreak);
+      } else if (xpGain >= 10) {
+        // Only show XP for correct answers or significant amounts
+        showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
       }
-      showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
       
       await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
       
