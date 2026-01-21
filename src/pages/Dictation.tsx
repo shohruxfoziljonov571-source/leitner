@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useGamification } from '@/hooks/useGamification';
-import XpPopup from '@/components/gamification/XpPopup';
+import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import ErrorHighlight from '@/components/dictation/ErrorHighlight';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -48,6 +48,7 @@ const Dictation: React.FC = () => {
   const { user } = useAuth();
   const { speak, stop, isSpeaking } = useSpeech();
   const { addXp } = useGamification();
+  const { showXp, showSuccess } = useNotificationQueue();
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const [dictations, setDictations] = useState<Dictation[]>([]);
@@ -57,8 +58,6 @@ const Dictation: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<DictationResult | null>(null);
   const [levelFilter, setLevelFilter] = useState<string>('all');
-  const [showXpPopup, setShowXpPopup] = useState(false);
-  const [lastXpGain, setLastXpGain] = useState(0);
   const [playCount, setPlayCount] = useState(0);
   
   // Audio player state
@@ -179,15 +178,13 @@ const Dictation: React.FC = () => {
       const resultData = response.data as DictationResult;
       setResult(resultData);
 
-      // Add XP
+      // Show XP notification
       if (resultData.xp_earned > 0) {
         await addXp(resultData.xp_earned, 'dictation_complete');
-        setLastXpGain(resultData.xp_earned);
-        setShowXpPopup(true);
-        setTimeout(() => setShowXpPopup(false), 2000);
+        showXp(resultData.xp_earned, `${resultData.accuracy_percentage}% aniqlik`);
       }
 
-      toast.success('Diktant tekshirildi!');
+      showSuccess('Diktant tekshirildi!');
     } catch (error) {
       console.error('Error checking dictation:', error);
       toast.error('Xatolik yuz berdi');
@@ -246,8 +243,6 @@ const Dictation: React.FC = () => {
 
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-        <XpPopup amount={lastXpGain} show={showXpPopup} />
-        
         {/* Hidden audio element */}
         {hasUploadedAudio && (
           <audio

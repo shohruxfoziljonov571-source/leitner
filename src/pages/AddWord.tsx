@@ -5,11 +5,11 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
+import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
 import WordList from '@/components/WordList';
 import LanguageSelector from '@/components/LanguageSelector';
-import XpPopup from '@/components/gamification/XpPopup';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,9 +20,8 @@ const AddWord: React.FC = () => {
   const { activeLanguage } = useLearningLanguage();
   const { addWord, addWordsBulk, words, stats } = useWordsDB();
   const { addXp, checkAndUnlockAchievements, XP_PER_NEW_WORD, level } = useGamification();
+  const { showXp } = useNotificationQueue();
   const [activeTab, setActiveTab] = useState('manual');
-  const [showXpPopup, setShowXpPopup] = useState(false);
-  const [lastXpGain, setLastXpGain] = useState(0);
 
   const handleAddWord = async (word: {
     originalWord: string;
@@ -50,11 +49,9 @@ const AddWord: React.FC = () => {
       throw new Error('Xatolik yuz berdi');
     }
 
-    // Add XP for new word
-    setLastXpGain(XP_PER_NEW_WORD);
-    setShowXpPopup(true);
+    // Show XP notification
+    showXp(XP_PER_NEW_WORD);
     await addXp(XP_PER_NEW_WORD, 'new_word');
-    setTimeout(() => setShowXpPopup(false), 1500);
 
     // Check achievements
     await checkAndUnlockAchievements({
@@ -84,12 +81,10 @@ const AddWord: React.FC = () => {
     }
 
     if (addedCount > 0) {
-      // Add XP for all imported words
+      // Show XP notification for all imported words
       const totalXp = addedCount * XP_PER_NEW_WORD;
-      setLastXpGain(totalXp);
-      setShowXpPopup(true);
+      showXp(totalXp, `${addedCount} ta so'z`);
       await addXp(totalXp, 'bulk_import');
-      setTimeout(() => setShowXpPopup(false), 2000);
 
       // Check achievements
       await checkAndUnlockAchievements({
@@ -127,8 +122,6 @@ const AddWord: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-      <XpPopup amount={lastXpGain} show={showXpPopup} />
-      
       <div className="container mx-auto px-4 py-6 max-w-lg">
         {/* Header */}
         <motion.div
