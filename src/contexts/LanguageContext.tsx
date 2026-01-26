@@ -17,6 +17,7 @@ export const translations: Translations = {
   learn: { uz: "O'rganish", ru: "Учить", en: "Learn" },
   statistics: { uz: "Statistika", ru: "Статистика", en: "Statistics" },
   friends: { uz: "Do'stlar", ru: "Друзья", en: "Friends" },
+  mnemonics: { uz: "Mnemonic", ru: "Мнемоника", en: "Mnemonics" },
   settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
   
   // Dashboard

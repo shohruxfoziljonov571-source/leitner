@@ -550,6 +550,39 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_palaces: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          rooms_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          rooms_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          rooms_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -582,6 +615,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      palace_rooms: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          palace_id: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          palace_id: string
+          position?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          palace_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "palace_rooms_palace_id_fkey"
+            columns: ["palace_id"]
+            isOneToOne: false
+            referencedRelation: "memory_palaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -824,6 +892,48 @@ export type Database = {
         }
         Relationships: []
       }
+      room_word_placements: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          room_id: string
+          visual_note: string | null
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          room_id: string
+          visual_note?: string | null
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          room_id?: string
+          visual_note?: string | null
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_word_placements_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "palace_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_word_placements_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_messages: {
         Row: {
           button_text: string | null
@@ -868,6 +978,45 @@ export type Database = {
           total_sent?: number | null
         }
         Relationships: []
+      }
+      story_words: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          story_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          story_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          story_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_words_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "word_stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_words_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "words"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_feedback: {
         Row: {
@@ -1146,6 +1295,33 @@ export type Database = {
         }
         Relationships: []
       }
+      word_stories: {
+        Row: {
+          created_at: string
+          id: string
+          story_text: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          story_text: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          story_text?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       words: {
         Row: {
           box_number: number
@@ -1154,6 +1330,7 @@ export type Database = {
           example_sentences: string[] | null
           id: string
           last_reviewed: string | null
+          mnemonic_hint: string | null
           next_review_time: string
           original_word: string
           source_language: string
@@ -1172,6 +1349,7 @@ export type Database = {
           example_sentences?: string[] | null
           id?: string
           last_reviewed?: string | null
+          mnemonic_hint?: string | null
           next_review_time?: string
           original_word: string
           source_language: string
@@ -1190,6 +1368,7 @@ export type Database = {
           example_sentences?: string[] | null
           id?: string
           last_reviewed?: string | null
+          mnemonic_hint?: string | null
           next_review_time?: string
           original_word?: string
           source_language?: string
