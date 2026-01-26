@@ -22,6 +22,7 @@ const Friends = lazy(() => import("@/pages/Friends"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const Dictation = lazy(() => import("@/pages/Dictation"));
 const Books = lazy(() => import("@/pages/Books"));
+const Mnemonics = lazy(() => import("@/pages/Mnemonics"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // Loading component for Suspense
@@ -89,6 +90,7 @@ const AppRoutes = () => {
           <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           <Route path="/dictation" element={<ProtectedRoute><Dictation /></ProtectedRoute>} />
           <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
+          <Route path="/mnemonics" element={<ProtectedRoute><Mnemonics /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
