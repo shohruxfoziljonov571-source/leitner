@@ -98,38 +98,34 @@ const DictationStats: React.FC = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    className="p-3 bg-muted/30 rounded-lg"
                   >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium truncate">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium truncate flex-1 mr-2">
                         {submission.dictation_title}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(submission.created_at), {
-                          addSuffix: true,
-                          locale: uz,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-20">
-                        <Progress 
-                          value={submission.accuracy_percentage} 
-                          className="h-2"
-                        />
-                      </div>
                       <span 
-                        className={`text-sm font-semibold min-w-[45px] text-right ${
-                          submission.accuracy_percentage >= 80 
+                        className={`text-sm font-semibold shrink-0 ${
+                          (submission.accuracy_percentage ?? 0) >= 80 
                             ? 'text-green-500' 
-                            : submission.accuracy_percentage >= 60 
+                            : (submission.accuracy_percentage ?? 0) >= 60 
                               ? 'text-yellow-500' 
                               : 'text-red-500'
                         }`}
                       >
-                        {submission.accuracy_percentage}%
+                        {submission.accuracy_percentage ?? 0}%
                       </span>
                     </div>
+                    <Progress 
+                      value={submission.accuracy_percentage ?? 0} 
+                      className="h-2 w-full"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(submission.created_at), {
+                        addSuffix: true,
+                        locale: uz,
+                      })}
+                    </p>
                   </motion.div>
                 ))}
               </div>
