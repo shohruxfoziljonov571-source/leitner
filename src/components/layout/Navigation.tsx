@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Plus, BookOpen, BarChart3, Settings, Languages, Users, Brain } from 'lucide-react';
+import { Home, Plus, BookOpen, BarChart3, Settings, Languages, Users, Brain, TrendingUp } from 'lucide-react';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ const Navigation: React.FC = () => {
     { path: '/', icon: Home, label: 'dashboard' },
     { path: '/add', icon: Plus, label: 'addWord' },
     { path: '/learn', icon: BookOpen, label: 'learn' },
+    { path: '/stats', icon: TrendingUp, label: 'statistics' },
     { path: '/friends', icon: Users, label: 'friends' },
     { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
     { path: '/settings', icon: Settings, label: 'settings' },
