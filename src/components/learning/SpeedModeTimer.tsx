@@ -23,39 +23,43 @@ const SpeedModeTimer: React.FC<SpeedModeTimerProps> = memo(({
   const animationFrameRef = useRef<number | null>(null);
   const hasTimedOutRef = useRef(false);
   const onTimeoutRef = useRef(onTimeout);
+  const isActiveRef = useRef(isActive);
   
   // Keep onTimeout ref updated
   useEffect(() => {
     onTimeoutRef.current = onTimeout;
   }, [onTimeout]);
 
-  const reset = useCallback(() => {
+  // Keep isActive ref updated
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  // Start animation function
+  const startAnimation = useCallback(() => {
+    cleanup();
+    
+    if (!isActiveRef.current) return;
+    
     setProgress(100);
     setTimeLeft(timeLimit);
     setIsWarning(false);
     hasTimedOutRef.current = false;
     startTimeRef.current = performance.now();
-  }, [timeLimit]);
-
-  // Reset when trigger changes
-  useEffect(() => {
-    reset();
-  }, [resetTrigger, reset]);
-
-  // Main animation loop using requestAnimationFrame for smooth updates
-  useEffect(() => {
-    if (!isActive) {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      return;
-    }
-
-    startTimeRef.current = performance.now();
-    hasTimedOutRef.current = false;
 
     const animate = (currentTime: number) => {
+      if (!isActiveRef.current) {
+        return;
+      }
+      
       const elapsed = (currentTime - startTimeRef.current) / 1000;
       const remaining = Math.max(0, timeLimit - elapsed);
       const newProgress = (remaining / timeLimit) * 100;
@@ -76,14 +80,23 @@ const SpeedModeTimer: React.FC<SpeedModeTimerProps> = memo(({
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
+  }, [timeLimit, cleanup]);
 
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [isActive, timeLimit]);
+  // Start/restart animation when resetTrigger changes or isActive becomes true
+  useEffect(() => {
+    if (isActive) {
+      startAnimation();
+    } else {
+      cleanup();
+    }
+    
+    return cleanup;
+  }, [isActive, resetTrigger, startAnimation, cleanup]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
 
   if (!isActive) return null;
 
