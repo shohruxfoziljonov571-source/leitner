@@ -177,11 +177,11 @@ const Friends: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen pb-24 pt-4 px-4">
+    <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md mx-auto space-y-6"
+        className="container mx-auto px-4 py-6 max-w-md space-y-6"
       >
         {/* Header */}
         <div className="text-center">
