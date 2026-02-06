@@ -5,7 +5,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamification } from '@/hooks/useGamification';
-import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
 import WordList from '@/components/WordList';
@@ -19,8 +18,7 @@ const AddWord: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { addWord, addWordsBulk, words, stats } = useWordsDB();
-  const { addXp, checkAndUnlockAchievements, XP_PER_NEW_WORD, level } = useGamification();
-  const { showXp } = useNotificationQueue();
+  const { checkAndUnlockAchievements, level } = useGamification();
   const [activeTab, setActiveTab] = useState('manual');
 
   const handleAddWord = async (word: {
@@ -48,10 +46,6 @@ const AddWord: React.FC = () => {
     if (!result) {
       throw new Error('Xatolik yuz berdi');
     }
-
-    // Show XP notification
-    showXp(XP_PER_NEW_WORD);
-    await addXp(XP_PER_NEW_WORD, 'new_word');
 
     // Check achievements
     await checkAndUnlockAchievements({
@@ -81,11 +75,6 @@ const AddWord: React.FC = () => {
     }
 
     if (addedCount > 0) {
-      // Show XP notification for all imported words
-      const totalXp = addedCount * XP_PER_NEW_WORD;
-      showXp(totalXp, `${addedCount} ta so'z`);
-      await addXp(totalXp, 'bulk_import');
-
       // Check achievements
       await checkAndUnlockAchievements({
         totalWords: words.length + addedCount,
@@ -134,9 +123,6 @@ const AddWord: React.FC = () => {
           </h1>
           <p className="text-muted-foreground">
             Yangi so'z qo'shing va o'rganishni boshlang
-          </p>
-          <p className="text-sm text-primary mt-2">
-            +{XP_PER_NEW_WORD} XP har bir yangi so'z uchun
           </p>
         </motion.div>
 
