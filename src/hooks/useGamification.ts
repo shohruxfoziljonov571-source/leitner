@@ -57,8 +57,6 @@ export const ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const XP_PER_CORRECT = 10;
-export const XP_PER_INCORRECT = 2;
-export const XP_PER_NEW_WORD = 5;
 export const XP_PER_LEVEL = 100;
 
 export const calculateLevel = (xp: number): number => {
@@ -130,18 +128,37 @@ export const useGamification = () => {
       setXp(newXp);
       setLevel(newLevel);
 
-      // Update daily stats
+      // Update daily stats - use RPC or raw SQL to properly increment
       const today = new Date().toISOString().split('T')[0];
-      await supabase
+      
+      // First try to get existing record
+      const { data: existingStats } = await supabase
         .from('daily_stats')
-        .upsert({
-          user_id: user.id,
-          user_language_id: activeLanguage.id,
-          date: today,
-          xp_earned: amount,
-        }, {
-          onConflict: 'user_id,user_language_id,date',
-        });
+        .select('xp_earned')
+        .eq('user_id', user.id)
+        .eq('user_language_id', activeLanguage.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (existingStats) {
+        await supabase
+          .from('daily_stats')
+          .update({
+            xp_earned: (existingStats.xp_earned || 0) + amount,
+          })
+          .eq('user_id', user.id)
+          .eq('user_language_id', activeLanguage.id)
+          .eq('date', today);
+      } else {
+        await supabase
+          .from('daily_stats')
+          .insert({
+            user_id: user.id,
+            user_language_id: activeLanguage.id,
+            date: today,
+            xp_earned: amount,
+          });
+      }
 
       if (leveledUp) {
         notificationEmitter.showLevelUp(newLevel);
@@ -234,7 +251,5 @@ export const useGamification = () => {
     getCurrentLevelXp: () => getCurrentLevelXp(xp),
     getXpForNextLevel: () => getXpForNextLevel(level),
     XP_PER_CORRECT,
-    XP_PER_INCORRECT,
-    XP_PER_NEW_WORD,
   };
 };
