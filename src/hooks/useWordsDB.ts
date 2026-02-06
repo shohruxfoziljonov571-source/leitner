@@ -54,15 +54,34 @@ export const useWordsDB = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('words')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id)
-        .order('created_at', { ascending: false });
+      // Supabase has a default 1000 row limit, so we need to paginate
+      // to fetch all words for users with large vocabularies
+      const allWords: Word[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      setWords(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('words')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('user_language_id', activeLanguage.id)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allWords.push(...data);
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setWords(allWords);
     } catch (error) {
       console.error('Error fetching words:', error);
     }
