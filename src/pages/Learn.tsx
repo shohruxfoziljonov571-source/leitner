@@ -32,7 +32,7 @@ const Learn: React.FC = () => {
   const { t, language } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
-  const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, XP_PER_INCORRECT, level } = useGamification();
+  const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamification();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showXp, showStreak } = useNotificationQueue();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -110,28 +110,29 @@ const Learn: React.FC = () => {
       const newStreak = isCorrect ? comboStreak + 1 : 0;
       setComboStreak(newStreak);
       
-      // Calculate XP with combo bonus
-      const comboBonus = comboStreak >= 10 ? 5 : comboStreak >= 5 ? 3 : comboStreak >= 3 ? 1 : 0;
-      const xpGain = isCorrect ? XP_PER_CORRECT + comboBonus : XP_PER_INCORRECT;
-      
-      // Smart notifications: prioritize milestones over every XP gain
-      // Only show streak notification at milestone levels (3, 5, 10, 15, 20)
-      const streakMilestones = [3, 5, 10, 15, 20];
-      const isStreakMilestone = streakMilestones.includes(newStreak);
-      
-      if (isCorrect && isStreakMilestone) {
-        // Streak milestone - show streak notification (XP is implicit)
-        showStreak(newStreak);
-      } else if (xpGain >= 10) {
-        // Only show XP for correct answers or significant amounts
-        showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
+      if (isCorrect) {
+        // Calculate XP with combo bonus (based on new streak)
+        const comboBonus = newStreak >= 10 ? 5 : newStreak >= 5 ? 3 : newStreak >= 3 ? 1 : 0;
+        const xpGain = XP_PER_CORRECT + comboBonus;
+        
+        // Smart notifications: prioritize milestones over every XP gain
+        const streakMilestones = [3, 5, 10, 15, 20];
+        const isStreakMilestone = streakMilestones.includes(newStreak);
+        
+        if (isStreakMilestone) {
+          showStreak(newStreak);
+        } else {
+          showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
+        }
+        
+        await addXp(xpGain, 'correct_answer');
       }
-      
-      await addXp(xpGain, isCorrect ? 'correct_answer' : 'incorrect_answer');
+      // Noto'g'ri javob uchun XP berilmaydi
       
       // Update weekly challenge stats if user is participating
       if (userParticipation) {
-        await updateParticipantStats(xpGain, 1, isCorrect ? 1 : 0);
+        const xpForChallenge = isCorrect ? XP_PER_CORRECT : 0;
+        await updateParticipantStats(xpForChallenge, 1, isCorrect ? 1 : 0);
       }
 
       const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
@@ -147,7 +148,7 @@ const Learn: React.FC = () => {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, XP_PER_INCORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showXp, showStreak]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showXp, showStreak]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
