@@ -8,6 +8,19 @@ import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+// Local date formatting helpers (avoids UTC shift from toISOString)
+const formatDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateString = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 interface DayData {
   date: string;
   count: number;
@@ -16,29 +29,30 @@ interface DayData {
 const StreakHeatmap: React.FC = () => {
   const { user } = useAuth();
   const { activeLanguage } = useLearningLanguage();
-  const [monthOffset, setMonthOffset] = useState(0);
+  const [yearOffset, setYearOffset] = useState(0);
   
-  const currentDate = useMemo(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - monthOffset);
-    return date;
-  }, [monthOffset]);
+  const displayYear = useMemo(() => {
+    return new Date().getFullYear() - yearOffset;
+  }, [yearOffset]);
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
   const { data: dailyStats = [] } = useQuery({
-    queryKey: ['daily-stats', user?.id, activeLanguage?.id, monthOffset],
+    queryKey: ['daily-stats', user?.id, activeLanguage?.id, displayYear],
     queryFn: async () => {
       if (!user || !activeLanguage) return [];
       
-      const startOfYear = new Date(currentDate.getFullYear(), 0, 1);
-      const endOfYear = new Date(currentDate.getFullYear(), 11, 31);
+      const startDate = `${displayYear}-01-01`;
+      const endDate = `${displayYear}-12-31`;
       
       const { data, error } = await supabase
         .from('daily_stats')
         .select('date, words_reviewed')
         .eq('user_id', user.id)
         .eq('user_language_id', activeLanguage.id)
-        .gte('date', startOfYear.toISOString().split('T')[0])
-        .lte('date', endOfYear.toISOString().split('T')[0]);
+        .gte('date', startDate)
+        .lte('date', endDate);
       
       if (error) {
         console.error('Error fetching daily stats:', error);
@@ -55,9 +69,8 @@ const StreakHeatmap: React.FC = () => {
 
   // Generate calendar data for the year
   const calendarData = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year, 11, 31);
+    const startDate = new Date(displayYear, 0, 1);
+    const endDate = new Date(displayYear, 11, 31);
     
     // Create map for quick lookup
     const statsMap = new Map<string, number>();
@@ -65,30 +78,36 @@ const StreakHeatmap: React.FC = () => {
       statsMap.set(stat.date, stat.count);
     });
     
-    const weeks: { days: { date: Date; count: number; isCurrentMonth: boolean }[] }[] = [];
-    let currentWeek: { date: Date; count: number; isCurrentMonth: boolean }[] = [];
+    const weeks: { days: { date: Date; dateStr: string; count: number; isToday: boolean; isFuture: boolean }[] }[] = [];
+    let currentWeek: { date: Date; dateStr: string; count: number; isToday: boolean; isFuture: boolean }[] = [];
     
-    // Start from the first day of the year
-    const current = new Date(startDate);
+    const today = new Date();
+    const todayStr = formatDateString(today);
     
     // Add empty days at the start to align with week
-    const startDayOfWeek = current.getDay();
+    const startDayOfWeek = startDate.getDay();
     for (let i = 0; i < startDayOfWeek; i++) {
       currentWeek.push({ 
         date: new Date(0), 
+        dateStr: '',
         count: -1, 
-        isCurrentMonth: false 
+        isToday: false,
+        isFuture: false,
       });
     }
     
+    const current = new Date(startDate);
     while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = formatDateString(current);
       const count = statsMap.get(dateStr) || 0;
+      const isFuture = dateStr > todayStr;
       
       currentWeek.push({
         date: new Date(current),
-        count,
-        isCurrentMonth: current.getMonth() === currentDate.getMonth()
+        dateStr,
+        count: isFuture ? -1 : count,
+        isToday: dateStr === todayStr,
+        isFuture,
       });
       
       if (currentWeek.length === 7) {
@@ -102,17 +121,18 @@ const StreakHeatmap: React.FC = () => {
     // Add remaining days
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
-        currentWeek.push({ date: new Date(0), count: -1, isCurrentMonth: false });
+        currentWeek.push({ date: new Date(0), dateStr: '', count: -1, isToday: false, isFuture: false });
       }
       weeks.push({ days: currentWeek });
     }
     
     return weeks;
-  }, [currentDate, dailyStats]);
+  }, [displayYear, dailyStats]);
 
   // Get intensity color based on count
-  const getIntensityColor = (count: number) => {
-    if (count < 0) return 'bg-transparent';
+  const getIntensityColor = (count: number, isToday: boolean, isFuture: boolean) => {
+    if (count < 0 || isFuture) return 'bg-transparent';
+    if (isToday && count === 0) return 'bg-muted ring-1 ring-primary/40';
     if (count === 0) return 'bg-muted';
     if (count < 5) return 'bg-primary/30';
     if (count < 10) return 'bg-primary/50';
@@ -131,6 +151,8 @@ const StreakHeatmap: React.FC = () => {
     return dailyStats.filter(d => d.count > 0).length;
   }, [dailyStats]);
 
+  const isCurrentYear = displayYear === currentYear;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -146,19 +168,19 @@ const StreakHeatmap: React.FC = () => {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setMonthOffset(prev => prev + 1)}
+            onClick={() => setYearOffset(prev => prev + 1)}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm font-medium min-w-[60px] text-center">
-            {currentDate.getFullYear()}
+            {displayYear}
           </span>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setMonthOffset(prev => Math.max(0, prev - 1))}
-            disabled={monthOffset === 0}
+            onClick={() => setYearOffset(prev => Math.max(0, prev - 1))}
+            disabled={isCurrentYear}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -180,7 +202,7 @@ const StreakHeatmap: React.FC = () => {
 
       {/* Month labels */}
       <div className="flex gap-[2px] mb-1 ml-6 text-[10px] text-muted-foreground">
-        {months.map((month, i) => (
+        {months.map((month) => (
           <span key={month} className="flex-1 text-center">
             {month}
           </span>
@@ -206,12 +228,12 @@ const StreakHeatmap: React.FC = () => {
                     <Tooltip key={dayIndex}>
                       <TooltipTrigger asChild>
                         <div
-                          className={`w-3 h-3 rounded-sm ${getIntensityColor(day.count)} ${
-                            day.count >= 0 ? 'cursor-pointer hover:ring-1 hover:ring-primary/50' : ''
+                          className={`w-3 h-3 rounded-sm ${getIntensityColor(day.count, day.isToday, day.isFuture)} ${
+                            day.count >= 0 && !day.isFuture ? 'cursor-pointer hover:ring-1 hover:ring-primary/50' : ''
                           }`}
                         />
                       </TooltipTrigger>
-                      {day.count >= 0 && (
+                      {day.count >= 0 && !day.isFuture && (
                         <TooltipContent side="top" className="text-xs">
                           <p className="font-medium">
                             {day.date.toLocaleDateString('uz-UZ', {
