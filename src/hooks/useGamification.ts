@@ -57,18 +57,26 @@ export const ACHIEVEMENTS: Achievement[] = [
 ];
 
 export const XP_PER_CORRECT = 10;
-export const XP_PER_LEVEL = 100;
+
+// Progressive level system: each level requires level * 150 XP
+// Level 2 = 150 XP, Level 3 = 300 XP more, Level 4 = 450 XP more, etc.
+// Total XP for level L = 75 * L * (L - 1)
+export const getTotalXpForLevel = (level: number): number => {
+  return 75 * level * (level - 1);
+};
 
 export const calculateLevel = (xp: number): number => {
-  return Math.floor(xp / XP_PER_LEVEL) + 1;
+  // Quadratic formula: 75*L^2 - 75*L <= xp
+  return Math.floor((75 + Math.sqrt(5625 + 300 * xp)) / 150);
 };
 
 export const getXpForNextLevel = (level: number): number => {
-  return level * XP_PER_LEVEL;
+  return level * 150;
 };
 
 export const getCurrentLevelXp = (xp: number): number => {
-  return xp % XP_PER_LEVEL;
+  const level = calculateLevel(xp);
+  return xp - getTotalXpForLevel(level);
 };
 
 export const useGamification = () => {
