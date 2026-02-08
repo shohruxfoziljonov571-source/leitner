@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useWordDuels } from '@/hooks/useWordDuels';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGamification } from '@/hooks/useGamification';
+import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import { fireVictoryConfetti, fireGoldConfetti, fireStarConfetti } from '@/lib/confetti';
 import TugOfWarAnimation from './TugOfWarAnimation';
 
@@ -31,6 +33,8 @@ interface DuelGameProps {
 const DuelGame: React.FC<DuelGameProps> = ({ duel, onComplete }) => {
   const { user } = useAuth();
   const { submitAnswer } = useWordDuels();
+  const { addXp, XP_PER_CORRECT } = useGamification();
+  const { showXp } = useNotificationQueue();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [startTime, setStartTime] = useState(Date.now());
@@ -92,6 +96,10 @@ const DuelGame: React.FC<DuelGameProps> = ({ duel, onComplete }) => {
     if (isCorrect) {
       setPlayerScore(prev => prev + 1);
       setLastPullResult('player');
+      
+      // Award XP for correct duel answer
+      showXp(XP_PER_CORRECT, 'Duel');
+      await addXp(XP_PER_CORRECT, 'duel_correct');
     } else {
       setLastPullResult('opponent');
     }
