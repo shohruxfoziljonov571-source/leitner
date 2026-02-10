@@ -334,8 +334,8 @@ async function handleQuizCommand(supabase: any, token: string, chatId: number, m
     `Tayyor bo'lsangiz, boshlang! 💪`,
     {
       inline_keyboard: [
-        [{ text: "▶️ Quiz boshlash", callback_data: "quiz_next", button_color: BTN_COLOR.QUIZ }],
-        [{ text: "◀️ Orqaga", callback_data: "back_to_menu", button_color: BTN_COLOR.SECONDARY }],
+        [{ text: "▶️ Quiz boshlash", callback_data: "quiz_next" }],
+        [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
   );
@@ -421,11 +421,11 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number, me
     {
       inline_keyboard: [
         ...options.map((opt, i) => [
-          { text: `${["🅰", "🅱", "🅲", "🅳"][i]} ${opt.text}`, callback_data: `quiz_${i}_${opt.isCorrect ? "1" : "0"}`, button_color: BTN_COLOR.QUIZ }
+          { text: `${["🅰", "🅱", "🅲", "🅳"][i]} ${opt.text}`, callback_data: `quiz_${i}_${opt.isCorrect ? "1" : "0"}` }
         ]),
         [
-          { text: "⏭ O'tkazish", callback_data: "quiz_next", button_color: BTN_COLOR.WARNING },
-          { text: "⏹ Tugatish", callback_data: "quiz_stop", button_color: BTN_COLOR.DANGER }
+          { text: "⏭ O'tkazish", callback_data: "quiz_next" },
+          { text: "⏹ Tugatish", callback_data: "quiz_stop" }
         ],
       ],
     }
@@ -618,8 +618,8 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 
   await editMessage(token, chatId, messageId, resultMessage, {
     inline_keyboard: [
-      [{ text: "➡️ Keyingi savol", callback_data: "quiz_next", button_color: BTN_COLOR.QUIZ }],
-      [{ text: "⏹ Tugatish", callback_data: "quiz_stop", button_color: BTN_COLOR.DANGER }],
+      [{ text: "➡️ Keyingi savol", callback_data: "quiz_next" }],
+      [{ text: "⏹ Tugatish", callback_data: "quiz_stop" }],
     ],
   });
 }
@@ -2209,16 +2209,8 @@ function getMainMenuMessage(): string {
   );
 }
 
-// Bot API 9.4 — button colors (integer RGB format)
-const BTN_COLOR = {
-  PRIMARY: 5288448,    // #50B000 — green
-  ACCENT: 3697920,     // #386F00 — dark green
-  QUIZ: 2201331,       // #219673 — teal
-  STATS: 3381759,      // #3399FF — blue
-  DANGER: 14431557,    // #DC3545 — red
-  WARNING: 16750848,   // #FF9F00 — amber
-  SECONDARY: 7108989,  // #6C757D — gray
-};
+// Bot API 9.4 style field exists but valid values are not yet documented
+// Will add back once libraries update with proper enum values
 
 function getWelcomeText(): string {
   return (
@@ -2236,20 +2228,20 @@ function getWelcomeText(): string {
 function getMainMenuKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL }, button_color: BTN_COLOR.PRIMARY }],
+      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
       [
-        { text: "🎯 Quiz", callback_data: "quiz", button_color: BTN_COLOR.QUIZ }, 
-        { text: "📊 Statistika", callback_data: "my_stats", button_color: BTN_COLOR.STATS }
+        { text: "🎯 Quiz", callback_data: "quiz" }, 
+        { text: "📊 Statistika", callback_data: "my_stats" }
       ],
       [
-        { text: "📚 Takrorlash", callback_data: "words_to_review", button_color: BTN_COLOR.WARNING }, 
-        { text: "🔥 Streak", callback_data: "my_streak", button_color: BTN_COLOR.WARNING }
+        { text: "📚 Takrorlash", callback_data: "words_to_review" }, 
+        { text: "🔥 Streak", callback_data: "my_streak" }
       ],
       [
-        { text: "🏆 Challenge", callback_data: "challenge", button_color: BTN_COLOR.ACCENT }, 
-        { text: "🎖 Konkurs", callback_data: "contest", button_color: BTN_COLOR.ACCENT }
+        { text: "🏆 Challenge", callback_data: "challenge" }, 
+        { text: "🎖 Konkurs", callback_data: "contest" }
       ],
-      [{ text: "⚙️ Sozlamalar", callback_data: "settings", button_color: BTN_COLOR.SECONDARY }],
+      [{ text: "⚙️ Sozlamalar", callback_data: "settings" }],
     ],
   };
 }
@@ -2258,9 +2250,9 @@ function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string
   return {
     inline_keyboard: [
       [notificationsEnabled 
-        ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off", button_color: BTN_COLOR.PRIMARY }
-        : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on", button_color: BTN_COLOR.DANGER }],
-      [{ text: `⏰ Vaqt: ${currentTime || '09:00'}`, callback_data: "set_time", button_color: BTN_COLOR.STATS }],
+        ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
+        : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }],
+      [{ text: `⏰ Vaqt: ${currentTime || '09:00'}`, callback_data: "set_time" }],
       [
         { text: "🌅 06:00", callback_data: "time_06:00" }, 
         { text: "🌄 08:00", callback_data: "time_08:00" }, 
@@ -2271,14 +2263,14 @@ function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string
         { text: "🌆 18:00", callback_data: "time_18:00" }, 
         { text: "🌙 21:00", callback_data: "time_21:00" }
       ],
-      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report", button_color: BTN_COLOR.STATS }],
-      [{ text: "◀️ Orqaga", callback_data: "back_to_menu", button_color: BTN_COLOR.SECONDARY }],
+      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
+      [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
     ],
   };
 }
 
 function getWebAppButton() {
-  return { inline_keyboard: [[{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL }, button_color: BTN_COLOR.PRIMARY }]] };
+  return { inline_keyboard: [[{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL } }]] };
 }
 
 async function sendWelcomeMessage(token: string, chatId: number) {
@@ -2310,8 +2302,8 @@ async function sendHelpMessage(token: string, chatId: number, messageId?: number
     `  @Leitner_robot — inline so'z ulashish`,
     {
       inline_keyboard: [
-        [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL }, button_color: BTN_COLOR.PRIMARY }],
-        [{ text: "◀️ Orqaga", callback_data: "back_to_menu", button_color: BTN_COLOR.SECONDARY }],
+        [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
+        [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
   );
