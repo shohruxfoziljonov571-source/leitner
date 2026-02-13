@@ -334,7 +334,7 @@ async function handleQuizCommand(supabase: any, token: string, chatId: number, m
     `Tayyor bo'lsangiz, boshlang! 💪`,
     {
       inline_keyboard: [
-        [{ text: "▶️ Quiz boshlash", callback_data: "quiz_next" }],
+        [{ text: "▶️ Quiz boshlash", callback_data: "quiz_next", style: "success" }],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
@@ -425,7 +425,7 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number, me
         ]),
         [
           { text: "⏭ O'tkazish", callback_data: "quiz_next" },
-          { text: "⏹ Tugatish", callback_data: "quiz_stop" }
+          { text: "⏹ Tugatish", callback_data: "quiz_stop", style: "danger" }
         ],
       ],
     }
@@ -618,8 +618,8 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 
   await editMessage(token, chatId, messageId, resultMessage, {
     inline_keyboard: [
-      [{ text: "➡️ Keyingi savol", callback_data: "quiz_next" }],
-      [{ text: "⏹ Tugatish", callback_data: "quiz_stop" }],
+      [{ text: "➡️ Keyingi savol", callback_data: "quiz_next", style: "success" }],
+      [{ text: "⏹ Tugatish", callback_data: "quiz_stop", style: "danger" }],
     ],
   });
 }
@@ -2228,14 +2228,14 @@ function getWelcomeText(): string {
 function getMainMenuKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
+      [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL }, style: "primary" }],
       [
-        { text: "🎯 Quiz", callback_data: "quiz" }, 
+        { text: "🎯 Quiz", callback_data: "quiz", style: "success" }, 
         { text: "📊 Statistika", callback_data: "my_stats" }
       ],
       [
-        { text: "📚 Takrorlash", callback_data: "words_to_review" }, 
-        { text: "🔥 Streak", callback_data: "my_streak" }
+        { text: "📚 Takrorlash", callback_data: "words_to_review", style: "primary" }, 
+        { text: "🔥 Streak", callback_data: "my_streak", style: "danger" }
       ],
       [
         { text: "🏆 Challenge", callback_data: "challenge" }, 
@@ -2250,8 +2250,8 @@ function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string
   return {
     inline_keyboard: [
       [notificationsEnabled 
-        ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off" }
-        : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on" }],
+        ? { text: "🔔 Bildirishnoma: Yoqilgan ✅", callback_data: "notif_off", style: "success" }
+        : { text: "🔕 Bildirishnoma: O'chirilgan ❌", callback_data: "notif_on", style: "danger" }],
       [{ text: `⏰ Vaqt: ${currentTime || '09:00'}`, callback_data: "set_time" }],
       [
         { text: "🌅 06:00", callback_data: "time_06:00" }, 
@@ -2263,7 +2263,7 @@ function getSettingsKeyboard(notificationsEnabled: boolean, currentTime?: string
         { text: "🌆 18:00", callback_data: "time_18:00" }, 
         { text: "🌙 21:00", callback_data: "time_21:00" }
       ],
-      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
+      [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report", style: "primary" }],
       [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
     ],
   };
