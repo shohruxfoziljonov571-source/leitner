@@ -1329,7 +1329,7 @@ async function handleAddWordCommand(supabase: any, token: string, chatId: number
     `📦 Box 1 ga joylashtirildi`,
     {
       inline_keyboard: [
-        [{ text: "🎯 Quiz boshlash", callback_data: "quiz" }],
+        [{ text: "🎯 Quiz boshlash", callback_data: "quiz", style: "success" }],
         [{ text: "📱 Ilovada o'rganish", web_app: { url: WEBAPP_URL } }],
       ],
     }
@@ -1390,7 +1390,8 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
     `🏆 <b>Haftalik Challenge</b>\n` +
     `━━━━━━━━━━━━━━━━━━\n\n` +
     `📅 ${challenge.week_start} — ${challenge.week_end}\n` +
-    `⏰ ${daysLeft} kun qoldi  │  👥 ${participants.length} ishtirokchi\n\n` +
+    `⏰ <b>${daysLeft}</b> kun qoldi  │  👥 <b>${participants.length}</b> ishtirokchi\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
     `📊 <b>Liderlar:</b>\n` +
     (leaderboard || "  Hali ishtirokchilar yo'q\n") +
     `\n` +
@@ -1401,8 +1402,8 @@ async function handleChallengeCommand(supabase: any, token: string, chatId: numb
   await sendOrEdit(token, chatId, messageId, message, {
     inline_keyboard: [
       isJoined 
-        ? [{ text: "📱 O'ynashni davom ettirish", web_app: { url: WEBAPP_URL } }]
-        : [{ text: "🚀 Qo'shilish", callback_data: "join_challenge" }],
+        ? [{ text: "📱 O'ynashni davom ettirish", web_app: { url: WEBAPP_URL }, style: "primary" }]
+        : [{ text: "🚀 Qo'shilish", callback_data: "join_challenge", style: "success" }],
       [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
     ],
   });
@@ -1439,10 +1440,10 @@ async function handleJoinChallenge(supabase: any, token: string, chatId: number,
     "🎉 <b>Challenge'ga qo'shildingiz!</b>\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
     "So'zlarni takrorlang va XP yig'ing! 💪\n\n" +
-    "Eng ko'p XP yig'gan ishtirokchilar mukofotlanadi! 🏆",
+    "Eng ko'p XP yig'gan ishtirokchilar\nmukofotlanadi! 🏆",
     {
       inline_keyboard: [
-        [{ text: "🎯 Quiz boshlash", callback_data: "quiz" }],
+        [{ text: "🎯 Quiz boshlash", callback_data: "quiz", style: "success" }],
         [{ text: "📱 Ilovada o'rganish", web_app: { url: WEBAPP_URL } }],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
@@ -1487,15 +1488,20 @@ async function handleStatsCommand(supabase: any, token: string, chatId: number, 
     `👤 <b>${profile.fullName || 'Foydalanuvchi'}</b>\n\n` +
     `⭐️ Daraja: <b>${level}</b>  │  💎 XP: <b>${totalXp.toLocaleString()}</b>\n` +
     `${progressBar} ${levelProgress}%\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
     `📚 So'zlar: <b>${totalWords}</b>  │  🎓 O'rganilgan: <b>${learnedWords}</b>\n` +
     `🔥 Streak: <b>${streak}</b> kun\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
     `📋 <b>Bugun:</b>\n` +
     `  📝 Takrorlangan: <b>${todayReviewed}</b>\n` +
     `  ✅ To'g'ri: <b>${todayCorrect}</b>`,
     {
       inline_keyboard: [
-        [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report" }],
-        [{ text: "🏅 Reyting", callback_data: "my_rank" }, { text: "🔥 Streak", callback_data: "my_streak" }],
+        [{ text: "📊 Haftalik hisobot", callback_data: "weekly_report", style: "primary" }],
+        [
+          { text: "🏅 Reyting", callback_data: "my_rank" }, 
+          { text: "🔥 Streak", callback_data: "my_streak", style: "danger" }
+        ],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
@@ -1518,11 +1524,13 @@ async function handleWordsToReviewCommand(supabase: any, token: string, chatId: 
   if (count! > 0) {
     await sendOrEdit(
       token, chatId, messageId,
-      `📚 <b>Takrorlash kerak:</b> <b>${count}</b> ta so'z\n\n` +
-      `Quiz orqali takrorlang! 🎯`,
+      `📚 <b>Takrorlash kerak</b>\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `📖 <b>${count}</b> ta so'z kutmoqda!\n\n` +
+      `Quiz orqali takrorlang 🎯`,
       {
         inline_keyboard: [
-          [{ text: "🎯 Quiz boshlash", callback_data: "quiz" }],
+          [{ text: "🎯 Quiz boshlash", callback_data: "quiz", style: "success" }],
           [{ text: "📱 Ilova", web_app: { url: WEBAPP_URL } }],
           [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
         ],
@@ -1531,10 +1539,13 @@ async function handleWordsToReviewCommand(supabase: any, token: string, chatId: 
   } else {
     await sendOrEdit(
       token, chatId, messageId,
-      "🎉 <b>Ajoyib!</b>\n\nHozircha takrorlash kerak so'z yo'q! ✨",
+      `🎉 <b>Ajoyib!</b>\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `Hozircha takrorlash kerak so'z yo'q! ✨\n\n` +
+      `Yangi so'zlar qo'shing yoki keyinroq qaytib keling.`,
       {
         inline_keyboard: [
-          [{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL } }],
+          [{ text: "📱 Leitner App", web_app: { url: WEBAPP_URL }, style: "primary" }],
           [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
         ],
       }
@@ -1573,12 +1584,13 @@ async function handleStreakCommand(supabase: any, token: string, chatId: number,
 
   await sendOrEdit(
     token, chatId, messageId,
-    `${fireEmojis}\n\n` +
+    `${fireEmojis}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
     `<b>Sizning streak:</b> <b>${maxStreak}</b> kun\n\n` +
     `${msg}`,
     {
       inline_keyboard: [
-        [{ text: "🎯 Quiz", callback_data: "quiz" }, { text: "📊 Statistika", callback_data: "my_stats" }],
+        [{ text: "🎯 Quiz", callback_data: "quiz", style: "success" }, { text: "📊 Statistika", callback_data: "my_stats" }],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
@@ -1628,11 +1640,12 @@ async function handleRankCommand(supabase: any, token: string, chatId: number, m
     `━━━━━━━━━━━━━━━━━━\n\n` +
     `📊 <b>Top 5:</b>\n` +
     leaderboard +
-    `\n👤 <b>Siz:</b> #${rank} / ${sorted.length}\n` +
+    `\n━━━━━━━━━━━━━━━━━━\n` +
+    `👤 <b>Siz:</b> #${rank} / ${sorted.length}\n` +
     `💎 XP: <b>${myXp.toLocaleString()}</b>`,
     {
       inline_keyboard: [
-        [{ text: "📊 Statistika", callback_data: "my_stats" }],
+        [{ text: "📊 Statistika", callback_data: "my_stats", style: "primary" }],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
@@ -1887,14 +1900,14 @@ async function handleContestCommand(supabase: any, token: string, chatId: number
   const keyboard = isParticipating
     ? {
         inline_keyboard: [
-          [{ text: "📤 Ulashish", callback_data: "share_contest" }],
+          [{ text: "📤 Ulashish", callback_data: "share_contest", style: "primary" }],
           [{ text: "📊 Statistikam", callback_data: "my_contest_stats" }],
           [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
         ],
       }
     : {
         inline_keyboard: [
-          [{ text: "🚀 Qatnashish", callback_data: "join_contest" }],
+          [{ text: "🚀 Qatnashish", callback_data: "join_contest", style: "success" }],
           [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
         ],
       };
@@ -2203,25 +2216,25 @@ function getLanguageName(lang: string): string {
 
 function getMainMenuMessage(): string {
   return (
-    `📋 <b>Asosiy menyu</b>\n` +
+    `🏠 <b>Asosiy menyu</b>\n` +
     `━━━━━━━━━━━━━━━━━━\n\n` +
-    `Quyidagi bo'limlardan birini tanlang:`
+    `Quyidagi bo'limlardan birini tanlang 👇`
   );
 }
-
-// Bot API 9.4 style field exists but valid values are not yet documented
-// Will add back once libraries update with proper enum values
 
 function getWelcomeText(): string {
   return (
     `👋 <b>Salom! Leitner App'ga xush kelibsiz!</b>\n` +
     `━━━━━━━━━━━━━━━━━━\n\n` +
-    `🎓 <b>Imkoniyatlar:</b>\n` +
-    `  📚 So'z qo'shish: <code>/add so'z - tarjima</code>\n` +
-    `  🎯 Quiz: /quiz — so'zlarni takrorlash\n` +
-    `  📤 Inline: @Leitner_robot so'z\n` +
+    `📚 <b>Imkoniyatlar:</b>\n\n` +
+    `  📝 So'z qo'shish:\n` +
+    `  <code>/add so'z - tarjima</code>\n\n` +
+    `  🎯 Quiz: /quiz\n` +
+    `  🔍 Inline: @Leitner_robot\n` +
     `  🏆 Challenge: /challenge\n\n` +
-    `📱 Hisobni ulash: Profil → Telegram → Ulash`
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `🔗 Hisobni ulash:\n` +
+    `Profil → Telegram → Ulash`
   );
 }
 
@@ -2302,7 +2315,7 @@ async function sendHelpMessage(token: string, chatId: number, messageId?: number
     `  @Leitner_robot — inline so'z ulashish`,
     {
       inline_keyboard: [
-        [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }],
+        [{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL }, style: "primary" }],
         [{ text: "◀️ Orqaga", callback_data: "back_to_menu" }],
       ],
     }
