@@ -91,9 +91,9 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-md mx-auto"
+      className="w-full max-w-md mx-auto px-1"
     >
-      <div className="relative min-h-[400px] rounded-3xl shadow-elevated p-6 bg-card">
+      <div className="relative min-h-[350px] md:min-h-[400px] rounded-2xl md:rounded-3xl shadow-elevated p-4 md:p-6 bg-card">
         {/* Box indicator */}
         <div
           className="absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium"
@@ -113,12 +113,12 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
         </div>
 
         {/* Question */}
-        <div className="text-center mb-8">
-          <p className="text-sm text-muted-foreground mb-2">
+        <div className="text-center mb-6 md:mb-8">
+          <p className="text-xs md:text-sm text-muted-foreground mb-2">
             {getLanguageName(questionLang)}
           </p>
-          <div className="flex items-center justify-center gap-3">
-            <h2 className="font-display font-bold text-3xl text-foreground">
+          <div className="flex items-center justify-center gap-2 md:gap-3">
+            <h2 className="font-display font-bold text-xl md:text-3xl text-foreground break-words">
               {questionWord}
             </h2>
             {isSupported && (
@@ -126,13 +126,13 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
                 variant="ghost"
                 size="icon"
                 onClick={() => handleSpeak(questionWord, questionLang)}
-                className={`rounded-full transition-all ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+                className={`rounded-full transition-all flex-shrink-0 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
               >
                 {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </Button>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
+          <p className="text-xs md:text-sm text-muted-foreground mt-3 md:mt-4">
             To'g'ri tarjimani tanlang:
           </p>
         </div>
