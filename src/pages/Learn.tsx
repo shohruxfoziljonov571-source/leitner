@@ -392,26 +392,26 @@ const Learn: React.FC = () => {
         )}
       </AnimatePresence>
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-3 md:px-4 py-4 md:py-6 overflow-hidden">
         {/* Header with progress */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          className="mb-4 md:mb-6"
         >
-          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <h1 className="font-display font-bold text-2xl text-foreground">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="font-display font-bold text-lg md:text-2xl text-foreground truncate">
                 {t('learn')}
               </h1>
               <button
                 onClick={() => setLearningMode(null)}
-                className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap flex-shrink-0"
               >
                 {getModeLabel()}
               </button>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
               {learningMode === 'speed' && (
                 <SpeedModeTimer
                   isActive={!isOnBreak && !!transformedWord}
@@ -429,23 +429,23 @@ const Learn: React.FC = () => {
           </div>
           
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs md:text-sm text-muted-foreground">
               {reviewedCount + 1} / {totalToReview} so'z
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {comboStreak >= 3 && (
-                <span className="text-sm font-medium text-amber-500">
-                  🔥 x{comboStreak} combo
+                <span className="text-xs md:text-sm font-medium text-amber-500">
+                  🔥 x{comboStreak}
                 </span>
               )}
-              <span className="text-sm text-primary font-medium">
+              <span className="text-xs md:text-sm text-primary font-medium">
                 +{XP_PER_CORRECT} XP
               </span>
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${(reviewedCount / totalToReview) * 100}%` }}
