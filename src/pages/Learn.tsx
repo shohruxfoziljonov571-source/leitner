@@ -267,22 +267,22 @@ const Learn: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="grid gap-4 max-w-md mx-auto">
+          <div className="grid gap-3 max-w-md mx-auto">
             <motion.button
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
               onClick={() => setLearningMode('flashcard')}
-              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-primary text-left group"
+              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-primary text-left group"
             >
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Layers className="w-8 h-8" />
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Layers className="w-6 h-6" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Flashcard</h3>
-                  <p className="text-sm text-muted-foreground">
-                    So'zni ko'ring, javobni eslang va o'zingizni tekshiring
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base">Flashcard</h3>
+                  <p className="text-xs text-muted-foreground">
+                    So'zni ko'ring, javobni eslang va tekshiring
                   </p>
                 </div>
               </div>
@@ -293,16 +293,16 @@ const Learn: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
               onClick={() => setLearningMode('quiz')}
-              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-primary text-left group"
+              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-primary text-left group"
             >
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-accent/50 text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Gamepad2 className="w-8 h-8" />
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-accent/50 text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Gamepad2 className="w-6 h-6" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Quiz (4 variant)</h3>
-                  <p className="text-sm text-muted-foreground">
-                    4 ta variantdan to'g'ri javobni tanlang - o'yin rejimi
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base">Quiz (4 variant)</h3>
+                  <p className="text-xs text-muted-foreground">
+                    4 ta variantdan to'g'ri javobni tanlang
                   </p>
                 </div>
               </div>
@@ -313,21 +313,21 @@ const Learn: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
               onClick={() => setLearningMode('speed')}
-              className="p-6 rounded-3xl bg-card shadow-elevated hover:shadow-lg transition-all border-2 border-transparent hover:border-amber-500 text-left group"
+              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-amber-500 text-left group"
             >
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                  <Zap className="w-8 h-8" />
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                  <Zap className="w-6 h-6" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base flex items-center gap-2">
                     Tezlik rejimi
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500">
                       10s
                     </span>
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    10 soniya ichida javob bering - adrenalin oshadi!
+                  <p className="text-xs text-muted-foreground">
+                    10 soniya ichida javob bering!
                   </p>
                 </div>
               </div>
