@@ -34,7 +34,7 @@ const Learn: React.FC = () => {
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamification();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
-  const { showXp, showStreak } = useNotificationQueue();
+  const { showStreak } = useNotificationQueue();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
@@ -115,15 +115,14 @@ const Learn: React.FC = () => {
         const comboBonus = newStreak >= 10 ? 5 : newStreak >= 5 ? 3 : newStreak >= 3 ? 1 : 0;
         const xpGain = XP_PER_CORRECT + comboBonus;
         
-        // Smart notifications: prioritize milestones over every XP gain
+        // Only show popup for streak milestones (not every XP gain)
         const streakMilestones = [3, 5, 10, 15, 20];
         const isStreakMilestone = streakMilestones.includes(newStreak);
         
         if (isStreakMilestone) {
           showStreak(newStreak);
-        } else {
-          showXp(xpGain, comboBonus > 0 ? `+${comboBonus} bonus` : undefined);
         }
+        // XP popup faqat level up da chiqadi (addXp ichida avtomatik)
         
         await addXp(xpGain, 'correct_answer');
       }
@@ -148,7 +147,7 @@ const Learn: React.FC = () => {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showXp, showStreak]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
