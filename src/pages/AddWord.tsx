@@ -58,29 +58,35 @@ const AddWord: React.FC = () => {
   const handleBulkImport = async (wordsToImport: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
     if (!activeLanguage) return;
     
-    // Use bulk insert - much faster than individual inserts
-    const result = await addWordsBulk(wordsToImport.map(word => ({
-      original_word: word.originalWord,
-      translated_word: word.translatedWord,
-      source_language: activeLanguage.source_language,
-      target_language: activeLanguage.target_language,
-      example_sentences: word.exampleSentences,
-    })));
+    try {
+      // Use bulk insert with chunking — handles large Excel files safely
+      const result = await addWordsBulk(wordsToImport.map(word => ({
+        original_word: word.originalWord,
+        translated_word: word.translatedWord,
+        source_language: activeLanguage.source_language,
+        target_language: activeLanguage.target_language,
+        example_sentences: word.exampleSentences,
+      })));
 
-    const addedCount = result.added.length;
-    const duplicateCount = result.duplicates.length;
+      const addedCount = result.added.length;
+      const duplicateCount = result.duplicates.length;
 
-    if (duplicateCount > 0) {
-      toast.warning(`${addedCount} ta so'z qo'shildi, ${duplicateCount} ta takroriy so'z o'tkazib yuborildi`);
-    }
+      if (addedCount === 0 && duplicateCount > 0) {
+        toast.warning(`Barcha ${duplicateCount} ta so'z allaqachon mavjud — takroriylar o'tkazib yuborildi`);
+      } else if (duplicateCount > 0) {
+        toast.warning(`${addedCount} ta so'z qo'shildi, ${duplicateCount} ta takroriy so'z o'tkazib yuborildi`);
+      }
 
-    if (addedCount > 0) {
-      // Check achievements
-      await checkAndUnlockAchievements({
-        totalWords: words.length + addedCount,
-        streak: stats.streak,
-        level,
-      });
+      if (addedCount > 0) {
+        await checkAndUnlockAchievements({
+          totalWords: words.length + addedCount,
+          streak: stats.streak,
+          level,
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Import qilishda xatolik yuz berdi');
+      throw error; // re-throw so ExcelImport shows error state
     }
   };
 
