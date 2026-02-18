@@ -212,23 +212,34 @@ export const useWordsDB = () => {
 
       setWords(prev => [data, ...prev]);
 
-      // Update stats
+      // Use DB-side increment to avoid stale closure on stats.total_words
       await supabase
         .from('user_stats')
-        .update({ total_words: stats.total_words + 1 })
+        .select('total_words')
         .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id);
+        .eq('user_language_id', activeLanguage.id)
+        .maybeSingle()
+        .then(({ data: s }) => {
+          if (s) {
+            supabase
+              .from('user_stats')
+              .update({ total_words: (s.total_words || 0) + 1 })
+              .eq('user_id', user.id)
+              .eq('user_language_id', activeLanguage.id);
+          }
+        });
 
       setStats(prev => ({ ...prev, total_words: prev.total_words + 1 }));
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding word:', error);
-      return null;
+      throw new Error(error?.message || 'So\'z qo\'shishda xatolik yuz berdi');
     }
-  }, [user, activeLanguage, stats.total_words, checkDuplicate]);
+  }, [user, activeLanguage, checkDuplicate]);
 
   // Bulk insert for faster Excel imports (with duplicate check)
+  // Chunks into batches of 500 to avoid Supabase insert limits
   const addWordsBulk = useCallback(async (wordsToAdd: {
     original_word: string;
     translated_word: string;
@@ -239,18 +250,19 @@ export const useWordsDB = () => {
   }[]) => {
     if (!user || !activeLanguage || wordsToAdd.length === 0) return { added: [], duplicates: [] };
 
-    // Filter out duplicates
+    // Filter out duplicates (local + within-batch)
     const existingWords = new Set(words.map(w => w.original_word.toLowerCase().trim()));
     const uniqueWords: typeof wordsToAdd = [];
     const duplicates: string[] = [];
 
     wordsToAdd.forEach(word => {
       const normalizedWord = word.original_word.toLowerCase().trim();
+      if (!normalizedWord) return; // skip empty
       if (existingWords.has(normalizedWord)) {
         duplicates.push(word.original_word);
       } else {
         uniqueWords.push(word);
-        existingWords.add(normalizedWord); // Prevent duplicates within the batch
+        existingWords.add(normalizedWord);
       }
     });
 
@@ -259,44 +271,66 @@ export const useWordsDB = () => {
     }
 
     try {
-      const wordsData = uniqueWords.map(word => ({
-        user_id: user.id,
-        user_language_id: activeLanguage.id,
-        original_word: word.original_word,
-        translated_word: word.translated_word,
-        source_language: word.source_language,
-        target_language: word.target_language,
-        example_sentences: word.example_sentences || [],
-        box_number: 1,
-        next_review_time: new Date().toISOString(),
-        category_id: word.category_id || null,
-      }));
+      const CHUNK_SIZE = 500; // Supabase safe batch limit
+      const allInserted: Word[] = [];
 
-      const { data, error } = await supabase
-        .from('words')
-        .insert(wordsData)
-        .select();
+      // Insert in chunks to avoid request size limits
+      for (let i = 0; i < uniqueWords.length; i += CHUNK_SIZE) {
+        const chunk = uniqueWords.slice(i, i + CHUNK_SIZE);
+        const wordsData = chunk.map(word => ({
+          user_id: user.id,
+          user_language_id: activeLanguage.id,
+          original_word: word.original_word,
+          translated_word: word.translated_word,
+          source_language: word.source_language,
+          target_language: word.target_language,
+          example_sentences: word.example_sentences || [],
+          box_number: 1,
+          next_review_time: new Date().toISOString(),
+          category_id: word.category_id || null,
+        }));
 
-      if (error) throw error;
+        const { data, error } = await supabase
+          .from('words')
+          .insert(wordsData)
+          .select();
 
-      setWords(prev => [...(data || []), ...prev]);
+        if (error) throw error;
+        if (data) allInserted.push(...data);
+      }
 
-      // Update stats with total count
-      const newTotal = stats.total_words + uniqueWords.length;
+      setWords(prev => [...allInserted, ...prev]);
+
+      // Use functional updater to avoid stale closure on stats
+      let currentTotal = 0;
+      setStats(prev => {
+        currentTotal = prev.total_words + allInserted.length;
+        return { ...prev, total_words: currentTotal };
+      });
+
+      // Sync DB stats — fetch fresh value to avoid stale closure
       await supabase
         .from('user_stats')
-        .update({ total_words: newTotal })
+        .select('total_words')
         .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id);
+        .eq('user_language_id', activeLanguage.id)
+        .maybeSingle()
+        .then(({ data: s }) => {
+          if (s) {
+            supabase
+              .from('user_stats')
+              .update({ total_words: (s.total_words || 0) + allInserted.length })
+              .eq('user_id', user.id)
+              .eq('user_language_id', activeLanguage.id);
+          }
+        });
 
-      setStats(prev => ({ ...prev, total_words: newTotal }));
-
-      return { added: data || [], duplicates };
-    } catch (error) {
+      return { added: allInserted, duplicates };
+    } catch (error: any) {
       console.error('Error bulk adding words:', error);
-      return { added: [], duplicates };
+      throw new Error(error?.message || 'So\'zlarni qo\'shishda xatolik yuz berdi');
     }
-  }, [user, activeLanguage, stats.total_words, words]);
+  }, [user, activeLanguage, words]);
 
   const updateWord = useCallback(async (wordId: string, updates: {
     original_word?: string;
