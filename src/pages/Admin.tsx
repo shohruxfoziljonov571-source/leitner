@@ -114,8 +114,10 @@ const Admin = () => {
     }
   };
 
+  const BOT_USERNAME = 'Leitner_robot';
+
   const copyReferralUrl = (code: string) => {
-    const url = `https://t.me/leitner_study_bot?start=ref_${code}`;
+    const url = `https://t.me/${BOT_USERNAME}?start=ref_${code}`;
     navigator.clipboard.writeText(url);
     toast.success('URL nusxalandi');
   };
@@ -651,7 +653,7 @@ const Admin = () => {
                         </div>
                       </div>
                       <div className="mt-2 p-2 bg-muted rounded text-xs font-mono break-all">
-                        https://t.me/leitner_study_bot?start=ref_{referral.code}
+                        https://t.me/{BOT_USERNAME}?start=ref_{referral.code}
                       </div>
                     </CardContent>
                   </Card>

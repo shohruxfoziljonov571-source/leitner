@@ -107,42 +107,58 @@ const AdvancedStatistics = () => {
         retentionRate
       });
 
-      // Generate retention curve data
-      const retentionCurve: RetentionData[] = [];
-      for (let i = 1; i <= 30; i++) {
-        const dayAgo = new Date(today.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const { count } = await supabase
-          .from('user_stats')
-          .select('*', { count: 'exact', head: true })
-          .gte('last_active_date', dayAgo);
+      // Generate retention curve — single query, aggregate in JS
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const { data: allActiveUsers } = await supabase
+        .from('user_stats')
+        .select('last_active_date')
+        .gte('last_active_date', thirtyDaysAgo);
 
+      const retentionCurve: RetentionData[] = [];
+      for (let i = 1; i <= 14; i++) {
+        const dayAgo = new Date(today.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const count = allActiveUsers?.filter(u => u.last_active_date >= dayAgo).length || 0;
         retentionCurve.push({
           day: i,
-          retained: count || 0,
-          percentage: mau ? Math.round(((count || 0) / mau) * 100) : 0
+          retained: count,
+          percentage: mau ? Math.round((count / mau) * 100) : 0
         });
       }
-      setRetentionData(retentionCurve.slice(0, 14));
+      setRetentionData(retentionCurve);
 
-      // Generate cohort data (simplified)
+      // Cohort: real new user counts per week + D1 retention
       const cohorts: CohortData[] = [];
       for (let w = 0; w < 4; w++) {
         const weekStart = new Date(today.getTime() - (w + 1) * 7 * 24 * 60 * 60 * 1000);
         const weekEnd = new Date(today.getTime() - w * 7 * 24 * 60 * 60 * 1000);
 
-        const { count: weekUsers } = await supabase
+        const { data: cohortUsers } = await supabase
           .from('profiles')
-          .select('*', { count: 'exact', head: true })
+          .select('user_id')
           .gte('created_at', weekStart.toISOString())
           .lt('created_at', weekEnd.toISOString());
 
+        const weekUsers = cohortUsers?.length || 0;
+        const cohortIds = (cohortUsers || []).map(u => u.user_id);
+
+        let d1Pct = 0;
+        if (cohortIds.length > 0) {
+          const d1Date = new Date(weekStart.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const { data: d1Active } = await supabase
+            .from('user_stats')
+            .select('user_id')
+            .gte('last_active_date', d1Date)
+            .in('user_id', cohortIds);
+          d1Pct = weekUsers > 0 ? Math.round(((d1Active?.length || 0) / weekUsers) * 100) : 0;
+        }
+
         cohorts.push({
           week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
-          users: weekUsers || 0,
-          d1: Math.round(Math.random() * 30 + 50), // Placeholder - would need more complex query
-          d7: Math.round(Math.random() * 20 + 30),
-          d14: Math.round(Math.random() * 15 + 20),
-          d30: Math.round(Math.random() * 10 + 10)
+          users: weekUsers,
+          d1: d1Pct,
+          d7: 0,
+          d14: 0,
+          d30: 0
         });
       }
       setCohortData(cohorts.reverse());

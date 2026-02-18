@@ -110,37 +110,48 @@ export const useAdmin = () => {
     }
   }, [isAdmin]);
 
-  // Fetch daily stats for chart
+  // Fetch daily stats for chart — single batch query per dataset
   const fetchDailyStats = useCallback(async () => {
     if (!isAdmin) return;
 
     try {
       const days = 14;
-      const stats: DailyStats[] = [];
-      
+      const dateFrom = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const dateTo = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      // Single queries instead of 14×3 individual requests
+      const [
+        { data: profilesData },
+        { data: dailyStatsData },
+        { data: wordsData }
+      ] = await Promise.all([
+        supabase.from('profiles').select('created_at').gte('created_at', dateFrom).lt('created_at', dateTo),
+        supabase.from('daily_stats').select('date, words_reviewed').gte('date', dateFrom).lte('date', dateTo),
+        supabase.from('words').select('created_at').gte('created_at', dateFrom).lt('created_at', dateTo)
+      ]);
+
+      // Build per-day aggregates in JS
+      const statsMap: Record<string, DailyStats> = {};
       for (let i = days - 1; i >= 0; i--) {
-        const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        const [
-          { count: newUsers },
-          { data: dayStats },
-          { count: newWords }
-        ] = await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', dateStr).lt('created_at', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
-          supabase.from('daily_stats').select('words_reviewed').eq('date', dateStr),
-          supabase.from('words').select('*', { count: 'exact', head: true }).gte('created_at', dateStr).lt('created_at', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        ]);
-        
-        stats.push({
-          date: dateStr,
-          users: newUsers || 0,
-          reviews: dayStats?.reduce((sum, s) => sum + (s.words_reviewed || 0), 0) || 0,
-          newWords: newWords || 0
-        });
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        statsMap[d] = { date: d, users: 0, reviews: 0, newWords: 0 };
       }
-      
-      setDailyStats(stats);
+
+      profilesData?.forEach(p => {
+        const d = p.created_at.split('T')[0];
+        if (statsMap[d]) statsMap[d].users++;
+      });
+
+      dailyStatsData?.forEach(s => {
+        if (statsMap[s.date]) statsMap[s.date].reviews += (s.words_reviewed || 0);
+      });
+
+      wordsData?.forEach(w => {
+        const d = w.created_at.split('T')[0];
+        if (statsMap[d]) statsMap[d].newWords++;
+      });
+
+      setDailyStats(Object.values(statsMap));
     } catch (error) {
       console.error('Error fetching daily stats:', error);
     }
