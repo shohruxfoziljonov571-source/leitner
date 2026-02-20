@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, Timer } from 'lucide-react';
+import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
@@ -11,6 +11,7 @@ import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
+import WritingCard from '@/components/learning/WritingCard';
 import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
@@ -26,7 +27,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
-type LearningMode = 'flashcard' | 'quiz' | 'speed';
+type LearningMode = 'flashcard' | 'quiz' | 'speed' | 'writing';
 
 const Learn: React.FC = () => {
   const { t, language } = useLanguage();
@@ -366,7 +367,7 @@ const Learn: React.FC = () => {
               className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-amber-500 text-left group"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-amber-50 transition-colors">
                   <Zap className="w-6 h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -378,6 +379,31 @@ const Learn: React.FC = () => {
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     10 soniya ichida javob bering!
+                  </p>
+                </div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              onClick={() => setLearningMode('writing')}
+              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-secondary text-left group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-secondary/20 text-secondary-foreground group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
+                  <PenLine className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base flex items-center gap-2">
+                    Yozma tekshirish
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                      Yangi
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Klaviaturadan tarjimani yozing
                   </p>
                 </div>
               </div>
@@ -411,6 +437,7 @@ const Learn: React.FC = () => {
       case 'flashcard': return '📚 Flashcard';
       case 'quiz': return '🎮 Quiz';
       case 'speed': return '⚡ Tezlik';
+      case 'writing': return '✍️ Yozma';
       default: return '';
     }
   };
@@ -520,6 +547,14 @@ const Learn: React.FC = () => {
               key={transformedWord.id}
               word={transformedWord}
               allWords={allTransformedWords}
+              onAnswer={handleAnswer}
+              isReversed={currentWordItem?.isReversed}
+            />
+          )}
+          {transformedWord && learningMode === 'writing' && (
+            <WritingCard
+              key={transformedWord.id}
+              word={transformedWord}
               onAnswer={handleAnswer}
               isReversed={currentWordItem?.isReversed}
             />
