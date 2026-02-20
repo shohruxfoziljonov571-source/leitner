@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import ErrorHighlight from '@/components/dictation/ErrorHighlight';
 import { toast } from 'sonner';
@@ -47,7 +47,7 @@ interface DictationResult {
 const Dictation: React.FC = () => {
   const { user } = useAuth();
   const { speak, stop, isSpeaking } = useSpeech();
-  const { addXp } = useGamification();
+  const { addXp } = useGamificationContext();
   const { showXp, showSuccess } = useNotificationQueue();
   const audioRef = useRef<HTMLAudioElement>(null);
   

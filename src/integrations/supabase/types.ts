@@ -1434,6 +1434,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_daily_xp: {
+        Args: {
+          p_date: string
+          p_language_id: string
+          p_user_id: string
+          p_xp: number
+        }
+        Returns: undefined
+      }
       increment_referral_count: {
         Args: { p_contest_id: string; p_user_id: string }
         Returns: undefined

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 
@@ -27,7 +27,7 @@ export const LearningLanguageProvider: React.FC<{ children: ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchLanguages = async () => {
+  const fetchLanguages = useCallback(async () => {
     if (!user) {
       setUserLanguages([]);
       setActiveLanguage(null);
@@ -46,23 +46,24 @@ export const LearningLanguageProvider: React.FC<{ children: ReactNode }> = ({ ch
 
       const typedData = (data || []) as UserLanguage[];
       setUserLanguages(typedData);
-      
+
       // Set first language as active if none selected
-      if (!activeLanguage && typedData.length > 0) {
+      setActiveLanguage(prev => {
+        if (prev) return prev; // keep existing selection
         const savedActiveId = localStorage.getItem('active-language-id');
         const savedLang = typedData.find(l => l.id === savedActiveId);
-        setActiveLanguage(savedLang || typedData[0]);
-      }
+        return savedLang || typedData[0] || null;
+      });
     } catch (error) {
       console.error('Error fetching languages:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchLanguages();
-  }, [user]);
+  }, [fetchLanguages]);
 
   useEffect(() => {
     if (activeLanguage) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminContext } from '@/contexts/AdminContext';
 
 interface AdminStats {
   totalUsers: number;
@@ -41,36 +42,12 @@ interface DailyStats {
 
 export const useAdmin = () => {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Re-use cached result from AdminContext — no extra RPC call
+  const { isAdmin, isAdminLoading: isLoading } = useAdminContext();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [channels, setChannels] = useState<RequiredChannel[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
-
-  // Check if user is admin
-  const checkAdminStatus = useCallback(async () => {
-    if (!user) {
-      setIsAdmin(false);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('has_role', {
-        _user_id: user.id,
-        _role: 'admin'
-      });
-
-      if (error) throw error;
-      setIsAdmin(data === true);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
 
   // Fetch admin statistics
   const fetchStats = useCallback(async () => {
@@ -296,9 +273,7 @@ export const useAdmin = () => {
     }
   };
 
-  useEffect(() => {
-    checkAdminStatus();
-  }, [checkAdminStatus]);
+  // Admin check is now handled by AdminContext — no separate useEffect needed
 
   useEffect(() => {
     if (isAdmin) {

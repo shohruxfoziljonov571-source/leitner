@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 import BoxCard from '@/components/dashboard/BoxCard';
 import StatCard from '@/components/dashboard/StatCard';
 import DailyGoalProgress from '@/components/dashboard/DailyGoalProgress';
@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
-  const { level, getUnlockedAchievements } = useGamification();
+  const { level, getUnlockedAchievements } = useGamificationContext();
   
   // Memoize expensive calculations
   const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
