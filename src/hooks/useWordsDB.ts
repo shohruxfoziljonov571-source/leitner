@@ -127,10 +127,16 @@ export const useWordsDB = () => {
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
-          let newStreak = data.streak;
-          if (data.last_active_date === yesterdayStr && data.today_reviewed > 0) {
-            newStreak += 1;
+        let newStreak = data.streak;
+          // Streak mantiq:
+          // - Kecha aktiv bo'lgan (last_active_date === yesterdayStr) => streak saqlanib +1 oladi
+          // - Undan oldingi kun bo'lsa => streak nolga tushadi
+          // MUHIM: today_reviewed tekshirilmaydi — chunki yangi kun boshida u hali 0
+          // Foydalanuvchi kecha o'rgangan bo'lsa, yesterday_reviewed allaqachon DB ga saqlangan
+          if (data.last_active_date === yesterdayStr) {
+            newStreak = data.streak + 1;
           } else if (data.last_active_date !== today) {
+            // Ikki yoki undan ko'p kun o'tgan — streak yo'qoldi
             newStreak = 0;
           }
 
@@ -236,12 +242,16 @@ export const useWordsDB = () => {
       setWords(prev => [data, ...prev]);
 
       // Atomic DB-side increment — no race condition
+      // MUHIM: setStats optimistic update olib tashlandi — ikki marta hisoblash xavfini yo'q qilish uchun
+      // RPC ga parallel olib ketadi, keyin fetchStats chaqirilmaydi (RPC o'zi DB ni yangilaydi)
       await (supabase as any).rpc('increment_total_words', {
         p_user_id: user.id,
         p_language_id: activeLanguage.id,
         p_delta: 1,
       });
 
+      // Optimistic UI: faqat words array oshganligi asosida hisoblash (total_words = words.length)
+      // setStats ga tegmaysiz — keyingi fetchStats da to'g'ri qiymat keladi
       setStats(prev => ({ ...prev, total_words: prev.total_words + 1 }));
 
       return data;

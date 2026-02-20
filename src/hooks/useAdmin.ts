@@ -58,24 +58,26 @@ export const useAdmin = () => {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Fetch all stats in parallel
+      // MUHIM: totalReviews uchun Supabase aggregate query ishlatiladi (server-side SUM)
+      // Bu 1000 qator cheklovini butunlay yo'q qiladi — hatto millionlab qatorlarda ham to'g'ri
       const [
         { count: totalUsers },
         { count: activeToday },
         { count: totalWords },
-        { data: reviewsData },
+        { data: reviewsAgg },
         { count: newUsersThisWeek }
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('user_stats').select('*', { count: 'exact', head: true }).eq('last_active_date', today),
         supabase.from('words').select('*', { count: 'exact', head: true }),
-        // Use daily_stats to avoid 1000-row limit on words table
-        // Sum all words_reviewed across all daily_stats rows
-        supabase.from('daily_stats').select('words_reviewed'),
+        // Server-side aggregate: Supabase PostgREST aggregate funksiyasi
+        // select('words_reviewed.sum()') => { words_reviewed: { sum: 12345 } }
+        supabase.from('daily_stats').select('words_reviewed.sum()'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo)
       ]);
 
-      // Paginate daily_stats if needed — but daily_stats rows = users × days, manageable
-      const totalReviews = reviewsData?.reduce((sum, s) => sum + (s.words_reviewed || 0), 0) || 0;
+      // PostgREST aggregate natijasini parse qilish
+      const totalReviews = (reviewsAgg as any)?.[0]?.['words_reviewed'] as number || 0;
 
       setStats({
         totalUsers: totalUsers || 0,

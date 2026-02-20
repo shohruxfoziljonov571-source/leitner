@@ -135,8 +135,8 @@ const Dashboard: React.FC = () => {
           <StatCard
             icon={Flame}
             label={t('streak')}
-            value={stats.streak}
-            subtext="kun"
+            value={stats.streak === 0 ? '🌱' : stats.streak}
+            subtext={stats.streak === 0 ? 'Bugun boshlang!' : 'kun'}
             gradient
             delay={0.3}
           />

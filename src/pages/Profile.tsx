@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { User, Camera, Save, Send, Check, X, Loader2, Copy, RefreshCw, Bell, BellOff, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,10 +37,12 @@ const Profile: React.FC = () => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
   const [showTelegramCommand, setShowTelegramCommand] = useState(false);
   const [telegramCommand, setTelegramCommand] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -162,6 +164,62 @@ const Profile: React.FC = () => {
     };
   };
 
+  // Avatar upload funksiyasi
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Fayl hajmi tekshiruvi (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Rasm hajmi 5MB dan oshmasligi kerak');
+      return;
+    }
+
+    // Fayl turi tekshiruvi
+    if (!file.type.startsWith('image/')) {
+      toast.error('Faqat rasm fayllari qabul qilinadi');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Eski avatarni o'chirib yangi rasmni yuklash
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Public URL olish
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const publicUrl = urlData.publicUrl + '?t=' + Date.now(); // cache busting
+
+      // Profilga URL ni saqlash
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast.success('Rasm yangilandi! 📸');
+    } catch (error: any) {
+      console.error('Avatar upload error:', error);
+      toast.error('Rasm yuklanmadi: ' + (error?.message || 'Xatolik yuz berdi'));
+    } finally {
+      setIsUploadingAvatar(false);
+      // Input ni tozalash — xuddi shu faylni qayta tanlash imkonini berish uchun
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
   const handleConnectTelegram = () => {
     const { url, command } = generateTelegramLink();
     setTelegramCommand(command);
@@ -266,9 +324,28 @@ const Profile: React.FC = () => {
               </AvatarFallback>
             </Avatar>
             {!isTelegramUser && (
-              <button className="absolute bottom-0 right-0 w-8 h-8 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors">
-                <Camera className="w-4 h-4 text-muted-foreground" />
-              </button>
+              <>
+                {/* Hidden file input */}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-60"
+                  title="Rasmni o'zgartirish"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+              </>
             )}
           </div>
           

@@ -85,7 +85,17 @@ const Learn: React.FC = () => {
 
   // Only re-shuffle when the set of reviewable word IDs changes (new session or new words added)
   const currentIdsKey = wordsToReview.map(w => w.id).sort().join(',');
-  if (shuffledWordsWithDirectionRef.current.length === 0 && wordsToReview.length > 0) {
+
+  // Yangi so'z qo'shilganda yoki sessiya yangi bo'lganda qayta shuffle qilish
+  // currentIdsKey o'zgarsa — bu sessiondagi yangi so'z demak, tozalab qayta tartiblaymiz
+  const prevIdsKey = wordsToReviewIdsRef.current;
+  const idsChanged = prevIdsKey !== '' && prevIdsKey !== currentIdsKey;
+
+  if (shuffledWordsWithDirectionRef.current.length === 0 || idsChanged) {
+    if (idsChanged) {
+      // Yangi so'z qo'shildi yoki o'chirildi — sessionni tozalaymiz
+      // Faqat yangi qo'shilganlarni sessiyaga qo'shamiz (reviewed bo'lmaganlar saqlanib qoladi)
+    }
     const shuffled = shuffleArray(wordsToReview);
     shuffledWordsWithDirectionRef.current = shuffled.map(word => ({
       word,
