@@ -25,9 +25,9 @@ const XpBar: React.FC<XpBarProps> = memo(({ compact = false }) => {
         <Zap className="w-4 h-4 text-primary" />
         <span className="font-semibold text-sm text-primary">{level}</span>
         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
+        <motion.div
             animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
             className="h-full bg-primary rounded-full"
           />
         </div>

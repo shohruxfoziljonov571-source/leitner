@@ -1434,6 +1434,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_daily_words: {
+        Args: {
+          p_correct?: number
+          p_date: string
+          p_language_id: string
+          p_reviewed?: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       increment_daily_xp: {
         Args: {
           p_date: string
@@ -1445,6 +1455,21 @@ export type Database = {
       }
       increment_referral_count: {
         Args: { p_contest_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      increment_review_stats: {
+        Args: {
+          p_correct?: number
+          p_date?: string
+          p_language_id: string
+          p_learned?: number
+          p_reviewed?: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      increment_total_words: {
+        Args: { p_delta?: number; p_language_id: string; p_user_id: string }
         Returns: undefined
       }
       process_challenge_winners: {

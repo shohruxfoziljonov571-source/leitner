@@ -205,6 +205,15 @@ export const useGamification = () => {
             unlocked = true;
           }
           break;
+        case 'accuracy':
+          // Requires minimum 100 reviews (200 for 95%)
+          if (stats.accuracy !== undefined && stats.totalReviews !== undefined) {
+            const minReviews = achievement.requirement >= 95 ? 200 : 100;
+            if (stats.totalReviews >= minReviews && stats.accuracy >= achievement.requirement) {
+              unlocked = true;
+            }
+          }
+          break;
         case 'level':
           if (stats.level && stats.level >= achievement.requirement) {
             unlocked = true;

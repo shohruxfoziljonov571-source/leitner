@@ -35,13 +35,42 @@ const Learn: React.FC = () => {
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamificationContext();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showStreak } = useNotificationQueue();
+  // Persist learning session in sessionStorage so progress survives tab switches / calls
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
-  const [learningMode, setLearningMode] = useState<LearningMode | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem('learn_reviewed_ids');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+  const [learningMode, setLearningMode] = useState<LearningMode | null>(() => {
+    try {
+      return (sessionStorage.getItem('learn_mode') as LearningMode | null) || null;
+    } catch { return null; }
+  });
   const [comboStreak, setComboStreak] = useState(0);
   const [speedResetTrigger, setSpeedResetTrigger] = useState(0);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync reviewedIds to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('learn_reviewed_ids', JSON.stringify([...reviewedIds]));
+    } catch { /* ignore */ }
+  }, [reviewedIds]);
+
+  // Sync learningMode to sessionStorage
+  useEffect(() => {
+    try {
+      if (learningMode) {
+        sessionStorage.setItem('learn_mode', learningMode);
+      } else {
+        sessionStorage.removeItem('learn_mode');
+        sessionStorage.removeItem('learn_reviewed_ids');
+      }
+    } catch { /* ignore */ }
+  }, [learningMode]);
 
   // Get words for review - memoized based on words array content
   const wordsToReview = useMemo(() => {
