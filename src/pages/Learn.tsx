@@ -478,18 +478,13 @@ const Learn: React.FC = () => {
         >
           {/* Row 1: Title + right controls */}
           <div className="flex items-center justify-between mb-3 gap-2">
-            {/* Left: title + mode badge */}
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="font-display font-bold text-base text-foreground shrink-0">
-                {t('learn')}
-              </h1>
-              <button
-                onClick={() => setLearningMode(null)}
-                className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap shrink-0"
-              >
-                {getModeLabel()}
-              </button>
-            </div>
+            {/* Left: mode badge only */}
+            <button
+              onClick={() => setLearningMode(null)}
+              className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap shrink-0"
+            >
+              {getModeLabel()}
+            </button>
 
             {/* Right: speed timer + pomodoro + xp */}
             <div className="flex items-center gap-2 shrink-0">
