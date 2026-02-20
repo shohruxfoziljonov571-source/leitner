@@ -476,19 +476,23 @@ const Learn: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-4 md:mb-6"
         >
-          <div className="flex items-center justify-between mb-2 gap-2">
+          {/* Row 1: Title + right controls */}
+          <div className="flex items-center justify-between mb-3 gap-2">
+            {/* Left: title + mode badge */}
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="font-display font-bold text-lg md:text-2xl text-foreground truncate">
+              <h1 className="font-display font-bold text-base text-foreground shrink-0">
                 {t('learn')}
               </h1>
               <button
                 onClick={() => setLearningMode(null)}
-                className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap flex-shrink-0"
+                className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap shrink-0"
               >
                 {getModeLabel()}
               </button>
             </div>
-            <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+
+            {/* Right: speed timer + pomodoro + xp */}
+            <div className="flex items-center gap-2 shrink-0">
               {learningMode === 'speed' && (
                 <SpeedModeTimer
                   isActive={!isOnBreak && !!transformedWord}
@@ -504,25 +508,26 @@ const Learn: React.FC = () => {
               <XpBar compact />
             </div>
           </div>
-          
+
+          {/* Row 2: progress count + combo + XP */}
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs md:text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {reviewedCount + 1} / {totalToReview} so'z
             </span>
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2">
               {comboStreak >= 3 && (
-                <span className="text-xs md:text-sm font-medium text-amber-500">
+                <span className="text-xs font-medium text-amber-500">
                   🔥 x{comboStreak}
                 </span>
               )}
-              <span className="text-xs md:text-sm text-primary font-medium">
+              <span className="text-xs text-primary font-medium">
                 +{XP_PER_CORRECT} XP
               </span>
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${(reviewedCount / totalToReview) * 100}%` }}
@@ -531,6 +536,7 @@ const Learn: React.FC = () => {
             />
           </div>
         </motion.div>
+
 
         {/* Card based on mode */}
         <AnimatePresence mode="wait">

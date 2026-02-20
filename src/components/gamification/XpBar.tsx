@@ -20,12 +20,12 @@ const XpBar: React.FC<XpBarProps> = memo(({ compact = false }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/10 rounded-full"
       >
-        <Zap className="w-4 h-4 text-primary" />
-        <span className="font-semibold text-sm text-primary">{level}</span>
-        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-        <motion.div
+        <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+        <span className="font-semibold text-xs text-primary">{level}</span>
+        <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
+          <motion.div
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className="h-full bg-primary rounded-full"

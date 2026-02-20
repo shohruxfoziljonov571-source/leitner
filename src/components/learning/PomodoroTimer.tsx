@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Timer, Play, Pause, RotateCcw, Coffee } from 'lucide-react';
+import { Timer, Play, Pause, Coffee } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
 
 interface PomodoroTimerProps {
   onBreakStart?: () => void;
@@ -74,62 +75,23 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ onBreakStart, onBreakEnd 
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <div 
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              isBreak 
-                ? 'bg-amber-500/20 text-amber-600' 
-                : 'bg-primary/10 text-primary'
-            }`}
-          >
-            {isBreak ? <Coffee className="w-4 h-4" /> : <Timer className="w-4 h-4" />}
-            <span className="font-mono">{formatTime(timeLeft)}</span>
-          </div>
-          {/* Progress ring */}
-          <svg 
-            className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none"
-            viewBox="0 0 100 100"
-          >
-            <circle
-              cx="50"
-              cy="50"
-              r="48"
-              fill="none"
-              strokeWidth="2"
-              className="stroke-primary/20"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="48"
-              fill="none"
-              strokeWidth="2"
-              strokeDasharray={`${progress * 3.02} 302`}
-              className={isBreak ? 'stroke-amber-500' : 'stroke-primary'}
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsRunning(!isRunning)}
-          className="h-8 w-8 rounded-full"
-        >
-          {isRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={reset}
-          className="h-8 w-8 rounded-full"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </Button>
-      </div>
+      {/* Single compact pill — tap to play/pause */}
+      <button
+        onClick={() => setIsRunning(!isRunning)}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-medium transition-colors ${
+          isBreak
+            ? 'bg-amber-500/20 text-amber-600'
+            : 'bg-primary/10 text-primary'
+        }`}
+        title={isRunning ? 'Pauza' : 'Boshlash'}
+      >
+        {isBreak ? <Coffee className="w-3.5 h-3.5 flex-shrink-0" /> : <Timer className="w-3.5 h-3.5 flex-shrink-0" />}
+        <span>{formatTime(timeLeft)}</span>
+        {isRunning
+          ? <Pause className="w-3 h-3 flex-shrink-0 opacity-60" />
+          : <Play className="w-3 h-3 flex-shrink-0 opacity-60" />
+        }
+      </button>
 
       {/* Break Modal */}
       <AnimatePresence>
