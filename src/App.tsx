@@ -9,6 +9,7 @@ import { LearningLanguageProvider } from "@/contexts/LearningLanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NotificationProvider } from "@/components/notifications/NotificationQueue";
 import Navigation from "@/components/layout/Navigation";
+import { supabase } from "@/integrations/supabase/client";
 // Lazy load pages for better initial load performance
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const AddWord = lazy(() => import("@/pages/AddWord"));
@@ -61,6 +62,40 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Admin route: server-side role check via has_role() RPC.
+// Even if someone manipulates client state, RLS + has_role() blocks DB access.
+// Redirect to "/" (not "/unauthorized") to not reveal admin panel existence.
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    const checkAdmin = async () => {
+      try {
+        const { data, error } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+        setIsAdmin(!error && data === true);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, [user]);
+
+  if (isLoading || isAdmin === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse-soft text-muted-foreground">Yuklanmoqda...</div>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
+
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
   const { user, isLoading } = useAuth();
 
@@ -87,7 +122,7 @@ const AppRoutes = () => {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/dictation" element={<ProtectedRoute><Dictation /></ProtectedRoute>} />
           <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
           <Route path="/mnemonics" element={<ProtectedRoute><Mnemonics /></ProtectedRoute>} />

@@ -122,59 +122,54 @@ export const useGamification = () => {
   const addXp = useCallback(async (amount: number, reason?: string) => {
     if (!user || !activeLanguage) return;
 
-    const newXp = xp + amount;
-    const newLevel = calculateLevel(newXp);
-    const leveledUp = newLevel > level;
+    // Use functional updater to read latest xp/level — avoids stale closure
+    let computedNewXp = 0;
+    let computedNewLevel = 1;
+    let didLevelUp = false;
+
+    setXp(prevXp => {
+      computedNewXp = prevXp + amount;
+      return computedNewXp;
+    });
+
+    setLevel(prevLevel => {
+      computedNewLevel = calculateLevel(computedNewXp);
+      didLevelUp = computedNewLevel > prevLevel;
+      return computedNewLevel;
+    });
 
     try {
-      await supabase
-        .from('user_stats')
-        .update({ xp: newXp, level: newLevel })
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id);
+      // Single upsert for daily xp_earned (no race condition)
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-      setXp(newXp);
-      setLevel(newLevel);
-
-      // Update daily stats - use RPC or raw SQL to properly increment
-      const today = new Date().toISOString().split('T')[0];
-      
-      // First try to get existing record
-      const { data: existingStats } = await supabase
-        .from('daily_stats')
-        .select('xp_earned')
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id)
-        .eq('date', today)
-        .maybeSingle();
-
-      if (existingStats) {
-        await supabase
-          .from('daily_stats')
-          .update({
-            xp_earned: (existingStats.xp_earned || 0) + amount,
-          })
+      await Promise.all([
+        supabase
+          .from('user_stats')
+          .update({ xp: computedNewXp, level: computedNewLevel })
           .eq('user_id', user.id)
-          .eq('user_language_id', activeLanguage.id)
-          .eq('date', today);
-      } else {
-        await supabase
-          .from('daily_stats')
-          .insert({
-            user_id: user.id,
-            user_language_id: activeLanguage.id,
-            date: today,
-            xp_earned: amount,
-          });
-      }
+          .eq('user_language_id', activeLanguage.id),
 
-      if (leveledUp) {
-        notificationEmitter.showLevelUp(newLevel);
+        supabase
+          .from('daily_stats')
+          .upsert(
+            {
+              user_id: user.id,
+              user_language_id: activeLanguage.id,
+              date: today,
+              xp_earned: amount,
+            },
+            { onConflict: 'user_id,user_language_id,date', ignoreDuplicates: false }
+          ),
+      ]);
+
+      if (didLevelUp) {
+        notificationEmitter.showLevelUp(computedNewLevel);
       }
     } catch (error) {
       console.error('Error adding XP:', error);
     }
-  }, [user, activeLanguage, xp, level]);
+  }, [user, activeLanguage]);
 
   const checkAndUnlockAchievements = useCallback(async (stats: {
     totalWords?: number;

@@ -104,13 +104,15 @@ export const useWordsDB = () => {
       if (error) throw error;
 
       if (data) {
-        const today = new Date().toISOString().split('T')[0];
-        
+        // Use local date (not UTC) to avoid timezone-based streak reset bugs
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         // Reset daily stats if new day
         if (data.last_active_date !== today) {
-          const yesterday = new Date();
+          const yesterday = new Date(now);
           yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
           
           let newStreak = data.streak;
           if (data.last_active_date === yesterdayStr && data.today_reviewed > 0) {
@@ -371,18 +373,21 @@ export const useWordsDB = () => {
 
       setWords(prev => prev.filter(w => w.id !== wordId));
 
-      // Update stats
-      await supabase
-        .from('user_stats')
-        .update({ total_words: Math.max(0, stats.total_words - 1) })
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id);
-
-      setStats(prev => ({ ...prev, total_words: Math.max(0, prev.total_words - 1) }));
+      // Use functional updater — avoids stale closure on stats.total_words
+      setStats(prev => {
+        const newTotal = Math.max(0, prev.total_words - 1);
+        supabase
+          .from('user_stats')
+          .update({ total_words: newTotal })
+          .eq('user_id', user.id)
+          .eq('user_language_id', activeLanguage.id)
+          .then(({ error }) => { if (error) console.error('deleteWord stats update error:', error); });
+        return { ...prev, total_words: newTotal };
+      });
     } catch (error) {
       console.error('Error deleting word:', error);
     }
-  }, [user, activeLanguage, stats.total_words]);
+  }, [user, activeLanguage]);
 
   const reviewWord = useCallback(async (wordId: string, isCorrect: boolean) => {
     if (!user || !activeLanguage) return;
@@ -399,7 +404,9 @@ export const useWordsDB = () => {
     const justLearned = isCorrect && newBoxNumber === 5 && previousBoxNumber < 5;
 
     const interval = BOX_INTERVALS[newBoxNumber as 1 | 2 | 3 | 4 | 5];
-    const today = new Date().toISOString().split('T')[0];
+    // Local date to match streak logic (not UTC)
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     try {
       const { error } = await supabase
@@ -458,36 +465,19 @@ export const useWordsDB = () => {
         return newStats;
       });
 
-      // Update daily_stats for charts
-      const { data: existingDailyStat } = await supabase
+      // Update daily_stats — single upsert (no race condition, no select+update)
+      await supabase
         .from('daily_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id)
-        .eq('date', today)
-        .maybeSingle();
-
-      if (existingDailyStat) {
-        await supabase
-          .from('daily_stats')
-          .update({
-            words_reviewed: (existingDailyStat.words_reviewed || 0) + 1,
-            words_correct: isCorrect 
-              ? (existingDailyStat.words_correct || 0) + 1 
-              : existingDailyStat.words_correct || 0,
-          })
-          .eq('id', existingDailyStat.id);
-      } else {
-        await supabase
-          .from('daily_stats')
-          .insert({
+        .upsert(
+          {
             user_id: user.id,
             user_language_id: activeLanguage.id,
             date: today,
             words_reviewed: 1,
             words_correct: isCorrect ? 1 : 0,
-          });
-      }
+          },
+          { onConflict: 'user_id,user_language_id,date', ignoreDuplicates: false }
+        );
     } catch (error) {
       console.error('Error reviewing word:', error);
     }
