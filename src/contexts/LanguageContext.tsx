@@ -19,6 +19,9 @@ export const translations: Translations = {
   friends: { uz: "Do'stlar", ru: "Друзья", en: "Friends" },
   mnemonics: { uz: "Mnemonic", ru: "Мнемоника", en: "Mnemonics" },
   settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
+  dictation: { uz: "Diktant", ru: "Диктант", en: "Dictation" },
+  books: { uz: "Kitoblar", ru: "Книги", en: "Books" },
+  profile: { uz: "Profil", ru: "Профиль", en: "Profile" },
   
   // Dashboard
   welcomeMessage: { uz: "Xush kelibsiz!", ru: "Добро пожаловать!", en: "Welcome!" },
