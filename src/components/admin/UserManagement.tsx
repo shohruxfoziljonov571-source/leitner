@@ -279,9 +279,9 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {/* User Details Dialog */}
+      {/* User Details Dialog — rendered outside ScrollArea to avoid ref conflicts */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="user-details-desc">
           <DialogHeader>
             <DialogTitle>Foydalanuvchi ma'lumotlari</DialogTitle>
           </DialogHeader>
