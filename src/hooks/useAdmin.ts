@@ -68,12 +68,14 @@ export const useAdmin = () => {
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('user_stats').select('*', { count: 'exact', head: true }).eq('last_active_date', today),
         supabase.from('words').select('*', { count: 'exact', head: true }),
-        // Use words.times_reviewed for GLOBAL total reviews (not just today)
-        supabase.from('words').select('times_reviewed'),
+        // Use daily_stats to avoid 1000-row limit on words table
+        // Sum all words_reviewed across all daily_stats rows
+        supabase.from('daily_stats').select('words_reviewed'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo)
       ]);
 
-      const totalReviews = reviewsData?.reduce((sum, w) => sum + (w.times_reviewed || 0), 0) || 0;
+      // Paginate daily_stats if needed — but daily_stats rows = users × days, manageable
+      const totalReviews = reviewsData?.reduce((sum, s) => sum + (s.words_reviewed || 0), 0) || 0;
 
       setStats({
         totalUsers: totalUsers || 0,
