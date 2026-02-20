@@ -2,14 +2,14 @@ import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Zap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 
 interface XpBarProps {
   compact?: boolean;
 }
 
 const XpBar: React.FC<XpBarProps> = memo(({ compact = false }) => {
-  const { xp, level, getCurrentLevelXp, getXpForNextLevel } = useGamification();
+  const { xp, level, getCurrentLevelXp, getXpForNextLevel } = useGamificationContext();
   
   const currentXp = getCurrentLevelXp();
   const xpNeeded = getXpForNextLevel();

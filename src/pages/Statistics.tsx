@@ -4,7 +4,8 @@ import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap } from 'lucid
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
-import { useGamification, ACHIEVEMENTS } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
+import { ACHIEVEMENTS } from '@/hooks/useGamification';
 import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
@@ -17,7 +18,7 @@ const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, words, isLoading } = useWordsDB();
-  const { achievements, level, xp } = useGamification();
+  const { achievements, level, xp } = useGamificationContext();
   
   // Memoize expensive calculations
   const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
 
 interface Reward {
@@ -19,7 +19,7 @@ interface Reward {
 
 export const useChallengeRewards = () => {
   const { user } = useAuth();
-  const { addXp } = useGamification();
+  const { addXp } = useGamificationContext();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [unclaimedRewards, setUnclaimedRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
 import WordList from '@/components/WordList';
@@ -18,7 +18,7 @@ const AddWord: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { addWord, addWordsBulk, words, stats } = useWordsDB();
-  const { checkAndUnlockAchievements, level } = useGamification();
+  const { checkAndUnlockAchievements, level } = useGamificationContext();
   const [activeTab, setActiveTab] = useState('manual');
 
   const handleAddWord = async (word: {

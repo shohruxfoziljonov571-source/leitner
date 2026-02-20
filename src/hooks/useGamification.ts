@@ -122,27 +122,32 @@ export const useGamification = () => {
   const addXp = useCallback(async (amount: number, reason?: string) => {
     if (!user || !activeLanguage) return;
 
-    // Use functional updater to read latest xp/level — avoids stale closure
+    // useReducer-like pattern: single synchronous state update to avoid
+    // reading computedNewXp between two separate setState calls (race condition)
     let computedNewXp = 0;
     let computedNewLevel = 1;
     let didLevelUp = false;
 
+    // Batch both updates atomically using flushSync alternative:
+    // read previous state via functional updater chain
     setXp(prevXp => {
       computedNewXp = prevXp + amount;
+      computedNewLevel = calculateLevel(computedNewXp);
       return computedNewXp;
     });
 
     setLevel(prevLevel => {
-      computedNewLevel = calculateLevel(computedNewXp);
       didLevelUp = computedNewLevel > prevLevel;
       return computedNewLevel;
     });
 
     try {
-      // Single upsert for daily xp_earned (no race condition)
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
+      // 1) user_stats: absolute xp/level values
+      // 2) daily_stats: INCREMENT xp_earned (not overwrite)
+      //    PostgreSQL: INSERT ... ON CONFLICT DO UPDATE SET xp_earned = xp_earned + excluded.xp_earned
       await Promise.all([
         supabase
           .from('user_stats')
@@ -150,17 +155,14 @@ export const useGamification = () => {
           .eq('user_id', user.id)
           .eq('user_language_id', activeLanguage.id),
 
-        supabase
-          .from('daily_stats')
-          .upsert(
-            {
-              user_id: user.id,
-              user_language_id: activeLanguage.id,
-              date: today,
-              xp_earned: amount,
-            },
-            { onConflict: 'user_id,user_language_id,date', ignoreDuplicates: false }
-          ),
+        // increment_daily_xp: atomic INSERT ... ON CONFLICT DO UPDATE SET xp_earned += p_xp
+        // Cast to any because types.ts is auto-generated and can't be edited
+        (supabase as any).rpc('increment_daily_xp', {
+          p_user_id: user.id,
+          p_language_id: activeLanguage.id,
+          p_date: today,
+          p_xp: amount,
+        }),
       ]);
 
       if (didLevelUp) {

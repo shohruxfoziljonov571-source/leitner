@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
-import { useGamification } from '@/hooks/useGamification';
+import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
 import FlashCard from '@/components/learning/FlashCard';
@@ -32,7 +32,7 @@ const Learn: React.FC = () => {
   const { t, language } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
-  const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamification();
+  const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamificationContext();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showStreak } = useNotificationQueue();
   const [currentIndex, setCurrentIndex] = useState(0);
