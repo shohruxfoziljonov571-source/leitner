@@ -184,7 +184,7 @@ const WeeklyChart: React.FC = () => {
         </div>
         <div className="text-center p-2 bg-muted/50 rounded-xl">
           <p className="font-bold text-base text-primary">{avgDaily}</p>
-          <p className="text-[10px] text-muted-foreground leading-tight">O'rtacha/kun</p>
+          <p className="text-[10px] text-muted-foreground leading-tight text-left pl-1">O'rtacha/kun</p>
         </div>
         <div className="text-center p-2 bg-muted/50 rounded-xl">
           <p className="font-bold text-base text-primary">{accuracy}%</p>
