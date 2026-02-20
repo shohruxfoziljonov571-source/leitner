@@ -33,10 +33,10 @@ const Auth: React.FC = () => {
     }
   }, [user, navigate]);
 
-  // Show loading while Telegram auto-login is in progress
-  if (isLoading && isTelegramUser) {
+  // Show loading for ALL users while auth state is resolving
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-background to-primary/5">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -50,33 +50,28 @@ const Auth: React.FC = () => {
           >
             <BookOpen className="w-10 h-10 text-primary-foreground" />
           </motion.div>
-          <h2 className="text-xl font-semibold mb-2">
-            Salom, {telegramUser?.first_name}! 👋
-          </h2>
-          <p className="text-muted-foreground mb-4">
-            Telegram orqali kirilmoqda...
-          </p>
+          {isTelegramUser && telegramUser ? (
+            <>
+              <h2 className="text-xl font-semibold mb-2">
+                Salom, {telegramUser.first_name}! 👋
+              </h2>
+              <p className="text-muted-foreground mb-4">Telegram orqali kirilmoqda...</p>
+            </>
+          ) : (
+            <p className="text-muted-foreground mb-4">Yuklanmoqda...</p>
+          )}
           <div className="flex items-center justify-center gap-1">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
-              className="w-2 h-2 bg-primary rounded-full"
-            />
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
-              className="w-2 h-2 bg-primary rounded-full"
-            />
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
-              className="w-2 h-2 bg-primary rounded-full"
-            />
+            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-2 h-2 bg-primary rounded-full" />
+            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-2 h-2 bg-primary rounded-full" />
+            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-2 h-2 bg-primary rounded-full" />
           </div>
         </motion.div>
       </div>
     );
   }
+
+
+
 
   const validateInputs = (): boolean => {
     try {
