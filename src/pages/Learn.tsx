@@ -78,14 +78,23 @@ const Learn: React.FC = () => {
     return words.filter(word => new Date(word.next_review_time) <= now);
   }, [words]);
 
-  // Shuffle words and assign random direction for each word (memoized once per session)
-  const shuffledWordsWithDirection = useMemo(() => {
+  // Shuffle words ONCE per session using a ref — prevents reshuffle mid-session
+  // when words state updates after each reviewWord() call
+  const shuffledWordsWithDirectionRef = useRef<Array<{ word: typeof wordsToReview[0]; isReversed: boolean }>>([]);
+  const wordsToReviewIdsRef = useRef<string>('');
+
+  // Only re-shuffle when the set of reviewable word IDs changes (new session or new words added)
+  const currentIdsKey = wordsToReview.map(w => w.id).sort().join(',');
+  if (shuffledWordsWithDirectionRef.current.length === 0 && wordsToReview.length > 0) {
     const shuffled = shuffleArray(wordsToReview);
-    return shuffled.map(word => ({
+    shuffledWordsWithDirectionRef.current = shuffled.map(word => ({
       word,
-      isReversed: Math.random() < 0.5
+      isReversed: Math.random() < 0.5,
     }));
-  }, [wordsToReview]);
+    wordsToReviewIdsRef.current = currentIdsKey;
+  }
+
+  const shuffledWordsWithDirection = shuffledWordsWithDirectionRef.current;
 
   // Filter out reviewed words
   const wordsForReview = useMemo(() => {
@@ -163,11 +172,14 @@ const Learn: React.FC = () => {
         await updateParticipantStats(xpForChallenge, 1, isCorrect ? 1 : 0);
       }
 
+      const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0) + (isCorrect ? 1 : 0);
       const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
+      const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
       await checkAndUnlockAchievements({
         totalWords: words.length,
         streak: stats.streak,
         totalReviews,
+        accuracy,
         level,
       });
 
