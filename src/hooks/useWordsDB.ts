@@ -40,6 +40,11 @@ const getDefaultStats = (): UserStats => ({
   daily_goal: 20,
 });
 
+const getLocalToday = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export const useWordsDB = () => {
   const [words, setWords] = useState<Word[]>([]);
   const [stats, setStats] = useState<UserStats>(getDefaultStats());
@@ -54,31 +59,40 @@ export const useWordsDB = () => {
     }
 
     try {
-      // Supabase has a default 1000 row limit, so we need to paginate
-      // to fetch all words for users with large vocabularies
-      const allWords: Word[] = [];
-      const pageSize = 1000;
-      let from = 0;
-      let hasMore = true;
+      // First get total count, then fetch all pages in parallel
+      const { count, error: countError } = await supabase
+        .from('words')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('user_language_id', activeLanguage.id);
 
-      while (hasMore) {
-        const { data, error } = await supabase
+      if (countError) throw countError;
+
+      const total = count || 0;
+      const pageSize = 1000;
+
+      if (total === 0) {
+        setWords([]);
+        return;
+      }
+
+      // Build parallel page requests
+      const pageCount = Math.ceil(total / pageSize);
+      const pagePromises = Array.from({ length: pageCount }, (_, i) =>
+        supabase
           .from('words')
           .select('*')
           .eq('user_id', user.id)
           .eq('user_language_id', activeLanguage.id)
           .order('created_at', { ascending: false })
-          .range(from, from + pageSize - 1);
+          .range(i * pageSize, (i + 1) * pageSize - 1)
+      );
 
+      const results = await Promise.all(pagePromises);
+      const allWords: Word[] = [];
+      for (const { data, error } of results) {
         if (error) throw error;
-
-        if (data && data.length > 0) {
-          allWords.push(...data);
-          from += pageSize;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
+        if (data) allWords.push(...data);
       }
 
       setWords(allWords);
@@ -104,16 +118,15 @@ export const useWordsDB = () => {
       if (error) throw error;
 
       if (data) {
-        // Use local date (not UTC) to avoid timezone-based streak reset bugs
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const today = getLocalToday();
 
         // Reset daily stats if new day
         if (data.last_active_date !== today) {
+          const now = new Date();
           const yesterday = new Date(now);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-          
+
           let newStreak = data.streak;
           if (data.last_active_date === yesterdayStr && data.today_reviewed > 0) {
             newStreak += 1;
@@ -121,7 +134,6 @@ export const useWordsDB = () => {
             newStreak = 0;
           }
 
-          // Update in database
           await supabase
             .from('user_stats')
             .update({
@@ -160,7 +172,6 @@ export const useWordsDB = () => {
   useEffect(() => {
     if (user && activeLanguage) {
       setIsLoading(true);
-      // Parallel fetch for better performance
       Promise.all([fetchWords(), fetchStats()]).finally(() => {
         setIsLoading(false);
       });
@@ -171,8 +182,19 @@ export const useWordsDB = () => {
     }
   }, [user, activeLanguage]);
 
+  // Visibility-change listener: refresh streak when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user && activeLanguage) {
+        fetchStats();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, activeLanguage, fetchStats]);
+
   const checkDuplicate = useCallback((originalWord: string) => {
-    return words.some(w => 
+    return words.some(w =>
       w.original_word.toLowerCase().trim() === originalWord.toLowerCase().trim()
     );
   }, [words]);
@@ -187,7 +209,6 @@ export const useWordsDB = () => {
   }) => {
     if (!user || !activeLanguage) return null;
 
-    // Check for duplicate
     if (checkDuplicate(word.original_word)) {
       return { error: 'duplicate', existingWord: word.original_word };
     }
@@ -214,22 +235,12 @@ export const useWordsDB = () => {
 
       setWords(prev => [data, ...prev]);
 
-      // Use DB-side increment to avoid stale closure on stats.total_words
-      await supabase
-        .from('user_stats')
-        .select('total_words')
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id)
-        .maybeSingle()
-        .then(({ data: s }) => {
-          if (s) {
-            supabase
-              .from('user_stats')
-              .update({ total_words: (s.total_words || 0) + 1 })
-              .eq('user_id', user.id)
-              .eq('user_language_id', activeLanguage.id);
-          }
-        });
+      // Atomic DB-side increment — no race condition
+      await (supabase as any).rpc('increment_total_words', {
+        p_user_id: user.id,
+        p_language_id: activeLanguage.id,
+        p_delta: 1,
+      });
 
       setStats(prev => ({ ...prev, total_words: prev.total_words + 1 }));
 
@@ -240,8 +251,6 @@ export const useWordsDB = () => {
     }
   }, [user, activeLanguage, checkDuplicate]);
 
-  // Bulk insert for faster Excel imports (with duplicate check)
-  // Chunks into batches of 500 to avoid Supabase insert limits
   const addWordsBulk = useCallback(async (wordsToAdd: {
     original_word: string;
     translated_word: string;
@@ -252,14 +261,13 @@ export const useWordsDB = () => {
   }[]) => {
     if (!user || !activeLanguage || wordsToAdd.length === 0) return { added: [], duplicates: [] };
 
-    // Filter out duplicates (local + within-batch)
     const existingWords = new Set(words.map(w => w.original_word.toLowerCase().trim()));
     const uniqueWords: typeof wordsToAdd = [];
     const duplicates: string[] = [];
 
     wordsToAdd.forEach(word => {
       const normalizedWord = word.original_word.toLowerCase().trim();
-      if (!normalizedWord) return; // skip empty
+      if (!normalizedWord) return;
       if (existingWords.has(normalizedWord)) {
         duplicates.push(word.original_word);
       } else {
@@ -273,10 +281,9 @@ export const useWordsDB = () => {
     }
 
     try {
-      const CHUNK_SIZE = 500; // Supabase safe batch limit
+      const CHUNK_SIZE = 500;
       const allInserted: Word[] = [];
 
-      // Insert in chunks to avoid request size limits
       for (let i = 0; i < uniqueWords.length; i += CHUNK_SIZE) {
         const chunk = uniqueWords.slice(i, i + CHUNK_SIZE);
         const wordsData = chunk.map(word => ({
@@ -302,30 +309,14 @@ export const useWordsDB = () => {
       }
 
       setWords(prev => [...allInserted, ...prev]);
+      setStats(prev => ({ ...prev, total_words: prev.total_words + allInserted.length }));
 
-      // Use functional updater to avoid stale closure on stats
-      let currentTotal = 0;
-      setStats(prev => {
-        currentTotal = prev.total_words + allInserted.length;
-        return { ...prev, total_words: currentTotal };
+      // Atomic DB-side bulk increment — no race condition
+      await (supabase as any).rpc('increment_total_words', {
+        p_user_id: user.id,
+        p_language_id: activeLanguage.id,
+        p_delta: allInserted.length,
       });
-
-      // Sync DB stats — fetch fresh value to avoid stale closure
-      await supabase
-        .from('user_stats')
-        .select('total_words')
-        .eq('user_id', user.id)
-        .eq('user_language_id', activeLanguage.id)
-        .maybeSingle()
-        .then(({ data: s }) => {
-          if (s) {
-            supabase
-              .from('user_stats')
-              .update({ total_words: (s.total_words || 0) + allInserted.length })
-              .eq('user_id', user.id)
-              .eq('user_language_id', activeLanguage.id);
-          }
-        });
 
       return { added: allInserted, duplicates };
     } catch (error: any) {
@@ -373,17 +364,14 @@ export const useWordsDB = () => {
 
       setWords(prev => prev.filter(w => w.id !== wordId));
 
-      // Use functional updater — avoids stale closure on stats.total_words
-      setStats(prev => {
-        const newTotal = Math.max(0, prev.total_words - 1);
-        supabase
-          .from('user_stats')
-          .update({ total_words: newTotal })
-          .eq('user_id', user.id)
-          .eq('user_language_id', activeLanguage.id)
-          .then(({ error }) => { if (error) console.error('deleteWord stats update error:', error); });
-        return { ...prev, total_words: newTotal };
+      // Atomic DB-side decrement — no race condition
+      await (supabase as any).rpc('increment_total_words', {
+        p_user_id: user.id,
+        p_language_id: activeLanguage.id,
+        p_delta: -1,
       });
+
+      setStats(prev => ({ ...prev, total_words: Math.max(0, prev.total_words - 1) }));
     } catch (error) {
       console.error('Error deleting word:', error);
     }
@@ -396,17 +384,14 @@ export const useWordsDB = () => {
     if (!word) return;
 
     const previousBoxNumber = word.box_number;
-    const newBoxNumber = isCorrect 
+    const newBoxNumber = isCorrect
       ? Math.min(5, word.box_number + 1)
       : 1;
 
-    // Word is considered "learned" only when it reaches box 5 for the first time
     const justLearned = isCorrect && newBoxNumber === 5 && previousBoxNumber < 5;
 
     const interval = BOX_INTERVALS[newBoxNumber as 1 | 2 | 3 | 4 | 5];
-    // Local date to match streak logic (not UTC)
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = getLocalToday();
 
     try {
       const { error } = await supabase
@@ -436,48 +421,35 @@ export const useWordsDB = () => {
         };
       }));
 
-      // Update user_stats using functional update to avoid race condition
-      // Use RPC or increment directly in DB to be truly race-condition free
-      setStats(prev => {
-        const newStats = {
-          ...prev,
-          today_reviewed: prev.today_reviewed + 1,
-          today_correct: isCorrect ? prev.today_correct + 1 : prev.today_correct,
-          learned_words: justLearned ? prev.learned_words + 1 : prev.learned_words,
-          last_active_date: today,
-        };
+      // Optimistic local update
+      setStats(prev => ({
+        ...prev,
+        today_reviewed: prev.today_reviewed + 1,
+        today_correct: isCorrect ? prev.today_correct + 1 : prev.today_correct,
+        learned_words: justLearned ? prev.learned_words + 1 : prev.learned_words,
+        last_active_date: today,
+      }));
 
-        // Update DB with new values (fire and forget, state is source of truth for UI)
-        supabase
-          .from('user_stats')
-          .update({
-            today_reviewed: newStats.today_reviewed,
-            today_correct: newStats.today_correct,
-            learned_words: newStats.learned_words,
-            last_active_date: today,
-          })
-          .eq('user_id', user.id)
-          .eq('user_language_id', activeLanguage.id)
-          .then(({ error }) => {
-            if (error) console.error('Error updating user_stats:', error);
-          });
-
-        return newStats;
-      });
-
-      // Update daily_stats — single upsert (no race condition, no select+update)
-      await supabase
-        .from('daily_stats')
-        .upsert(
-          {
-            user_id: user.id,
-            user_language_id: activeLanguage.id,
-            date: today,
-            words_reviewed: 1,
-            words_correct: isCorrect ? 1 : 0,
-          },
-          { onConflict: 'user_id,user_language_id,date', ignoreDuplicates: false }
-        );
+      // Atomic DB increments — no race conditions, no override
+      await Promise.all([
+        // user_stats: atomic increment via RPC
+        (supabase as any).rpc('increment_review_stats', {
+          p_user_id: user.id,
+          p_language_id: activeLanguage.id,
+          p_reviewed: 1,
+          p_correct: isCorrect ? 1 : 0,
+          p_learned: justLearned ? 1 : 0,
+          p_date: today,
+        }),
+        // daily_stats: atomic increment via RPC (no override)
+        (supabase as any).rpc('increment_daily_words', {
+          p_user_id: user.id,
+          p_language_id: activeLanguage.id,
+          p_date: today,
+          p_reviewed: 1,
+          p_correct: isCorrect ? 1 : 0,
+        }),
+      ]);
     } catch (error) {
       console.error('Error reviewing word:', error);
     }

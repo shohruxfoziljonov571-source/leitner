@@ -68,11 +68,12 @@ export const useAdmin = () => {
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('user_stats').select('*', { count: 'exact', head: true }).eq('last_active_date', today),
         supabase.from('words').select('*', { count: 'exact', head: true }),
-        supabase.from('user_stats').select('today_reviewed'),
+        // Use words.times_reviewed for GLOBAL total reviews (not just today)
+        supabase.from('words').select('times_reviewed'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo)
       ]);
 
-      const totalReviews = reviewsData?.reduce((sum, s) => sum + (s.today_reviewed || 0), 0) || 0;
+      const totalReviews = reviewsData?.reduce((sum, w) => sum + (w.times_reviewed || 0), 0) || 0;
 
       setStats({
         totalUsers: totalUsers || 0,
