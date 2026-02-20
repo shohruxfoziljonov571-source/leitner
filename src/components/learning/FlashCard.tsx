@@ -52,10 +52,10 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-md mx-auto"
+      className="w-full max-w-lg mx-auto"
     >
       <div
-        className={`relative rounded-2xl md:rounded-3xl shadow-elevated p-4 md:p-6 transition-all duration-300 ${
+        className={`relative rounded-2xl shadow-elevated p-4 transition-all duration-300 ${
           answered === true
             ? 'bg-primary/10 ring-2 ring-primary'
             : answered === false
@@ -64,7 +64,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
         }`}
       >
         <div
-          className="absolute top-3 right-3 md:top-4 md:right-4 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium"
+          className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
             backgroundColor: `hsl(var(--box-${word.boxNumber}) / 0.15)`,
             color: `hsl(var(--box-${word.boxNumber}))`,
@@ -73,18 +73,18 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
           {t('box')} {word.boxNumber}
         </div>
 
-        <div className="flex items-center gap-2 mb-4 md:mb-6">
-          <span className="text-xl md:text-2xl">{getLanguageFlag(questionLang)}</span>
-          <ArrowRight className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-          <span className="text-xl md:text-2xl">{getLanguageFlag(answerLang)}</span>
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xl">{getLanguageFlag(questionLang)}</span>
+          <ArrowRight className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xl">{getLanguageFlag(answerLang)}</span>
         </div>
 
-        <div className="text-center mb-5 md:mb-8">
-          <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">
+        <div className="text-center mb-5">
+          <p className="text-xs text-muted-foreground mb-1.5">
             {getLanguageName(questionLang)}
           </p>
-          <div className="flex items-center justify-center gap-2 md:gap-3">
-            <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground break-all">
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="font-display font-bold text-2xl text-foreground break-words min-w-0 flex-1 text-center">
               {questionWord}
             </h2>
             {isSupported && (
@@ -92,9 +92,9 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
                 variant="ghost"
                 size="icon"
                 onClick={() => handleSpeak(questionWord, questionLang)}
-                className={`rounded-full transition-all flex-shrink-0 h-8 w-8 md:h-10 md:w-10 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+                className={`rounded-full transition-all flex-shrink-0 h-9 w-9 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
               >
-                {isSpeaking ? <VolumeX className="w-4 h-4 md:w-5 md:h-5" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5" />}
+                {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </Button>
             )}
           </div>
@@ -107,12 +107,11 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center"
             >
               <Button
                 onClick={handleFlip}
                 size="lg"
-                className="gap-2 gradient-primary text-primary-foreground w-full md:w-auto"
+                className="gap-2 gradient-primary text-primary-foreground w-full h-12 text-base"
               >
                 <Eye className="w-5 h-5" />
                 {t('showAnswer')}
@@ -125,10 +124,10 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
-              <div className="text-center mb-4 md:mb-6">
-                <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">{t('translation')}</p>
-                <div className="flex items-center justify-center gap-2 md:gap-3">
-                  <p className="font-display font-semibold text-xl md:text-2xl text-primary break-all">
+              <div className="text-center mb-4">
+                <p className="text-xs text-muted-foreground mb-1.5">{t('translation')}</p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="font-display font-semibold text-xl text-primary break-words min-w-0 flex-1 text-center">
                     {answerWord}
                   </p>
                   {isSupported && (
@@ -136,41 +135,41 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
                       variant="ghost"
                       size="icon"
                       onClick={() => handleSpeak(answerWord, answerLang)}
-                      className={`rounded-full transition-all flex-shrink-0 h-8 w-8 md:h-10 md:w-10 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
+                      className={`rounded-full transition-all flex-shrink-0 h-9 w-9 ${isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'}`}
                     >
-                      {isSpeaking ? <VolumeX className="w-4 h-4 md:w-5 md:h-5" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5" />}
+                      {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </Button>
                   )}
                 </div>
               </div>
 
               {word.exampleSentences.length > 0 && (
-                <div className="mb-4 md:mb-6 p-3 md:p-4 bg-muted/50 rounded-xl">
-                  <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">{t('examples')}</p>
+                <div className="mb-4 p-3 bg-muted/50 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">{t('examples')}</p>
                   {word.exampleSentences.map((sentence, index) => (
-                    <p key={index} className="text-xs md:text-sm text-foreground italic">
+                    <p key={index} className="text-xs text-foreground italic">
                       • {sentence}
                     </p>
                   ))}
                 </div>
               )}
 
-              <div className="flex gap-2 md:gap-3">
+              <div className="flex gap-2">
                 <Button
                   onClick={() => handleAnswer(false)}
                   variant="outline"
                   size="lg"
-                  className="flex-1 gap-1.5 md:gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-sm md:text-base"
+                  className="flex-1 gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground h-12 text-sm"
                 >
-                  <X className="w-4 h-4 md:w-5 md:h-5" />
+                  <X className="w-4 h-4" />
                   {t('incorrect')}
                 </Button>
                 <Button
                   onClick={() => handleAnswer(true)}
                   size="lg"
-                  className="flex-1 gap-1.5 md:gap-2 bg-primary hover:bg-primary/90 text-sm md:text-base"
+                  className="flex-1 gap-1.5 bg-primary hover:bg-primary/90 h-12 text-sm"
                 >
-                  <Check className="w-4 h-4 md:w-5 md:h-5" />
+                  <Check className="w-4 h-4" />
                   {t('correct')}
                 </Button>
               </div>
@@ -179,8 +178,8 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
         </AnimatePresence>
       </div>
 
-      <div className="mt-3 md:mt-4 text-center">
-        <p className="text-xs md:text-sm text-muted-foreground">
+      <div className="mt-3 text-center">
+        <p className="text-xs text-muted-foreground">
           {word.timesReviewed} {t('reviewsToday').toLowerCase()}
         </p>
       </div>
