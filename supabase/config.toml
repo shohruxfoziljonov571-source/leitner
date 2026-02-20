@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.notify-referral]
 verify_jwt = false
+
+[functions.telegram-auth]
+verify_jwt = false
