@@ -28,12 +28,15 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
   const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
   const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
 
-  // Auto-focus input when card appears
+  // Auto-focus only on non-touch devices to avoid keyboard popping up unexpectedly on mobile
   useEffect(() => {
-    const timer = setTimeout(() => {
-      inputRef.current?.focus();
-    }, 300);
-    return () => clearTimeout(timer);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
   }, [word.id]);
 
   const handleSpeak = () => {
@@ -79,10 +82,10 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-md mx-auto"
+      className="w-full max-w-lg mx-auto"
     >
       <div
-        className={`relative rounded-2xl md:rounded-3xl shadow-elevated p-4 md:p-6 transition-all duration-300 ${
+        className={`relative rounded-2xl shadow-elevated p-4 transition-all duration-300 ${
           result === 'correct'
             ? 'bg-primary/10 ring-2 ring-primary'
             : result === 'incorrect'
@@ -92,7 +95,7 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
       >
         {/* Box indicator */}
         <div
-          className="absolute top-3 right-3 md:top-4 md:right-4 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium"
+          className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
             backgroundColor: `hsl(var(--box-${word.boxNumber}) / 0.15)`,
             color: `hsl(var(--box-${word.boxNumber}))`,
@@ -102,19 +105,19 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
         </div>
 
         {/* Language badges */}
-        <div className="flex items-center gap-2 mb-4 md:mb-5">
-          <span className="text-xl md:text-2xl">{getLanguageFlag(questionLang)}</span>
-          <ArrowRight className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-          <span className="text-xl md:text-2xl">{getLanguageFlag(answerLang)}</span>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xl">{getLanguageFlag(questionLang)}</span>
+          <ArrowRight className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xl">{getLanguageFlag(answerLang)}</span>
         </div>
 
         {/* Question word */}
-        <div className="text-center mb-4 md:mb-6">
-          <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">
+        <div className="text-center mb-4">
+          <p className="text-xs text-muted-foreground mb-1.5">
             {getLanguageName(questionLang)}
           </p>
           <div className="flex items-center justify-center gap-2">
-            <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground break-all">
+            <h2 className="font-display font-bold text-2xl text-foreground break-words min-w-0 flex-1 text-center">
               {questionWord}
             </h2>
             {isSupported && (
@@ -122,22 +125,23 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
                 variant="ghost"
                 size="icon"
                 onClick={handleSpeak}
-                className={`rounded-full transition-all flex-shrink-0 h-8 w-8 md:h-10 md:w-10 ${
+                className={`rounded-full transition-all flex-shrink-0 h-9 w-9 ${
                   isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'
                 }`}
               >
-                {isSpeaking ? <VolumeX className="w-4 h-4 md:w-5 md:h-5" /> : <Volume2 className="w-4 h-4 md:w-5 md:h-5" />}
+                {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1.5 md:mt-2">
+          <p className="text-xs text-muted-foreground mt-1.5">
             {getLanguageName(answerLang)} tilida yozing:
           </p>
         </div>
 
         {/* Input area */}
         <div className="space-y-3">
-          <div className="relative">
+          {/* Input + Send in a row */}
+          <div className="flex gap-2">
             <Input
               ref={inputRef}
               value={inputValue}
@@ -145,7 +149,7 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
               onKeyDown={handleKeyDown}
               placeholder="Tarjimani yozing..."
               disabled={!!result}
-              className={`pr-12 text-base transition-all ${
+              className={`flex-1 h-12 text-base transition-all ${
                 result === 'correct'
                   ? 'border-primary text-primary bg-primary/5'
                   : result === 'incorrect'
@@ -158,11 +162,10 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
               spellCheck={false}
             />
             <Button
-              variant="ghost"
-              size="icon"
               onClick={handleSubmit}
               disabled={!inputValue.trim() || !!result}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-primary hover:bg-primary/10"
+              size="icon"
+              className="h-12 w-12 flex-shrink-0 gradient-primary text-primary-foreground"
             >
               <Send className="w-4 h-4" />
             </Button>
@@ -175,7 +178,7 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="text-center"
+                className="text-center py-1"
               >
                 {result === 'correct' ? (
                   <p className="text-primary font-semibold text-lg">✓ To'g'ri!</p>
@@ -192,18 +195,18 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
             )}
           </AnimatePresence>
 
-          {/* Hint row */}
+          {/* Hint row — bigger touch targets */}
           {!result && (
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setShowHint(v => !v)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="min-h-[36px] px-2 text-xs text-muted-foreground hover:text-primary transition-colors flex items-center"
               >
-                {showHint ? `💡 ${hint}` : '💡 Maslahat ko\'rish'}
+                {showHint ? `💡 ${hint}` : "💡 Maslahat ko'rish"}
               </button>
               <button
                 onClick={handleSkip}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                className="min-h-[36px] px-2 text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 <RotateCcw className="w-3 h-3" />
                 O'tkazib yuborish
@@ -226,7 +229,7 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
       </div>
 
       <div className="mt-3 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {word.timesReviewed} marta takrorlangan
         </p>
       </div>
