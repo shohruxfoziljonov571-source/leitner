@@ -222,9 +222,9 @@ const Learn: React.FC = () => {
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh]">
-          <p className="text-muted-foreground">Avval tilni tanlang</p>
+          <p className="text-muted-foreground">{t('selectLanguageFirst')}</p>
           <Link to="/">
-            <Button className="mt-4">Bosh sahifaga</Button>
+            <Button className="mt-4">{t('goToHome')}</Button>
           </Link>
         </div>
       </div>
@@ -246,7 +246,7 @@ const Learn: React.FC = () => {
             </div>
             <h2 className="font-display font-bold text-2xl mb-2">{t('noWordsToReview')}</h2>
             <p className="text-muted-foreground mb-8 max-w-sm">
-              Hozircha takrorlash uchun so'z yo'q. Yangi so'zlar qo'shing yoki keyinroq qaytib keling!
+              {t('noWordsAddMore')}
             </p>
             <Link to="/add">
               <Button size="lg" className="gap-2 gradient-primary text-primary-foreground">
@@ -281,7 +281,7 @@ const Learn: React.FC = () => {
             <h2 className="font-display font-bold text-2xl mb-2">{t('congratulations')}</h2>
             <p className="text-muted-foreground mb-2">{t('allDone')}</p>
             <p className="text-lg font-medium text-primary mb-4">
-              {reviewedCount} so'z takrorlandi!
+              {t('wordsReviewed').replace('{count}', String(reviewedCount))}
             </p>
             <div className="mb-8">
               <XpBar />
@@ -308,13 +308,13 @@ const Learn: React.FC = () => {
             className="mb-8"
           >
             <h1 className="font-display font-bold text-2xl text-foreground mb-2">
-              O'rganish rejimini tanlang
+              {t('selectMode')}
             </h1>
             <p className="text-muted-foreground mb-1">
               {getLanguageFlag(activeLanguage.source_language)} {getLanguageName(activeLanguage.source_language, language)} → {getLanguageFlag(activeLanguage.target_language)} {getLanguageName(activeLanguage.target_language, language)}
             </p>
             <p className="text-muted-foreground">
-              {totalToReview} ta so'z takrorlash uchun tayyor
+              {t('wordsReadyForReview').replace('{count}', String(totalToReview))}
             </p>
           </motion.div>
 
@@ -332,9 +332,7 @@ const Learn: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base">Flashcard</h3>
-                  <p className="text-xs text-muted-foreground">
-                    So'zni ko'ring, javobni eslang va tekshiring
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('flashcardDesc')}</p>
                 </div>
               </div>
             </motion.button>
@@ -352,9 +350,7 @@ const Learn: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base">Quiz (4 variant)</h3>
-                  <p className="text-xs text-muted-foreground">
-                    4 ta variantdan to'g'ri javobni tanlang
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('quizDesc')}</p>
                 </div>
               </div>
             </motion.button>
@@ -372,14 +368,12 @@ const Learn: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base flex items-center gap-2">
-                    Tezlik rejimi
+                    {t('speedMode')}
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500">
                       10s
                     </span>
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    10 soniya ichida javob bering!
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('speedDesc')}</p>
                 </div>
               </div>
             </motion.button>
@@ -397,14 +391,12 @@ const Learn: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base flex items-center gap-2">
-                    Yozma tekshirish
+                    {t('writingMode')}
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      Yangi
+                      {t('newLabel')}
                     </span>
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Klaviaturadan tarjimani yozing
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('writingDesc')}</p>
                 </div>
               </div>
             </motion.button>
@@ -462,8 +454,8 @@ const Learn: React.FC = () => {
               >
                 ☕
               </motion.div>
-              <h2 className="font-display font-bold text-2xl mb-2">Dam olish vaqti</h2>
-              <p className="text-muted-foreground">5 daqiqa dam oling...</p>
+              <h2 className="font-display font-bold text-2xl mb-2">{t('breakTime')}</h2>
+              <p className="text-muted-foreground">{t('breakDesc')}</p>
             </div>
           </motion.div>
         )}
@@ -507,7 +499,7 @@ const Learn: React.FC = () => {
           {/* Row 2: progress count + combo + XP */}
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">
-              {reviewedCount + 1} / {totalToReview} so'z
+              {reviewedCount + 1} / {totalToReview} {t('words')}
             </span>
             <div className="flex items-center gap-2">
               {comboStreak >= 3 && (

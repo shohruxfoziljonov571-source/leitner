@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
               {t('welcomeMessage')} 👋
             </h1>
             <p className="text-muted-foreground">
-              Avval o'rganish tilini tanlang
+              {t('selectLanguageFirst')}
             </p>
           </motion.div>
           <LanguageSelector />
@@ -81,8 +81,8 @@ const Dashboard: React.FC = () => {
             </h1>
             <p className="text-muted-foreground">
               {wordsForReview.length > 0
-                ? `${wordsForReview.length} so'z takrorlashni kutmoqda`
-                : "Bugun uchun barcha so'zlar takrorlandi!"}
+                ? t('wordsWaiting').replace('{count}', String(wordsForReview.length))
+                : t('allReviewedToday')}
             </p>
           </div>
           <XpBar compact />
@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
             icon={Flame}
             label={t('streak')}
             value={stats.streak === 0 ? '🌱' : stats.streak}
-            subtext={stats.streak === 0 ? 'Bugun boshlang!' : 'kun'}
+            subtext={stats.streak === 0 ? t('startToday') : t('days')}
             gradient
             delay={0.3}
           />
@@ -182,8 +182,8 @@ const Dashboard: React.FC = () => {
                   <Mic className="w-5 h-5 text-feature-dictation" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Audio Diktant</p>
-                  <p className="text-xs text-muted-foreground">Tinglash va yozish</p>
+                  <p className="font-semibold text-foreground">{t('audioDictation')}</p>
+                  <p className="text-xs text-muted-foreground">{t('listenAndWrite')}</p>
                 </div>
               </div>
             </div>
@@ -195,8 +195,8 @@ const Dashboard: React.FC = () => {
                   <Book className="w-5 h-5 text-feature-books" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">Kitoblar</p>
-                  <p className="text-xs text-muted-foreground">O'qish va o'rganish</p>
+                  <p className="font-semibold text-foreground">{t('books')}</p>
+                  <p className="text-xs text-muted-foreground">{t('readAndLearn')}</p>
                 </div>
               </div>
             </div>
@@ -216,8 +216,8 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Trophy className="w-6 h-6 text-primary" />
                   <div>
-                    <p className="font-semibold text-foreground">Yutuqlar</p>
-                    <p className="text-sm text-muted-foreground">{unlockedAchievements.length} ta yutuq ochilgan</p>
+                    <p className="font-semibold text-foreground">{t('achievements')}</p>
+                    <p className="text-sm text-muted-foreground">{t('achievementsUnlocked').replace('{count}', String(unlockedAchievements.length))}</p>
                   </div>
                 </div>
                 <div className="flex -space-x-2">
@@ -243,7 +243,7 @@ const Dashboard: React.FC = () => {
             <Link to="/learn">
               <Button size="lg" className="w-full md:w-auto gap-2 gradient-primary text-primary-foreground h-14 text-lg shadow-elevated">
                 <BookOpen className="w-5 h-5" />
-                {t('startLearning')} ({wordsForReview.length} so'z)
+                {t('startLearning')} ({wordsForReview.length} {t('words')})
               </Button>
             </Link>
           </motion.div>
@@ -252,7 +252,7 @@ const Dashboard: React.FC = () => {
         {/* Leitner Boxes */}
         <div className="mb-6">
           <h2 className="font-display font-semibold text-xl text-foreground mb-4">
-            Leitner qutilar
+            {t('leitnerBoxes')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {([1, 2, 3, 4, 5] as const).map((boxNumber, index) => (
@@ -279,14 +279,14 @@ const Dashboard: React.FC = () => {
               <BookOpen className="w-10 h-10 text-primary-foreground" />
             </div>
             <h3 className="font-display font-semibold text-xl mb-2">
-              So'zlar hali yo'q
+              {t('noWordsYet')}
             </h3>
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-              Birinchi so'zingizni qo'shing va Leitner tizimi bilan o'rganishni boshlang!
+              {t('addFirstWordDesc')}
             </p>
             <Link to="/add">
               <Button size="lg" className="gap-2 gradient-primary text-primary-foreground">
-                Birinchi so'z qo'shish
+                {t('addFirstWord')}
               </Button>
             </Link>
           </motion.div>
