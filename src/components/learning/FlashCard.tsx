@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { Eye, Check, X, ArrowRight, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -24,10 +24,19 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
   const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
   const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
 
+  // Swipe gesture
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const correctOpacity = useTransform(x, [0, 80], [0, 1]);
+  const incorrectOpacity = useTransform(x, [-80, 0], [1, 0]);
+  const bgColor = useTransform(
+    x,
+    [-100, 0, 100],
+    ['hsl(0 84% 60% / 0.15)', 'hsl(0 0% 100% / 0)', 'hsl(142 71% 45% / 0.15)']
+  );
+
   const handleFlip = () => {
-    if (!isFlipped) {
-      setIsFlipped(true);
-    }
+    if (!isFlipped) setIsFlipped(true);
   };
 
   const handleAnswer = (isCorrect: boolean) => {
@@ -39,12 +48,20 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
     }, 500);
   };
 
-  const handleSpeak = (text: string, lang: string) => {
-    if (isSpeaking) {
-      stop();
-    } else {
-      speak(text, { lang });
+  const handleDragEnd = (_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
+    if (!isFlipped) return;
+    const threshold = 80;
+    const velocityThreshold = 300;
+    if (info.offset.x > threshold || info.velocity.x > velocityThreshold) {
+      handleAnswer(true);
+    } else if (info.offset.x < -threshold || info.velocity.x < -velocityThreshold) {
+      handleAnswer(false);
     }
+  };
+
+  const handleSpeak = (text: string, lang: string) => {
+    if (isSpeaking) stop();
+    else speak(text, { lang });
   };
 
   return (
@@ -54,8 +71,13 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
       exit={{ opacity: 0, y: -20 }}
       className="w-full max-w-lg mx-auto"
     >
-      <div
-        className={`relative rounded-2xl shadow-elevated p-4 transition-all duration-300 ${
+      <motion.div
+        style={{ x, rotate, backgroundColor: isFlipped ? bgColor : undefined }}
+        drag={isFlipped ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.7}
+        onDragEnd={handleDragEnd}
+        className={`relative rounded-2xl shadow-elevated p-4 transition-colors duration-300 cursor-grab active:cursor-grabbing ${
           answered === true
             ? 'bg-primary/10 ring-2 ring-primary'
             : answered === false
@@ -63,6 +85,24 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
             : 'bg-card'
         }`}
       >
+        {/* Swipe indicators */}
+        {isFlipped && (
+          <>
+            <motion.div
+              style={{ opacity: correctOpacity }}
+              className="absolute top-4 left-4 px-3 py-1 rounded-full bg-primary/20 text-primary font-bold text-sm border-2 border-primary pointer-events-none z-10"
+            >
+              {t('correct')} ✓
+            </motion.div>
+            <motion.div
+              style={{ opacity: incorrectOpacity }}
+              className="absolute top-4 right-4 px-3 py-1 rounded-full bg-destructive/20 text-destructive font-bold text-sm border-2 border-destructive pointer-events-none z-10"
+            >
+              {t('incorrect')} ✗
+            </motion.div>
+          </>
+        )}
+
         <div
           className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
@@ -102,12 +142,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
 
         <AnimatePresence mode="wait">
           {!isFlipped ? (
-            <motion.div
-              key="hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+            <motion.div key="hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <Button
                 onClick={handleFlip}
                 size="lg"
@@ -118,12 +153,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
               </Button>
             </motion.div>
           ) : (
-            <motion.div
-              key="revealed"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
+            <motion.div key="revealed" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <div className="text-center mb-4">
                 <p className="text-xs text-muted-foreground mb-1.5">{t('translation')}</p>
                 <div className="flex items-center justify-center gap-2">
@@ -147,12 +177,15 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
                 <div className="mb-4 p-3 bg-muted/50 rounded-xl">
                   <p className="text-xs text-muted-foreground mb-1">{t('examples')}</p>
                   {word.exampleSentences.map((sentence, index) => (
-                    <p key={index} className="text-xs text-foreground italic">
-                      • {sentence}
-                    </p>
+                    <p key={index} className="text-xs text-foreground italic">• {sentence}</p>
                   ))}
                 </div>
               )}
+
+              {/* Swipe hint for mobile */}
+              <p className="text-[10px] text-center text-muted-foreground mb-3 sm:hidden">
+                👈 {t('swipeHint')} 👉
+              </p>
 
               <div className="flex gap-2">
                 <Button
@@ -176,7 +209,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       <div className="mt-3 text-center">
         <p className="text-xs text-muted-foreground">

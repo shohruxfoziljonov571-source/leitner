@@ -30,6 +30,21 @@ export const translations: Translations = {
   learnedWords: { uz: "O'rganilgan", ru: "Изучено", en: "Learned" },
   streak: { uz: "Ketma-ket kunlar", en: "Day Streak", ru: "Серия дней" },
   startLearning: { uz: "O'rganishni boshlash", ru: "Начать учить", en: "Start Learning" },
+  wordsWaiting: { uz: "{count} so'z takrorlashni kutmoqda", ru: "{count} слов ждут повторения", en: "{count} words waiting for review" },
+  allReviewedToday: { uz: "Bugun uchun barcha so'zlar takrorlandi!", ru: "Все слова на сегодня повторены!", en: "All words reviewed for today!" },
+  startToday: { uz: "Bugun boshlang!", ru: "Начните сегодня!", en: "Start today!" },
+  days: { uz: "kun", ru: "дней", en: "days" },
+  leitnerBoxes: { uz: "Leitner qutilar", ru: "Коробки Лейтнера", en: "Leitner Boxes" },
+  noWordsYet: { uz: "So'zlar hali yo'q", ru: "Слов пока нет", en: "No words yet" },
+  addFirstWordDesc: { uz: "Birinchi so'zingizni qo'shing va Leitner tizimi bilan o'rganishni boshlang!", ru: "Добавьте первое слово и начните учить по системе Лейтнера!", en: "Add your first word and start learning with the Leitner system!" },
+  addFirstWord: { uz: "Birinchi so'z qo'shish", ru: "Добавить первое слово", en: "Add first word" },
+  selectLanguageFirst: { uz: "Avval o'rganish tilini tanlang", ru: "Сначала выберите язык обучения", en: "Select a learning language first" },
+  audioDictation: { uz: "Audio Diktant", ru: "Аудио диктант", en: "Audio Dictation" },
+  listenAndWrite: { uz: "Tinglash va yozish", ru: "Слушать и писать", en: "Listen and write" },
+  readAndLearn: { uz: "O'qish va o'rganish", ru: "Читать и учить", en: "Read and learn" },
+  achievements: { uz: "Yutuqlar", ru: "Достижения", en: "Achievements" },
+  achievementsUnlocked: { uz: "{count} ta yutuq ochilgan", ru: "{count} достижений открыто", en: "{count} achievements unlocked" },
+  wordsReviewed: { uz: "{count} so'z takrorlandi!", ru: "{count} слов повторено!", en: "{count} words reviewed!" },
   
   // Boxes
   box: { uz: "Quti", ru: "Коробка", en: "Box" },
@@ -60,6 +75,20 @@ export const translations: Translations = {
   noWordsToReview: { uz: "Takrorlash uchun so'z yo'q", ru: "Нет слов для повторения", en: "No words to review" },
   congratulations: { uz: "Tabriklaymiz!", ru: "Поздравляем!", en: "Congratulations!" },
   allDone: { uz: "Barcha so'zlar takrorlandi!", ru: "Все слова повторены!", en: "All words reviewed!" },
+  selectMode: { uz: "O'rganish rejimini tanlang", ru: "Выберите режим обучения", en: "Select learning mode" },
+  flashcardDesc: { uz: "So'zni ko'ring, javobni eslang va tekshiring", ru: "Посмотрите слово, вспомните ответ и проверьте", en: "See the word, recall the answer and check" },
+  quizDesc: { uz: "4 ta variantdan to'g'ri javobni tanlang", ru: "Выберите правильный ответ из 4 вариантов", en: "Choose the correct answer from 4 options" },
+  speedMode: { uz: "Tezlik rejimi", ru: "Режим скорости", en: "Speed Mode" },
+  speedDesc: { uz: "10 soniya ichida javob bering!", ru: "Ответьте за 10 секунд!", en: "Answer within 10 seconds!" },
+  writingMode: { uz: "Yozma tekshirish", ru: "Письменная проверка", en: "Writing Check" },
+  writingDesc: { uz: "Klaviaturadan tarjimani yozing", ru: "Напишите перевод с клавиатуры", en: "Type the translation" },
+  newLabel: { uz: "Yangi", ru: "Новое", en: "New" },
+  wordsReadyForReview: { uz: "{count} ta so'z takrorlash uchun tayyor", ru: "{count} слов готовы к повторению", en: "{count} words ready for review" },
+  noWordsAddMore: { uz: "Hozircha takrorlash uchun so'z yo'q. Yangi so'zlar qo'shing yoki keyinroq qaytib keling!", ru: "Пока нет слов для повторения. Добавьте новые слова или вернитесь позже!", en: "No words to review right now. Add new words or come back later!" },
+  goToHome: { uz: "Bosh sahifaga", ru: "На главную", en: "Go to Home" },
+  breakTime: { uz: "Dam olish vaqti", ru: "Время отдыха", en: "Break Time" },
+  breakDesc: { uz: "5 daqiqa dam oling...", ru: "Отдохните 5 минут...", en: "Take a 5 minute break..." },
+  swipeHint: { uz: "Chapga — noto'g'ri, O'ngga — to'g'ri", ru: "Влево — неверно, Вправо — верно", en: "Swipe left — wrong, right — correct" },
   
   // Stats
   wordsLearned: { uz: "O'rganilgan so'zlar", ru: "Изученные слова", en: "Words Learned" },
@@ -78,6 +107,22 @@ export const translations: Translations = {
   edit: { uz: "Tahrirlash", ru: "Редактировать", en: "Edit" },
   back: { uz: "Orqaga", ru: "Назад", en: "Back" },
   loading: { uz: "Yuklanmoqda...", ru: "Загрузка...", en: "Loading..." },
+  
+  // Weekly Challenge
+  weeklyChallenge: { uz: "Haftalik Challenge", ru: "Еженедельный челлендж", en: "Weekly Challenge" },
+  daysLeft: { uz: "{count} kun qoldi", ru: "Осталось {count} дней", en: "{count} days left" },
+  participants: { uz: "{count} ishtirokchi", ru: "{count} участников", en: "{count} participants" },
+  yourRank: { uz: "Sizning o'rningiz", ru: "Ваше место", en: "Your Rank" },
+  joinChallenge: { uz: "Challenge'ga qo'shilish", ru: "Присоединиться к челленджу", en: "Join Challenge" },
+  challengeJoined: { uz: "Challenge'ga qo'shildingiz!", ru: "Вы присоединились к челленджу!", en: "You joined the challenge!" },
+  challengeInfo: { uz: "Bu hafta eng ko'p XP yig'ing va g'olib bo'ling!", ru: "Соберите больше XP на этой неделе и победите!", en: "Earn the most XP this week and win!" },
+  
+  // Rewards
+  unclaimedRewards: { uz: "Olinmagan sovg'alar", ru: "Неполученные награды", en: "Unclaimed Rewards" },
+  claimReward: { uz: "Olish", ru: "Получить", en: "Claim" },
+  rank1: { uz: "1-o'rin", ru: "1-е место", en: "1st place" },
+  rank2: { uz: "2-o'rin", ru: "2-е место", en: "2nd place" },
+  rank3: { uz: "3-o'rin", ru: "3-е место", en: "3rd place" },
 };
 
 interface LanguageContextType {

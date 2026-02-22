@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChallengeRewards } from '@/hooks/useChallengeRewards';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ChallengeRewardBadge from './ChallengeRewardBadge';
 
 const UnclaimedRewards: React.FC = () => {
+  const { t } = useLanguage();
   const { unclaimedRewards, claimReward } = useChallengeRewards();
 
   if (unclaimedRewards.length === 0) return null;
@@ -22,7 +24,7 @@ const UnclaimedRewards: React.FC = () => {
           <div className="flex items-center gap-2 mb-3">
             <Gift className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-foreground">
-              Olinmagan sovg'alar ({unclaimedRewards.length})
+              {t('unclaimedRewards')} ({unclaimedRewards.length})
             </h3>
             <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse" />
           </div>
@@ -39,7 +41,7 @@ const UnclaimedRewards: React.FC = () => {
                   <ChallengeRewardBadge type={reward.badge_type} size="sm" animate />
                   <div>
                     <p className="font-medium text-foreground">
-                      Haftalik challenge - {reward.rank === 1 ? '1-o\'rin' : reward.rank === 2 ? '2-o\'rin' : '3-o\'rin'}
+                      {t('weeklyChallenge')} - {reward.rank === 1 ? t('rank1') : reward.rank === 2 ? t('rank2') : t('rank3')}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       +{reward.bonus_xp} XP bonus
@@ -52,7 +54,7 @@ const UnclaimedRewards: React.FC = () => {
                   className="gap-1"
                 >
                   <Gift className="w-4 h-4" />
-                  Olish
+                  {t('claimReward')}
                 </Button>
               </motion.div>
             ))}

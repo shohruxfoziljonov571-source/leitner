@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
 const WeeklyChallenge: React.FC = () => {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const {
     challenge,
@@ -24,9 +26,9 @@ const WeeklyChallenge: React.FC = () => {
   const handleJoin = async () => {
     const success = await joinChallenge();
     if (success) {
-      toast.success('Challenge\'ga qo\'shildingiz! 🎉');
+      toast.success(t('challengeJoined') + ' 🎉');
     } else {
-      toast.error('Xatolik yuz berdi');
+      toast.error('Error');
     }
   };
 
@@ -55,16 +57,16 @@ const WeeklyChallenge: React.FC = () => {
             <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-base sm:text-lg truncate">Haftalik Challenge</h3>
+            <h3 className="font-bold text-base sm:text-lg truncate">{t('weeklyChallenge')}</h3>
             <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {daysLeft} kun qoldi
+                {t('daysLeft').replace('{count}', String(daysLeft))}
               </span>
               <span className="hidden xs:inline">•</span>
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {participants.length} ishtirokchi
+                {t('participants').replace('{count}', String(participants.length))}
               </span>
             </div>
           </div>
@@ -168,7 +170,7 @@ const WeeklyChallenge: React.FC = () => {
                 <span className="font-bold text-primary text-sm sm:text-base">#{userRank}</span>
               </div>
               <div className="min-w-0">
-                <p className="font-medium text-sm sm:text-base">Sizning o'rningiz</p>
+                <p className="font-medium text-sm sm:text-base">{t('yourRank')}</p>
                 <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" />
@@ -176,7 +178,7 @@ const WeeklyChallenge: React.FC = () => {
                   </span>
                   <span className="flex items-center gap-1">
                     <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-500" />
-                    {userParticipation.words_reviewed} so'z
+                    {userParticipation.words_reviewed} {t('words')}
                   </span>
                 </div>
               </div>
@@ -190,14 +192,14 @@ const WeeklyChallenge: React.FC = () => {
           className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg"
         >
           <Trophy className="w-4 h-4" />
-          Challenge'ga qo'shilish
+          {t('joinChallenge')}
         </Button>
       )}
 
       {/* Info */}
       {!userParticipation && (
         <p className="text-xs text-center text-muted-foreground mt-3">
-          Bu hafta eng ko'p XP yig'ing va g'olib bo'ling! 🏆
+          {t('challengeInfo')} 🏆
         </p>
       )}
     </motion.div>
