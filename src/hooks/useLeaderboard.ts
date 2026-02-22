@@ -26,78 +26,24 @@ export const useLeaderboard = () => {
     try {
       setIsLoading(true);
 
-      // Fetch stats and profiles in parallel
-      const [statsResult, profilesResult] = await Promise.all([
-        supabase
-          .from('user_stats')
-          .select('user_id, xp, level, streak, total_words'),
-        supabase
-          .from('profiles')
-          .select('user_id, full_name, avatar_url')
-      ]);
+      const { data, error } = await supabase.rpc('get_global_leaderboard', { p_limit: 50 });
 
-      if (statsResult.error) throw statsResult.error;
-      if (profilesResult.error) throw profilesResult.error;
+      if (error) throw error;
 
-      // Aggregate stats by user
-      const userStatsMap = new Map<string, {
-        xp: number;
-        level: number;
-        streak: number;
-        totalWords: number;
-      }>();
+      const leaderboard: LeaderboardEntry[] = (data || []).map((entry: any) => ({
+        userId: entry.user_id,
+        fullName: entry.full_name || 'Foydalanuvchi',
+        avatarUrl: entry.avatar_url || null,
+        xp: Number(entry.total_xp),
+        level: entry.max_level,
+        streak: entry.max_streak,
+        totalWords: Number(entry.total_words),
+        rank: Number(entry.rank),
+        isCurrentUser: entry.user_id === user.id,
+      }));
 
-      for (const stat of statsResult.data || []) {
-        const existing = userStatsMap.get(stat.user_id);
-        if (existing) {
-          existing.xp += stat.xp || 0;
-          existing.level = Math.max(existing.level, stat.level || 1);
-          existing.streak = Math.max(existing.streak, stat.streak || 0);
-          existing.totalWords += stat.total_words || 0;
-        } else {
-          userStatsMap.set(stat.user_id, {
-            xp: stat.xp || 0,
-            level: stat.level || 1,
-            streak: stat.streak || 0,
-            totalWords: stat.total_words || 0,
-          });
-        }
-      }
-
-      // Create profile map
-      const profileMap = new Map(
-        (profilesResult.data || []).map(p => [p.user_id, p])
-      );
-
-      // Build leaderboard - only include users who have stats
-      const leaderboard: LeaderboardEntry[] = [];
-      
-      for (const [userId, stats] of userStatsMap.entries()) {
-        const profile = profileMap.get(userId);
-        leaderboard.push({
-          userId,
-          fullName: profile?.full_name || 'Foydalanuvchi',
-          avatarUrl: profile?.avatar_url || null,
-          xp: stats.xp,
-          level: stats.level,
-          streak: stats.streak,
-          totalWords: stats.totalWords,
-          rank: 0,
-          isCurrentUser: userId === user.id,
-        });
-      }
-
-      // Sort by XP and assign ranks
-      leaderboard.sort((a, b) => b.xp - a.xp);
-      
-      let foundMyRank = false;
-      leaderboard.forEach((entry, index) => {
-        entry.rank = index + 1;
-        if (entry.isCurrentUser && !foundMyRank) {
-          setMyRank(entry.rank);
-          foundMyRank = true;
-        }
-      });
+      const myEntry = leaderboard.find(e => e.isCurrentUser);
+      if (myEntry) setMyRank(myEntry.rank);
 
       setGlobalLeaderboard(leaderboard);
     } catch (error) {
