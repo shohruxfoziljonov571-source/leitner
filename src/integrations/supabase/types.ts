@@ -1402,6 +1402,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_learned_words: {
+        Args: { p_delta?: number; p_language_id: string; p_user_id: string }
+        Returns: undefined
+      }
       generate_friend_code: { Args: never; Returns: string }
       get_active_contest: {
         Args: never

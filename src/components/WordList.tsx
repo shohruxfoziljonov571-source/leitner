@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Trash2, Volume2, Check, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import WordExport from '@/components/WordExport';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import {
@@ -91,15 +92,18 @@ const WordList: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="So'z qidirish..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search + Export */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="So'z qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <WordExport />
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -170,6 +174,13 @@ const WordList: React.FC = () => {
                       <p className="text-sm text-muted-foreground truncate">
                         {word.translated_word}
                       </p>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                        <span>📅 {new Date(word.created_at).toLocaleDateString()}</span>
+                        <span>🔄 {word.times_reviewed}x</span>
+                        {word.times_reviewed > 0 && (
+                          <span>✅ {Math.round((word.times_correct / word.times_reviewed) * 100)}%</span>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-1 ml-2">
