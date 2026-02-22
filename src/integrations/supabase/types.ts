@@ -1430,6 +1430,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_global_leaderboard: {
+        Args: { p_limit?: number }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          max_level: number
+          max_streak: number
+          rank: number
+          total_words: number
+          total_xp: number
+          user_id: string
+        }[]
+      }
       get_or_create_weekly_challenge: { Args: never; Returns: string }
       has_role: {
         Args: {
