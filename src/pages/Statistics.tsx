@@ -13,7 +13,7 @@ import AchievementBadge from '@/components/gamification/AchievementBadge';
 import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/LazyCharts';
 import StreakHeatmap from '@/components/statistics/StreakHeatmap';
 import DictationStats from '@/components/statistics/DictationStats';
-
+import ReviewForecast from '@/components/statistics/ReviewForecast';
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
@@ -142,11 +142,21 @@ const Statistics: React.FC = () => {
           />
         </div>
 
-        {/* Streak Heatmap */}
+        {/* Review Forecast */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <ReviewForecast />
+        </motion.div>
+
+        {/* Streak Heatmap */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.42 }}
           className="mb-8"
         >
           <StreakHeatmap />

@@ -364,6 +364,10 @@ export const useWordsDB = () => {
   const deleteWord = useCallback(async (wordId: string) => {
     if (!user || !activeLanguage) return;
 
+    // Check if word was mastered (box 5) before deleting
+    const wordToDelete = words.find(w => w.id === wordId);
+    const wasMastered = wordToDelete && wordToDelete.box_number >= 5;
+
     try {
       const { error } = await supabase
         .from('words')
@@ -381,11 +385,21 @@ export const useWordsDB = () => {
         p_delta: -1,
       });
 
-      setStats(prev => ({ ...prev, total_words: Math.max(0, prev.total_words - 1) }));
+      // If word was mastered, also decrement learned_words
+      if (wasMastered) {
+        await (supabase as any).rpc('decrement_learned_words', {
+          p_user_id: user.id,
+          p_language_id: activeLanguage.id,
+          p_delta: 1,
+        });
+        setStats(prev => ({ ...prev, total_words: Math.max(0, prev.total_words - 1), learned_words: Math.max(0, prev.learned_words - 1) }));
+      } else {
+        setStats(prev => ({ ...prev, total_words: Math.max(0, prev.total_words - 1) }));
+      }
     } catch (error) {
       console.error('Error deleting word:', error);
     }
-  }, [user, activeLanguage]);
+  }, [user, activeLanguage, words]);
 
   const reviewWord = useCallback(async (wordId: string, isCorrect: boolean) => {
     if (!user || !activeLanguage) return;

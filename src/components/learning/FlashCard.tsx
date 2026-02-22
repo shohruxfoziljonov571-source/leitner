@@ -13,7 +13,7 @@ interface FlashCardProps {
   isReversed?: boolean;
 }
 
-const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = false }) => {
+const FlashCard = React.forwardRef<HTMLDivElement, FlashCardProps>(({ word, onAnswer, isReversed = false }, ref) => {
   const { t } = useLanguage();
   const [isFlipped, setIsFlipped] = useState(false);
   const [answered, setAnswered] = useState<boolean | null>(null);
@@ -218,6 +218,8 @@ const FlashCard: React.FC<FlashCardProps> = ({ word, onAnswer, isReversed = fals
       </div>
     </motion.div>
   );
-};
+});
+
+FlashCard.displayName = 'FlashCard';
 
 export default FlashCard;
