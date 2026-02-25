@@ -200,8 +200,10 @@ serve(async (req) => {
       );
     }
 
-    // Check auth_date freshness — reject data older than 5 minutes
-    const MAX_AUTH_AGE_SECONDS = 300;
+    // Check auth_date freshness — reject data older than 24 hours
+    // Note: Telegram generates initData once when Mini App opens.
+    // Users may keep the app open for hours, so we use a generous window.
+    const MAX_AUTH_AGE_SECONDS = 86400; // 24 hours
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (!authDate || nowSeconds - authDate > MAX_AUTH_AGE_SECONDS) {
       return new Response(
@@ -317,15 +319,7 @@ serve(async (req) => {
       return await signInAndRespond(existingProfile.user_id);
     }
 
-    // 4. Check by email using admin API (NOT listUsers!)
-    const { data: existingUserData } =
-      await supabaseAdmin.auth.admin.getUserByEmail(email);
-
-    if (existingUserData?.user) {
-      return await signInAndRespond(existingUserData.user.id);
-    }
-
-    // 5. Create new user
+    // 4. Try to create user — if already exists, find and sign in
     const { data: newUser, error: createError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -339,8 +333,37 @@ serve(async (req) => {
         },
       });
 
-    if (createError || !newUser.user) {
-      console.error("Create user error:", createError);
+    if (createError) {
+      // User already exists with this email — find by email and sign in
+      // Use signInWithPassword after updating password via admin lookup
+      console.log("User creation failed (likely exists):", createError.message);
+
+      // Find user via admin listUsers (filtered client-side — safe because
+      // we only reach here when profile had no telegram_chat_id)
+      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+
+      const existingUser = listData?.users?.find(
+        (u: any) => u.email === email
+      );
+
+      if (existingUser) {
+        return await signInAndRespond(existingUser.id);
+      }
+
+      // Truly unexpected — user can't be created or found
+      return new Response(
+        JSON.stringify({ error: "Failed to create or find user" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!newUser.user) {
       return new Response(
         JSON.stringify({ error: "Failed to create user" }),
         {
@@ -350,7 +373,7 @@ serve(async (req) => {
       );
     }
 
-    // Wait for profile trigger with retry instead of fixed delay
+    // New user created — wait for profile trigger
     await waitForProfile(supabaseAdmin, newUser.user.id);
 
     // Update profile with Telegram data
