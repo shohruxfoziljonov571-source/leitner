@@ -124,85 +124,37 @@ export const useTelegramWebApp = () => {
     setIsAuthenticating(true);
 
     try {
-      // Check if user already exists with this telegram_chat_id
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('telegram_chat_id', user.id)
-        .maybeSingle();
-
-      if (existingProfile) {
-        // User already linked - try to sign in
-        // For now, we'll need a custom auth solution or magic link
-        console.log('User already linked:', existingProfile.user_id);
-        return existingProfile.user_id;
-      }
-
-      // Create new user with Telegram data
-      const email = `${user.id}@leitner.uz`;
-      const password = `tg_${user.id}_leitner_stable_key`;
+      // All auth is now handled by AuthContext via the telegram-auth edge function.
+      // This method is kept for backward compatibility but delegates to the edge function.
+      const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/telegram-auth`;
       
-      // Try to sign up
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
-            telegram_id: user.id,
-            telegram_username: user.username,
-            avatar_url: user.photo_url,
-          }
-        }
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: webApp.initData }),
       });
 
-      if (signUpError) {
-        // User might already exist, try to sign in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      if (!resp.ok) {
+        console.error('Telegram auth failed:', resp.status);
+        return null;
+      }
 
-        if (signInError) {
-          console.error('Error signing in:', signInError);
+      const result = await resp.json();
+      
+      if (result.access_token && result.refresh_token) {
+        const { error } = await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        });
+        if (error) {
+          console.error('Failed to set session:', error);
           return null;
         }
-
-        // Update profile with latest Telegram data
-        if (signInData.user) {
-          await supabase
-            .from('profiles')
-            .update({
-              telegram_chat_id: user.id,
-              telegram_username: user.username,
-              full_name: `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
-              avatar_url: user.photo_url,
-              telegram_connected_at: new Date().toISOString(),
-            })
-            .eq('user_id', signInData.user.id);
-        }
-
-        return signInData.user?.id;
+        return result.user?.id;
       }
 
-      // Update the newly created profile with Telegram data
-      if (signUpData.user) {
-        // Wait a bit for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        await supabase
-          .from('profiles')
-          .update({
-            telegram_chat_id: user.id,
-            telegram_username: user.username,
-            full_name: `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`,
-            avatar_url: user.photo_url,
-            telegram_connected_at: new Date().toISOString(),
-          })
-          .eq('user_id', signUpData.user.id);
-      }
-
-      return signUpData.user?.id;
+      return null;
     } catch (error) {
       console.error('Error authenticating with Telegram:', error);
       return null;
