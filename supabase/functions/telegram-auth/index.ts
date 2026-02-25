@@ -265,7 +265,7 @@ serve(async (req) => {
     // Helper to sign in and return response
     async function signInAndRespond(userId: string) {
       // Update password to current deterministic one
-      await supabaseAdmin.auth.admin.updateUser(userId, {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
         password,
         email_confirm: true,
       });
