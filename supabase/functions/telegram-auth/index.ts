@@ -16,10 +16,8 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     const hash = params.get("hash");
     if (!hash) return false;
 
-    // Remove hash from data check string
     params.delete("hash");
 
-    // Sort keys alphabetically and build data-check-string
     const dataCheckArr: string[] = [];
     const sortedKeys = Array.from(params.keys()).sort();
     for (const key of sortedKeys) {
@@ -27,7 +25,6 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     }
     const dataCheckString = dataCheckArr.join("\n");
 
-    // HMAC-SHA256: key = HMAC-SHA256("WebAppData", bot_token)
     const encoder = new TextEncoder();
 
     const secretKey = await crypto.subtle.importKey(
@@ -58,7 +55,6 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
       encoder.encode(dataCheckString)
     );
 
-    // Convert to hex
     const signatureHex = Array.from(new Uint8Array(signatureBytes))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -68,6 +64,21 @@ async function validateTelegramInitData(initData: string, botToken: string): Pro
     console.error("HMAC validation error:", err);
     return false;
   }
+}
+
+/**
+ * Generate a deterministic password from telegramId + bot token.
+ * Used only server-side — never exposed to clients.
+ */
+async function generateSecurePassword(telegramId: number, botToken: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`tg_auth_${telegramId}_${botToken}`);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashHex = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  // Use first 32 chars of SHA-256 hash as password — strong and deterministic
+  return `tg_${hashHex.slice(0, 32)}`;
 }
 
 serve(async (req) => {
@@ -96,18 +107,17 @@ serve(async (req) => {
       );
     }
 
-    // 1. HMAC validation — this is the core security check
+    // 1. HMAC validation
     const isValid = await validateTelegramInitData(initData, TELEGRAM_BOT_TOKEN);
 
     if (!isValid) {
-      console.warn("Invalid Telegram initData received");
       return new Response(
         JSON.stringify({ error: "Invalid Telegram data" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 2. Parse user data from initData
+    // 2. Parse user data
     const params = new URLSearchParams(initData);
     const userJson = params.get("user");
     if (!userJson) {
@@ -127,30 +137,49 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const email = `${telegramId}@leitner.uz`;
-    // Secure password: HMAC-derived, never guessable from Telegram ID alone
     const fullName = `${first_name}${last_name ? " " + last_name : ""}`;
+    const password = await generateSecurePassword(telegramId, TELEGRAM_BOT_TOKEN);
 
-    // 3. Try sign in first (existing user)
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: generateSecurePassword(telegramId, TELEGRAM_BOT_TOKEN),
-    });
+    // 3. Check if user exists by looking up profile with telegram_chat_id
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id")
+      .eq("telegram_chat_id", telegramId)
+      .maybeSingle();
 
-    if (!signInError && signInData.user && signInData.session) {
+    if (existingProfile) {
+      // Existing user — update password to current deterministic one (handles old password migration)
+      await supabaseAdmin.auth.admin.updateUser(existingProfile.user_id, {
+        password,
+        email_confirm: true,
+      });
+
+      // Sign in with updated password
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError || !signInData.session) {
+        console.error("Sign-in error for existing user:", signInError);
+        return new Response(
+          JSON.stringify({ error: "Authentication failed" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Update profile with latest Telegram data
-      await supabase
+      await supabaseAdmin
         .from("profiles")
         .update({
-          telegram_chat_id: telegramId,
           telegram_username: username || null,
           full_name: fullName,
           avatar_url: photo_url || null,
           telegram_connected_at: new Date().toISOString(),
         })
-        .eq("user_id", signInData.user.id);
+        .eq("user_id", existingProfile.user_id);
 
       return new Response(
         JSON.stringify({
@@ -162,11 +191,56 @@ serve(async (req) => {
       );
     }
 
-    // 4. Sign up new user
-    const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+    // 4. Also check by email (user may exist without telegram_chat_id set)
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find((u) => u.email === email);
+
+    if (existingUser) {
+      // User exists by email — update password and profile
+      await supabaseAdmin.auth.admin.updateUser(existingUser.id, {
+        password,
+        email_confirm: true,
+      });
+
+      // Update profile
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          telegram_chat_id: telegramId,
+          telegram_username: username || null,
+          full_name: fullName,
+          avatar_url: photo_url || null,
+          telegram_connected_at: new Date().toISOString(),
+        })
+        .eq("user_id", existingUser.id);
+
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError || !signInData.session) {
+        return new Response(
+          JSON.stringify({ error: "Authentication failed" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          access_token: signInData.session.access_token,
+          refresh_token: signInData.session.refresh_token,
+          user: signInData.user,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 5. Create new user via admin API (no password exposed to client)
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: generateSecurePassword(telegramId, TELEGRAM_BOT_TOKEN),
-      email_confirm: true, // Auto-confirm for Telegram users
+      password,
+      email_confirm: true,
       user_metadata: {
         full_name: fullName,
         telegram_id: telegramId,
@@ -175,8 +249,8 @@ serve(async (req) => {
       },
     });
 
-    if (signUpError || !signUpData.user) {
-      console.error("Sign up error:", signUpError);
+    if (createError || !newUser.user) {
+      console.error("Create user error:", createError);
       return new Response(
         JSON.stringify({ error: "Failed to create user" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -187,7 +261,7 @@ serve(async (req) => {
     await new Promise((r) => setTimeout(r, 1500));
 
     // Update profile with Telegram data
-    await supabase
+    await supabaseAdmin
       .from("profiles")
       .update({
         telegram_chat_id: telegramId,
@@ -196,23 +270,23 @@ serve(async (req) => {
         avatar_url: photo_url || null,
         telegram_connected_at: new Date().toISOString(),
       })
-      .eq("user_id", signUpData.user.id);
+      .eq("user_id", newUser.user.id);
 
     // Enable telegram notifications
-    await supabase
+    await supabaseAdmin
       .from("notification_settings")
       .upsert(
-        { user_id: signUpData.user.id, telegram_enabled: true },
+        { user_id: newUser.user.id, telegram_enabled: true },
         { onConflict: "user_id" }
       );
 
-    // Sign in after signup to get session tokens
-    const { data: newSignIn, error: newSignInError } = await supabase.auth.signInWithPassword({
+    // Sign in to get session tokens
+    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email,
-      password: generateSecurePassword(telegramId, TELEGRAM_BOT_TOKEN),
+      password,
     });
 
-    if (newSignInError || !newSignIn.session) {
+    if (signInError || !signInData.session) {
       return new Response(
         JSON.stringify({ error: "Authentication failed after signup" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -221,9 +295,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        access_token: newSignIn.session.access_token,
-        refresh_token: newSignIn.session.refresh_token,
-        user: newSignIn.user,
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+        user: signInData.user,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -235,13 +309,3 @@ serve(async (req) => {
     );
   }
 });
-
-/**
- * Generates a secure, deterministic password derived from telegramId + bot token.
- * This is never exposed to clients and can't be guessed without the bot token.
- */
-function generateSecurePassword(telegramId: number, botToken: string): string {
-  // Use a portion of the bot token as salt — never guessable
-  const salt = botToken.split(":")[1]?.slice(0, 16) || "leitner_salt_2024";
-  return `tg_${telegramId}_${salt}_secure`;
-}
