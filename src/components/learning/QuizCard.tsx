@@ -30,16 +30,16 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
 
-  const questionWord = isReversed ? word.translatedWord : word.originalWord;
-  const correctAnswer = isReversed ? word.originalWord : word.translatedWord;
-  const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
-  const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
+  const questionWord = isReversed ? word.translated_word : word.original_word;
+  const correctAnswer = isReversed ? word.original_word : word.translated_word;
+  const questionLang = isReversed ? word.target_language : word.source_language;
+  const answerLang = isReversed ? word.source_language : word.target_language;
 
   // Generate 4 options (1 correct + 3 wrong)
   const options = useMemo(() => {
     const wrongAnswers = allWords
       .filter(w => w.id !== word.id)
-      .map(w => isReversed ? w.originalWord : w.translatedWord)
+      .map(w => isReversed ? w.original_word : w.translated_word)
       .filter((answer, index, self) => self.indexOf(answer) === index); // Remove duplicates
     
     const shuffledWrong = shuffleArray(wrongAnswers).slice(0, 3);
@@ -98,11 +98,11 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
         <div
           className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
-            backgroundColor: `hsl(var(--box-${word.boxNumber}) / 0.15)`,
-            color: `hsl(var(--box-${word.boxNumber}))`,
+            backgroundColor: `hsl(var(--box-${word.box_number}) / 0.15)`,
+            color: `hsl(var(--box-${word.box_number}))`,
           }}
         >
-          {t('box')} {word.boxNumber}
+          {t('box')} {word.box_number}
         </div>
 
         {/* Language badges */}
@@ -178,7 +178,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ word, allWords, onAnswer, isReverse
 
       <div className="mt-3 text-center">
         <p className="text-xs text-muted-foreground">
-          {word.timesReviewed} marta takrorlangan
+          {word.times_reviewed} marta takrorlangan
         </p>
       </div>
     </motion.div>

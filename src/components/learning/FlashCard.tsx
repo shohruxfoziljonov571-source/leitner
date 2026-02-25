@@ -19,10 +19,10 @@ const FlashCard = React.forwardRef<HTMLDivElement, FlashCardProps>(({ word, onAn
   const [answered, setAnswered] = useState<boolean | null>(null);
   const { speak, isSpeaking, isSupported, stop } = useSpeech();
 
-  const questionWord = isReversed ? word.translatedWord : word.originalWord;
-  const answerWord = isReversed ? word.originalWord : word.translatedWord;
-  const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
-  const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
+  const questionWord = isReversed ? word.translated_word : word.original_word;
+  const answerWord = isReversed ? word.original_word : word.translated_word;
+  const questionLang = isReversed ? word.target_language : word.source_language;
+  const answerLang = isReversed ? word.source_language : word.target_language;
 
   // Swipe gesture
   const x = useMotionValue(0);
@@ -106,11 +106,11 @@ const FlashCard = React.forwardRef<HTMLDivElement, FlashCardProps>(({ word, onAn
         <div
           className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
-            backgroundColor: `hsl(var(--box-${word.boxNumber}) / 0.15)`,
-            color: `hsl(var(--box-${word.boxNumber}))`,
+            backgroundColor: `hsl(var(--box-${word.box_number}) / 0.15)`,
+            color: `hsl(var(--box-${word.box_number}))`,
           }}
         >
-          {t('box')} {word.boxNumber}
+          {t('box')} {word.box_number}
         </div>
 
         <div className="flex items-center gap-2 mb-4">
@@ -173,10 +173,10 @@ const FlashCard = React.forwardRef<HTMLDivElement, FlashCardProps>(({ word, onAn
                 </div>
               </div>
 
-              {word.exampleSentences.length > 0 && (
+              {(word.example_sentences || []).length > 0 && (
                 <div className="mb-4 p-3 bg-muted/50 rounded-xl">
                   <p className="text-xs text-muted-foreground mb-1">{t('examples')}</p>
-                  {word.exampleSentences.map((sentence, index) => (
+                  {(word.example_sentences || []).map((sentence, index) => (
                     <p key={index} className="text-xs text-foreground italic">• {sentence}</p>
                   ))}
                 </div>
@@ -213,7 +213,7 @@ const FlashCard = React.forwardRef<HTMLDivElement, FlashCardProps>(({ word, onAn
 
       <div className="mt-3 text-center">
         <p className="text-xs text-muted-foreground">
-          {word.timesReviewed} {t('reviewsToday').toLowerCase()}
+          {word.times_reviewed} {t('reviewsToday').toLowerCase()}
         </p>
       </div>
     </motion.div>

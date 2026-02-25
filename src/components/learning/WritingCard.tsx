@@ -23,10 +23,10 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
   const [showHint, setShowHint] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const questionWord = isReversed ? word.translatedWord : word.originalWord;
-  const correctAnswer = isReversed ? word.originalWord : word.translatedWord;
-  const questionLang = isReversed ? word.targetLanguage : word.sourceLanguage;
-  const answerLang = isReversed ? word.sourceLanguage : word.targetLanguage;
+  const questionWord = isReversed ? word.translated_word : word.original_word;
+  const correctAnswer = isReversed ? word.original_word : word.translated_word;
+  const questionLang = isReversed ? word.target_language : word.source_language;
+  const answerLang = isReversed ? word.source_language : word.target_language;
 
   // Auto-focus only on non-touch devices to avoid keyboard popping up unexpectedly on mobile
   useEffect(() => {
@@ -97,11 +97,11 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
         <div
           className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-medium"
           style={{
-            backgroundColor: `hsl(var(--box-${word.boxNumber}) / 0.15)`,
-            color: `hsl(var(--box-${word.boxNumber}))`,
+            backgroundColor: `hsl(var(--box-${word.box_number}) / 0.15)`,
+            color: `hsl(var(--box-${word.box_number}))`,
           }}
         >
-          Box {word.boxNumber}
+          Box {word.box_number}
         </div>
 
         {/* Language badges */}
@@ -216,21 +216,21 @@ const WritingCard: React.FC<WritingCardProps> = ({ word, onAnswer, isReversed = 
         </div>
 
         {/* Example sentences (shown after answering) */}
-        {result && word.exampleSentences.length > 0 && (
+        {result && (word.example_sentences || []).length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mt-4 p-3 bg-muted/50 rounded-xl"
           >
             <p className="text-xs text-muted-foreground mb-1">Misol:</p>
-            <p className="text-sm italic text-foreground">• {word.exampleSentences[0]}</p>
+            <p className="text-sm italic text-foreground">• {(word.example_sentences || [])[0]}</p>
           </motion.div>
         )}
       </div>
 
       <div className="mt-3 text-center">
         <p className="text-xs text-muted-foreground">
-          {word.timesReviewed} marta takrorlangan
+          {word.times_reviewed} marta takrorlangan
         </p>
       </div>
     </motion.div>
