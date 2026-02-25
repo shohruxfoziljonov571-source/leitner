@@ -140,7 +140,7 @@ export const useTelegramWebApp = () => {
 
       // Create new user with Telegram data
       const email = `${user.id}@leitner.uz`;
-      const password = `tg_${user.id}_${webApp.initDataUnsafe.auth_date || Date.now()}`;
+      const password = `tg_${user.id}_leitner_stable_key`;
       
       // Try to sign up
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
