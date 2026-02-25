@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   isTelegramUser: boolean;
   telegramUser: TelegramUser | null;
+  telegramAuthError: string | null;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -34,8 +35,6 @@ const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
 /**
  * Authenticates with Telegram using server-side HMAC validation.
- * The raw initData is sent to the edge function which validates it
- * cryptographically using the bot token — clients never see the password.
  */
 async function authenticateWithTelegramServer(initData: string): Promise<{
   access_token: string;
@@ -69,15 +68,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [isTelegramUser, setIsTelegramUser] = useState(false);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
+  const [telegramAuthError, setTelegramAuthError] = useState<string | null>(null);
+  
+  // Prevent double initialization in React Strict Mode
+  const initRef = useRef(false);
 
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
     });
 
     const initialize = async () => {
+      // Guard against double init (React Strict Mode)
+      if (initRef.current) return;
+      initRef.current = true;
+
       const tgWebApp = getTelegramWebApp();
 
       if (tgWebApp?.initDataUnsafe?.user && tgWebApp.initData) {
@@ -93,7 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const expectedEmail = `${tgUser.id}@leitner.uz`;
 
         if (existingSession && existingSession.user.email === expectedEmail) {
-          // Valid session for correct user — just refresh profile
+          // Valid session for correct user
           setSession(existingSession);
           setUser(existingSession.user);
 
@@ -105,7 +112,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             telegram_connected_at: new Date().toISOString(),
           }).eq('user_id', existingSession.user.id);
         } else {
-          // No valid session or wrong user — authenticate via secure edge function
+          // No valid session or wrong user — authenticate via edge function
           if (existingSession) {
             await supabase.auth.signOut();
           }
@@ -113,7 +120,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const authResult = await authenticateWithTelegramServer(tgWebApp.initData);
 
           if (authResult) {
-            // Set session using tokens returned from the server
             const { error } = await supabase.auth.setSession({
               access_token: authResult.access_token,
               refresh_token: authResult.refresh_token,
@@ -121,7 +127,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             if (error) {
               console.error('Failed to set session:', error);
+              setTelegramAuthError('Sessiya o\'rnatishda xatolik yuz berdi');
             }
+          } else {
+            setTelegramAuthError('Telegram orqali kirish muvaffaqiyatsiz bo\'ldi. Iltimos, ilovani qayta oching.');
           }
         }
       } else {
@@ -168,6 +177,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading,
       isTelegramUser,
       telegramUser,
+      telegramAuthError,
       signUp,
       signIn,
       signOut,
