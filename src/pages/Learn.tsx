@@ -112,24 +112,8 @@ const Learn: React.FC = () => {
     return shuffledWordsWithDirection.filter(item => !reviewedIds.has(item.word.id));
   }, [shuffledWordsWithDirection, reviewedIds]);
 
-  // All words for quiz options
-  const allTransformedWords = useMemo(() => {
-    return words.map(w => ({
-      id: w.id,
-      originalWord: w.original_word,
-      translatedWord: w.translated_word,
-      sourceLanguage: w.source_language as 'ru' | 'en',
-      targetLanguage: w.target_language as 'uz' | 'ru' | 'en',
-      exampleSentences: w.example_sentences || [],
-      boxNumber: w.box_number as 1 | 2 | 3 | 4 | 5,
-      nextReviewTime: new Date(w.next_review_time),
-      timesReviewed: w.times_reviewed,
-      timesCorrect: w.times_correct,
-      timesIncorrect: w.times_incorrect,
-      createdAt: new Date(w.created_at),
-      lastReviewed: w.last_reviewed ? new Date(w.last_reviewed) : null,
-    }));
-  }, [words]);
+  // Words already in snake_case — no transformation needed
+  const allWords = words;
 
   const currentWordItem = wordsForReview[0];
   const totalToReview = shuffledWordsWithDirection.length;
@@ -406,23 +390,8 @@ const Learn: React.FC = () => {
     );
   }
 
-  // Transform word for FlashCard/QuizCard component
-  const currentWord = currentWordItem?.word;
-  const transformedWord = currentWord ? {
-    id: currentWord.id,
-    originalWord: currentWord.original_word,
-    translatedWord: currentWord.translated_word,
-    sourceLanguage: currentWord.source_language as 'ru' | 'en',
-    targetLanguage: currentWord.target_language as 'uz' | 'ru' | 'en',
-    exampleSentences: currentWord.example_sentences || [],
-    boxNumber: currentWord.box_number as 1 | 2 | 3 | 4 | 5,
-    nextReviewTime: new Date(currentWord.next_review_time),
-    timesReviewed: currentWord.times_reviewed,
-    timesCorrect: currentWord.times_correct,
-    timesIncorrect: currentWord.times_incorrect,
-    createdAt: new Date(currentWord.created_at),
-    lastReviewed: currentWord.last_reviewed ? new Date(currentWord.last_reviewed) : null,
-  } : null;
+  // Use word directly — no transformation needed (snake_case throughout)
+  const currentWord = currentWordItem?.word ?? null;
 
   const getModeLabel = () => {
     switch (learningMode) {
@@ -482,7 +451,7 @@ const Learn: React.FC = () => {
             <div className="flex items-center gap-2 shrink-0">
               {learningMode === 'speed' && (
                 <SpeedModeTimer
-                  isActive={!isOnBreak && !!transformedWord}
+                  isActive={!isOnBreak && !!currentWord}
                   onTimeout={handleSpeedTimeout}
                   timeLimit={10}
                   resetTrigger={speedResetTrigger}
@@ -527,27 +496,27 @@ const Learn: React.FC = () => {
 
         {/* Card based on mode */}
         <AnimatePresence mode="wait">
-          {transformedWord && (learningMode === 'flashcard') && (
+          {currentWord && (learningMode === 'flashcard') && (
             <FlashCard
-              key={transformedWord.id}
-              word={transformedWord}
+              key={currentWord.id}
+              word={currentWord}
               onAnswer={handleAnswer}
               isReversed={currentWordItem?.isReversed}
             />
           )}
-          {transformedWord && (learningMode === 'quiz' || learningMode === 'speed') && (
+          {currentWord && (learningMode === 'quiz' || learningMode === 'speed') && (
             <QuizCard
-              key={transformedWord.id}
-              word={transformedWord}
-              allWords={allTransformedWords}
+              key={currentWord.id}
+              word={currentWord}
+              allWords={allWords}
               onAnswer={handleAnswer}
               isReversed={currentWordItem?.isReversed}
             />
           )}
-          {transformedWord && learningMode === 'writing' && (
+          {currentWord && learningMode === 'writing' && (
             <WritingCard
-              key={transformedWord.id}
-              word={transformedWord}
+              key={currentWord.id}
+              word={currentWord}
               onAnswer={handleAnswer}
               isReversed={currentWordItem?.isReversed}
             />

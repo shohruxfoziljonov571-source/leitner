@@ -1,7 +1,7 @@
-/**
- * Word type matching database schema (snake_case).
- * Used by learning components (FlashCard, QuizCard, WritingCard).
- */
+import { BOX_INTERVALS } from '@/types/word';
+
+export { BOX_INTERVALS };
+
 export interface Word {
   id: string;
   original_word: string;
@@ -27,11 +27,3 @@ export interface UserStats {
   last_active_date: string;
   daily_goal: number;
 }
-
-export const BOX_INTERVALS = {
-  1: 1 * 60 * 60 * 1000,        // 1 hour
-  2: 5 * 60 * 60 * 1000,        // 5 hours
-  3: 24 * 60 * 60 * 1000,       // 1 day
-  4: 5 * 24 * 60 * 60 * 1000,   // 5 days
-  5: 30 * 24 * 60 * 60 * 1000,  // 30 days
-} as const;
