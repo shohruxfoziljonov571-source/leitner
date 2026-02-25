@@ -23,7 +23,7 @@ const Auth: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  const { signIn, signUp, user, isLoading, isTelegramUser, telegramUser } = useAuth();
+  const { signIn, signUp, user, isLoading, isTelegramUser, telegramUser, telegramAuthError } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -65,6 +65,36 @@ const Auth: React.FC = () => {
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-2 h-2 bg-primary rounded-full" />
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-2 h-2 bg-primary rounded-full" />
           </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Show Telegram auth error with retry option
+  if (telegramAuthError && isTelegramUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-background to-primary/5">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center max-w-md"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', damping: 10 }}
+            className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-destructive/10 flex items-center justify-center"
+          >
+            <BookOpen className="w-10 h-10 text-destructive" />
+          </motion.div>
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Xatolik yuz berdi</h2>
+          <p className="text-muted-foreground mb-6">{telegramAuthError}</p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="gradient-primary text-primary-foreground shadow-elevated"
+          >
+            Qayta urinish
+          </Button>
         </motion.div>
       </div>
     );

@@ -31,7 +31,14 @@ export const useWordsDB = () => {
   useEffect(() => {
     if (userId && languageId) {
       setIsLoading(true);
-      Promise.all([fetchWords(), fetchStats()]).finally(() => {
+      // Use Promise.allSettled to handle partial failures gracefully
+      Promise.allSettled([fetchWords(), fetchStats()]).then((results) => {
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            console.error('Failed to fetch data:', result.reason);
+          }
+        }
+      }).finally(() => {
         setIsLoading(false);
       });
     } else {
@@ -39,7 +46,7 @@ export const useWordsDB = () => {
       setStats(getDefaultStats());
       setIsLoading(false);
     }
-  }, [userId, languageId]);
+  }, [userId, languageId, fetchWords, fetchStats]);
 
   return {
     words,
