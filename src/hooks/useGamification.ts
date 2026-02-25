@@ -156,8 +156,7 @@ export const useGamification = () => {
           .eq('user_language_id', activeLanguage.id),
 
         // increment_daily_xp: atomic INSERT ... ON CONFLICT DO UPDATE SET xp_earned += p_xp
-        // Cast to any because types.ts is auto-generated and can't be edited
-        (supabase as any).rpc('increment_daily_xp', {
+        supabase.rpc('increment_daily_xp', {
           p_user_id: user.id,
           p_language_id: activeLanguage.id,
           p_date: today,
