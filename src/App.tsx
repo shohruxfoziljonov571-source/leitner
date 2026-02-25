@@ -27,6 +27,7 @@ const Dictation = lazy(() => import("@/pages/Dictation"));
 const Books = lazy(() => import("@/pages/Books"));
 const Mnemonics = lazy(() => import("@/pages/Mnemonics"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const Install = lazy(() => import("@/pages/Install"));
 
 // Loading component for Suspense
 const PageLoader = () => (
@@ -115,6 +116,7 @@ const AppRoutes = () => {
             <Route path="/dictation" element={<ProtectedRoute><Dictation /></ProtectedRoute>} />
             <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
             <Route path="/mnemonics" element={<ProtectedRoute><Mnemonics /></ProtectedRoute>} />
+            <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
