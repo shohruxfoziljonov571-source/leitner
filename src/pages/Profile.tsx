@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -164,18 +163,15 @@ const Profile: React.FC = () => {
     };
   };
 
-  // Avatar upload funksiyasi
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
-    // Fayl hajmi tekshiruvi (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Rasm hajmi 5MB dan oshmasligi kerak');
       return;
     }
 
-    // Fayl turi tekshiruvi
     if (!file.type.startsWith('image/')) {
       toast.error('Faqat rasm fayllari qabul qilinadi');
       return;
@@ -186,21 +182,18 @@ const Profile: React.FC = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/avatar.${fileExt}`;
 
-      // Eski avatarni o'chirib yangi rasmni yuklash
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Public URL olish
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
-      const publicUrl = urlData.publicUrl + '?t=' + Date.now(); // cache busting
+      const publicUrl = urlData.publicUrl + '?t=' + Date.now();
 
-      // Profilga URL ni saqlash
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -215,7 +208,6 @@ const Profile: React.FC = () => {
       toast.error('Rasm yuklanmadi: ' + (error?.message || 'Xatolik yuz berdi'));
     } finally {
       setIsUploadingAvatar(false);
-      // Input ni tozalash — xuddi shu faylni qayta tanlash imkonini berish uchun
       if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
@@ -261,7 +253,6 @@ const Profile: React.FC = () => {
 
       if (error) throw error;
 
-      // Also disable notifications
       await supabase
         .from('notification_settings')
         .update({ telegram_enabled: false })
@@ -294,38 +285,36 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-      <div className="container mx-auto px-4 py-6 max-w-lg">
-        {/* Header */}
+      <div className="container mx-auto px-4 py-5 max-w-lg">
+        {/* Header — compact */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <h1 className="font-display font-bold text-3xl text-foreground mb-2">
-            Profil 👤
+          <h1 className="font-display font-bold text-xl text-foreground">
+            Profil
           </h1>
-          <p className="text-muted-foreground">Shaxsiy ma'lumotlaringiz</p>
         </motion.div>
 
-        {/* Avatar */}
+        {/* Avatar — compact */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-col items-center mb-8"
+          className="flex items-center gap-4 mb-6"
         >
-          <div className="relative">
-            <Avatar className="w-24 h-24 border-4 border-primary/20 shadow-elevated">
+          <div className="relative shrink-0">
+            <Avatar className="w-16 h-16 border-2 border-primary/20 shadow-card">
               {displayAvatar ? (
-                <AvatarImage src={displayAvatar} alt={displayName} />
+                <AvatarImage src={displayAvatar as string} alt={displayName} />
               ) : null}
-              <AvatarFallback className="gradient-primary text-primary-foreground text-3xl">
-                {displayName ? displayName.charAt(0).toUpperCase() : <User className="w-12 h-12" />}
+              <AvatarFallback className="gradient-primary text-primary-foreground text-xl">
+                {displayName ? displayName.charAt(0).toUpperCase() : <User className="w-8 h-8" />}
               </AvatarFallback>
             </Avatar>
             {!isTelegramUser && (
               <>
-                {/* Hidden file input */}
                 <input
                   ref={avatarInputRef}
                   type="file"
@@ -336,31 +325,30 @@ const Profile: React.FC = () => {
                 <button
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-60"
-                  title="Rasmni o'zgartirish"
+                  className="absolute -bottom-1 -right-1 w-7 h-7 bg-card rounded-full shadow-card flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-60"
                 >
                   {isUploadingAvatar ? (
-                    <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
                   ) : (
-                    <Camera className="w-4 h-4 text-muted-foreground" />
+                    <Camera className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
                 </button>
               </>
             )}
           </div>
           
-          {/* Telegram Badge */}
-          {isTelegramUser && telegramUser && (
-            <div className="mt-3 flex items-center gap-2">
-              <Badge variant="secondary" className="bg-[#0088cc]/10 text-[#0088cc] gap-1">
-                <Send className="w-3 h-3" />
-                Telegram orqali
-              </Badge>
-              {telegramUser.username && (
-                <span className="text-sm text-muted-foreground">@{telegramUser.username}</span>
-              )}
-            </div>
-          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="font-semibold text-foreground truncate">{displayName || 'Foydalanuvchi'}</h2>
+            <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+            {isTelegramUser && telegramUser && (
+              <div className="mt-1 flex items-center gap-1.5">
+                <Send className="w-3 h-3 text-[hsl(var(--telegram))]" />
+                <span className="text-xs text-muted-foreground">
+                  {telegramUser.username ? `@${telegramUser.username}` : 'Telegram orqali'}
+                </span>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Profile Form */}
@@ -371,22 +359,7 @@ const Profile: React.FC = () => {
           className="bg-card rounded-2xl shadow-card p-5 mb-4 space-y-4"
         >
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              value={user?.email || ''}
-              disabled
-              className="bg-muted"
-            />
-            {isTelegramUser && (
-              <p className="text-xs text-muted-foreground">
-                Telegram orqali avtomatik yaratilgan
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Ism</Label>
+            <Label htmlFor="fullName" className="text-sm">Ism</Label>
             <Input
               id="fullName"
               value={fullName}
@@ -397,7 +370,7 @@ const Profile: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
+            <Label htmlFor="bio" className="text-sm">Bio</Label>
             <Textarea
               id="bio"
               value={bio}
@@ -430,8 +403,8 @@ const Profile: React.FC = () => {
           className="bg-card rounded-2xl shadow-card p-5 mb-4"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#0088cc]/10 flex items-center justify-center">
-              <Send className="w-5 h-5 text-[#0088cc]" />
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <Send className="w-5 h-5 text-secondary" />
             </div>
             <div className="flex-1">
               <h3 className="font-medium">Telegram</h3>
@@ -444,54 +417,43 @@ const Profile: React.FC = () => {
               </p>
             </div>
             {(isTelegramConnected || isTelegramUser) && (
-              <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Check className="w-4 h-4 text-green-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Check className="w-4 h-4 text-primary" />
               </div>
             )}
           </div>
 
           {isTelegramConnected || isTelegramUser ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Telegram Info Card */}
-              <div className="p-4 bg-[#0088cc]/5 rounded-xl border border-[#0088cc]/10">
-                <div className="flex items-center gap-3 mb-3">
-                  <Avatar className="w-10 h-10">
-                    {displayAvatar && <AvatarImage src={displayAvatar} />}
-                    <AvatarFallback className="bg-[#0088cc] text-white">
+              <div className="p-3 bg-secondary/5 rounded-xl border border-secondary/10">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-9 h-9">
+                    {displayAvatar && <AvatarImage src={displayAvatar as string} />}
+                    <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
                       {displayName?.charAt(0)?.toUpperCase() || 'T'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">{displayName || 'Telegram foydalanuvchi'}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{displayName || 'Telegram foydalanuvchi'}</p>
+                    <p className="text-xs text-muted-foreground">
                       @{profile?.telegram_username || telegramUser?.username || 'username'}
                     </p>
                   </div>
                 </div>
-                {profile?.telegram_connected_at && (
-                  <p className="text-xs text-muted-foreground">
-                    Ulangan: {new Date(profile.telegram_connected_at).toLocaleDateString('uz-UZ', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                )}
               </div>
 
               {/* Notification Toggle */}
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                 <div className="flex items-center gap-3">
                   {notificationSettings?.telegram_enabled ? (
-                    <Bell className="w-5 h-5 text-primary" />
+                    <Bell className="w-4 h-4 text-primary" />
                   ) : (
-                    <BellOff className="w-5 h-5 text-muted-foreground" />
+                    <BellOff className="w-4 h-4 text-muted-foreground" />
                   )}
                   <div>
-                    <p className="font-medium text-sm">Telegram bildirishnomalar</p>
-                    <p className="text-xs text-muted-foreground">
-                      Takrorlash eslatmalari
-                    </p>
+                    <p className="font-medium text-sm">Bildirishnomalar</p>
+                    <p className="text-[11px] text-muted-foreground">Takrorlash eslatmalari</p>
                   </div>
                 </div>
                 <Switch
@@ -502,21 +464,19 @@ const Profile: React.FC = () => {
 
               {/* Reminder Time Setting */}
               {(isTelegramConnected || isTelegramUser) && notificationSettings?.telegram_enabled && (
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-primary" />
+                    <Clock className="w-4 h-4 text-primary" />
                     <div>
                       <p className="font-medium text-sm">Eslatma vaqti</p>
-                      <p className="text-xs text-muted-foreground">
-                        Har kuni shu vaqtda eslatma
-                      </p>
+                      <p className="text-[11px] text-muted-foreground">Har kuni</p>
                     </div>
                   </div>
                   <Select
                     value={notificationSettings?.daily_reminder_time?.slice(0, 5) || '09:00'}
                     onValueChange={handleUpdateReminderTime}
                   >
-                    <SelectTrigger className="w-24">
+                    <SelectTrigger className="w-24 h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -538,21 +498,23 @@ const Profile: React.FC = () => {
               {/* Bot Settings Button */}
               <Button
                 variant="outline"
+                size="sm"
                 onClick={openTelegramBot}
                 className="w-full gap-2"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
                 Bot orqali sozlash
               </Button>
 
-              {/* Disconnect Button - only if not logged in via Telegram */}
+              {/* Disconnect Button */}
               {!isTelegramUser && (
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={handleDisconnectTelegram}
                   className="w-full gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                   Uzish
                 </Button>
               )}
@@ -562,7 +524,7 @@ const Profile: React.FC = () => {
               {showTelegramCommand ? (
                 <>
                   <div className="p-3 bg-muted rounded-xl">
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-xs text-muted-foreground mb-2">
                       Bu buyruqni Telegram botga yuboring:
                     </p>
                     <div className="flex items-center gap-2">
@@ -573,25 +535,27 @@ const Profile: React.FC = () => {
                         size="icon"
                         variant="outline"
                         onClick={handleCopyCommand}
-                        className="shrink-0"
+                        className="shrink-0 h-8 w-8"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setShowTelegramCommand(false)}
                       className="flex-1"
                     >
                       Bekor qilish
                     </Button>
                     <Button
+                      size="sm"
                       onClick={handleRefreshStatus}
-                      className="flex-1 gap-2 bg-[#0088cc] hover:bg-[#0088cc]/90 text-white"
+                      className="flex-1 gap-2 bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      <RefreshCw className="w-3.5 h-3.5" />
                       Tekshirish
                     </Button>
                   </div>
@@ -599,7 +563,7 @@ const Profile: React.FC = () => {
               ) : (
                 <Button
                   onClick={handleConnectTelegram}
-                  className="w-full gap-2 bg-[#0088cc] hover:bg-[#0088cc]/90 text-white"
+                  className="w-full gap-2 bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                 >
                   <Send className="w-4 h-4" />
                   Telegram bot bilan ulash
@@ -617,7 +581,7 @@ const Profile: React.FC = () => {
           className="p-4 rounded-xl bg-primary/5 border border-primary/10"
         >
           <h4 className="font-medium text-sm text-primary mb-2">📱 Telegram bot haqida</h4>
-          <ul className="text-sm text-muted-foreground space-y-1">
+          <ul className="text-xs text-muted-foreground space-y-1">
             <li>• So'zlarni takrorlash eslatmalari</li>
             <li>• Statistika va streak ma'lumotlari</li>
             <li>• Bot orqali bildirishnomalarni sozlash</li>

@@ -320,17 +320,17 @@ const Auth: React.FC = () => {
         className="w-full max-w-md"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', damping: 10 }}
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl gradient-primary flex items-center justify-center shadow-elevated"
+            className="w-16 h-16 mx-auto mb-3 rounded-2xl gradient-primary flex items-center justify-center shadow-elevated"
           >
-            <BookOpen className="w-10 h-10 text-primary-foreground" />
+            <BookOpen className="w-8 h-8 text-primary-foreground" />
           </motion.div>
-          <h1 className="font-display font-bold text-3xl text-foreground">Leitner App</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="font-display font-bold text-2xl text-foreground">Leitner App</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {isLogin ? 'Hisobingizga kiring' : 'Yangi hisob yarating'}
           </p>
         </div>
