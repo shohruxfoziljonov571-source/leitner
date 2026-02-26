@@ -119,7 +119,7 @@ const SpeedModeTimer: React.FC<SpeedModeTimerProps> = memo(({
           }}
         >
           <Zap className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${
-            isWarning ? 'text-destructive' : 'text-amber-500'
+            isWarning ? 'text-destructive' : 'text-accent'
           }`} />
         </motion.div>
         <span className={`font-mono font-bold text-base sm:text-lg tabular-nums transition-colors duration-200 ${
@@ -132,7 +132,7 @@ const SpeedModeTimer: React.FC<SpeedModeTimerProps> = memo(({
       <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
         <motion.div
           className={`h-full rounded-full transition-colors duration-300 ${
-            isWarning ? 'bg-destructive' : 'bg-amber-500'
+            isWarning ? 'bg-destructive' : 'bg-accent'
           }`}
           style={{ 
             width: `${progress}%`,

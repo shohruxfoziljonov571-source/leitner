@@ -107,10 +107,10 @@ const DictationStats: React.FC = () => {
                       <span 
                         className={`text-sm font-semibold shrink-0 ${
                           (submission.accuracy_percentage ?? 0) >= 80 
-                            ? 'text-green-500' 
+                            ? 'text-primary' 
                             : (submission.accuracy_percentage ?? 0) >= 60 
-                              ? 'text-yellow-500' 
-                              : 'text-red-500'
+                              ? 'text-accent' 
+                              : 'text-destructive'
                         }`}
                       >
                         {submission.accuracy_percentage ?? 0}%

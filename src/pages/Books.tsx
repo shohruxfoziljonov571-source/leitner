@@ -208,9 +208,9 @@ const Books: React.FC = () => {
 
   const getLevelBadge = (level: string) => {
     const colors: Record<string, string> = {
-      beginner: 'bg-green-500/10 text-green-500',
-      intermediate: 'bg-yellow-500/10 text-yellow-500',
-      advanced: 'bg-red-500/10 text-red-500'
+      beginner: 'bg-primary/10 text-primary',
+      intermediate: 'bg-accent/10 text-accent',
+      advanced: 'bg-destructive/10 text-destructive'
     };
     const labels: Record<string, string> = {
       beginner: 'Boshlang\'ich',

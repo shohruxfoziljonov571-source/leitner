@@ -60,10 +60,10 @@ const DuelCard: React.FC<DuelCardProps> = ({
       className={`rounded-2xl p-4 border ${
         isCompleted
           ? isWinner
-            ? 'bg-green-500/10 border-green-500/30'
+            ? 'bg-primary/10 border-primary/30'
             : isDraw
-            ? 'bg-yellow-500/10 border-yellow-500/30'
-            : 'bg-red-500/10 border-red-500/30'
+            ? 'bg-accent/10 border-accent/30'
+            : 'bg-destructive/10 border-destructive/30'
           : 'bg-card border-border'
       }`}
     >
@@ -82,11 +82,11 @@ const DuelCard: React.FC<DuelCardProps> = ({
         {isCompleted && (
           <div className="flex items-center gap-1">
             {isWinner ? (
-              <Trophy className="w-5 h-5 text-yellow-500" />
+              <Trophy className="w-5 h-5 text-rank-gold" />
             ) : isDraw ? (
-              <span className="text-sm text-yellow-600">Durrang</span>
+              <span className="text-sm text-accent">Durrang</span>
             ) : (
-              <X className="w-5 h-5 text-red-500" />
+              <X className="w-5 h-5 text-destructive" />
             )}
           </div>
         )}

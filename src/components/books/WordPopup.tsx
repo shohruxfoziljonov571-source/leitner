@@ -96,10 +96,10 @@ const WordPopup: React.FC<WordPopupProps> = ({
               exit={{ opacity: 0 }}
               className="flex flex-col items-center py-4"
             >
-              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-2">
-                <Check className="w-6 h-6 text-green-500" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                <Check className="w-6 h-6 text-primary" />
               </div>
-              <p className="font-medium text-green-500">Qo'shildi!</p>
+              <p className="font-medium text-primary">Qo'shildi!</p>
             </motion.div>
           ) : (
             <motion.div

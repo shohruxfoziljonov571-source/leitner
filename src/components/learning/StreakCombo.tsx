@@ -9,10 +9,10 @@ interface StreakComboProps {
 
 const StreakCombo: React.FC<StreakComboProps> = ({ streak, show }) => {
   const getStreakLevel = () => {
-    if (streak >= 20) return { color: 'text-orange-500', bg: 'bg-orange-500/20', label: '🔥 UNSTOPPABLE!' };
-    if (streak >= 15) return { color: 'text-red-500', bg: 'bg-red-500/20', label: '💥 ON FIRE!' };
-    if (streak >= 10) return { color: 'text-amber-500', bg: 'bg-amber-500/20', label: '⚡ AMAZING!' };
-    if (streak >= 5) return { color: 'text-yellow-500', bg: 'bg-yellow-500/20', label: '✨ GREAT!' };
+    if (streak >= 20) return { color: 'text-accent', bg: 'bg-accent/20', label: '🔥 UNSTOPPABLE!' };
+    if (streak >= 15) return { color: 'text-destructive', bg: 'bg-destructive/20', label: '💥 ON FIRE!' };
+    if (streak >= 10) return { color: 'text-accent', bg: 'bg-accent/20', label: '⚡ AMAZING!' };
+    if (streak >= 5) return { color: 'text-accent', bg: 'bg-accent/20', label: '✨ GREAT!' };
     if (streak >= 3) return { color: 'text-primary', bg: 'bg-primary/20', label: '👍 NICE!' };
     return { color: 'text-muted-foreground', bg: 'bg-muted', label: '' };
   };
