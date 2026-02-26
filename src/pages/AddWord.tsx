@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Plus, Search, FileSpreadsheet, BookOpen } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
@@ -12,14 +13,13 @@ import LanguageSelector from '@/components/LanguageSelector';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PenLine, FileSpreadsheet, List } from 'lucide-react';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { addWord, addWordsBulk, words, stats } = useWordsDB();
   const { checkAndUnlockAchievements, level } = useGamificationContext();
-  const [activeTab, setActiveTab] = useState('manual');
+  const [activeTab, setActiveTab] = useState('list');
 
   const handleAddWord = async (word: {
     originalWord: string;
@@ -38,7 +38,6 @@ const AddWord: React.FC = () => {
       category_id: word.categoryId,
     });
 
-    // Check if duplicate
     if (result && 'error' in result && result.error === 'duplicate') {
       throw new Error(`"${result.existingWord}" so'zi allaqachon mavjud!`);
     }
@@ -47,7 +46,6 @@ const AddWord: React.FC = () => {
       throw new Error('Xatolik yuz berdi');
     }
 
-    // Check achievements
     await checkAndUnlockAchievements({
       totalWords: words.length + 1,
       streak: stats.streak,
@@ -59,7 +57,6 @@ const AddWord: React.FC = () => {
     if (!activeLanguage) return;
     
     try {
-      // Use bulk insert with chunking — handles large Excel files safely
       const result = await addWordsBulk(wordsToImport.map(word => ({
         original_word: word.originalWord,
         translated_word: word.translatedWord,
@@ -72,9 +69,9 @@ const AddWord: React.FC = () => {
       const duplicateCount = result.duplicates.length;
 
       if (addedCount === 0 && duplicateCount > 0) {
-        toast.warning(`Barcha ${duplicateCount} ta so'z allaqachon mavjud — takroriylar o'tkazib yuborildi`);
+        toast.warning(`Barcha ${duplicateCount} ta so'z allaqachon mavjud`);
       } else if (duplicateCount > 0) {
-        toast.warning(`${addedCount} ta so'z qo'shildi, ${duplicateCount} ta takroriy so'z o'tkazib yuborildi`);
+        toast.warning(`${addedCount} ta qo'shildi, ${duplicateCount} ta takroriy`);
       }
 
       if (addedCount > 0) {
@@ -85,10 +82,13 @@ const AddWord: React.FC = () => {
         });
       }
     } catch (error: any) {
-      toast.error(error?.message || 'Import qilishda xatolik yuz berdi');
-      throw error; // re-throw so ExcelImport shows error state
+      toast.error(error?.message || 'Import xatoligi');
+      throw error;
     }
   };
+
+  // Count mastered words (box 4-5)
+  const masteredWords = words.filter(w => w.box_number >= 4).length;
 
   if (!activeLanguage) {
     return (
@@ -99,10 +99,10 @@ const AddWord: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8 text-center"
           >
-            <h1 className="font-display font-bold text-3xl text-foreground mb-2">
-              {t('addWord')} ✨
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">
+              Kutubxona 📚
             </h1>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground text-sm mb-6">
               Avval o'rganish tilini tanlang
             </p>
           </motion.div>
@@ -117,45 +117,71 @@ const AddWord: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-      <div className="container mx-auto px-4 py-6 max-w-lg">
+      <div className="container mx-auto px-4 py-5 max-w-lg">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 text-center"
+          className="mb-5"
         >
-          <h1 className="font-display font-bold text-3xl text-foreground mb-2">
-            {t('addWord')} ✨
+          <h1 className="font-display font-bold text-xl text-foreground mb-1">
+            Kutubxona
           </h1>
-          <p className="text-muted-foreground">
-            Yangi so'z qo'shing va o'rganishni boshlang
-          </p>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="grid grid-cols-2 gap-3 mb-5"
+        >
+          <div className="bg-card rounded-xl p-4 shadow-card">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Jami so'zlar</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display font-bold text-2xl text-foreground">{words.length.toLocaleString()}</span>
+              <span className="text-xs text-primary">+{stats.today_reviewed} bugun</span>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-card">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">O'zlashtirilgan</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display font-bold text-2xl text-foreground">{masteredWords}</span>
+              <span className="text-xs text-muted-foreground">
+                {words.length > 0 ? `${Math.round((masteredWords / words.length) * 100)}%` : '0%'}
+              </span>
+            </div>
+          </div>
         </motion.div>
 
         {/* Tabs */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6 h-12">
-              <TabsTrigger value="manual" className="gap-1.5 h-10">
-                <PenLine className="w-4 h-4" />
-                <span>Qo'lda</span>
+            <TabsList className="grid w-full grid-cols-3 mb-4 h-11 bg-muted rounded-xl p-1">
+              <TabsTrigger value="list" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <BookOpen className="w-3.5 h-3.5" />
+                So'zlar
               </TabsTrigger>
-              <TabsTrigger value="import" className="gap-1.5 h-10">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Excel</span>
+              <TabsTrigger value="manual" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Plus className="w-3.5 h-3.5" />
+                Qo'shish
               </TabsTrigger>
-              <TabsTrigger value="list" className="gap-1.5 h-10">
-                <List className="w-4 h-4" />
-                <span>Ro'yxat</span>
+              <TabsTrigger value="import" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Excel
               </TabsTrigger>
             </TabsList>
 
+            <TabsContent value="list">
+              <WordList />
+            </TabsContent>
+
             <TabsContent value="manual">
-              <div className="bg-card rounded-3xl shadow-card p-6">
+              <div className="bg-card rounded-2xl shadow-card p-5">
                 <AddWordForm
                   sourceLanguage={activeLanguage.source_language}
                   targetLanguage={activeLanguage.target_language}
@@ -165,7 +191,7 @@ const AddWord: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="import">
-              <div className="bg-card rounded-3xl shadow-card p-6">
+              <div className="bg-card rounded-2xl shadow-card p-5">
                 <ExcelImport
                   sourceLanguage={activeLanguage.source_language}
                   targetLanguage={activeLanguage.target_language}
@@ -173,32 +199,21 @@ const AddWord: React.FC = () => {
                 />
               </div>
             </TabsContent>
-
-            <TabsContent value="list">
-              <div className="bg-card rounded-3xl shadow-card p-6">
-                <WordList />
-              </div>
-            </TabsContent>
           </Tabs>
         </motion.div>
-
-        {/* Tips */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/10"
-        >
-          <h4 className="font-medium text-sm text-primary mb-2">
-            {activeTab === 'manual' ? '💡 Maslahat' : '📋 Excel format'}
-          </h4>
-          <p className="text-sm text-muted-foreground">
-            {activeTab === 'manual' 
-              ? "So'zlar bilan birga misol gaplar qo'shing - bu yodda saqlashni osonlashtiradi!"
-              : "Ustun A - asl so'z, Ustun B - tarjima, Ustun C - misollar (nuqtali vergul bilan ajrating)"}
-          </p>
-        </motion.div>
       </div>
+
+      {/* FAB for quick add */}
+      {activeTab === 'list' && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          onClick={() => setActiveTab('manual')}
+          className="fixed bottom-20 right-4 md:bottom-8 w-14 h-14 rounded-full gradient-primary text-primary-foreground shadow-elevated flex items-center justify-center z-fixed"
+        >
+          <Plus className="w-6 h-6" />
+        </motion.button>
+      )}
     </div>
   );
 };

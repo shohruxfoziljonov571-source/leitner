@@ -1,15 +1,13 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Flame, Target, TrendingUp, Trophy, Mic, Book } from 'lucide-react';
+import { BookOpen, Flame, Play, Trophy, Mic, Brain, Book, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamificationContext } from '@/contexts/GamificationContext';
-import BoxCard from '@/components/dashboard/BoxCard';
-import StatCard from '@/components/dashboard/StatCard';
-import DailyGoalProgress from '@/components/dashboard/DailyGoalProgress';
+import CircularProgress from '@/components/dashboard/CircularProgress';
 import LanguageSelector from '@/components/LanguageSelector';
 import LanguageStats from '@/components/dashboard/LanguageStats';
 import XpBar from '@/components/gamification/XpBar';
@@ -22,18 +20,10 @@ const Dashboard: React.FC = () => {
   const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
   const { level, getUnlockedAchievements } = useGamificationContext();
   
-  // Memoize expensive calculations
   const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
   const wordsForReview = useMemo(() => getWordsForReview(), [getWordsForReview]);
   const totalWords = useMemo(() => Object.values(boxCounts).reduce((a, b) => a + b, 0), [boxCounts]);
   const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [getUnlockedAchievements]);
-  
-  const accuracy = useMemo(() => {
-    if (stats.today_reviewed > 0) {
-      return `${Math.round((stats.today_correct / stats.today_reviewed) * 100)}%`;
-    }
-    return '—';
-  }, [stats.today_correct, stats.today_reviewed]);
 
   if (isLoading || langLoading) {
     return (
@@ -43,7 +33,6 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // Show language selector if no active language
   if (!activeLanguage) {
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
@@ -66,97 +55,173 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const dailyGoal = stats.daily_goal || 20;
+  const dailyProgress = Math.min(stats.today_reviewed / dailyGoal, 1);
+  const streakText = stats.streak === 0 ? '🌱' : `🔥 ${stats.streak}`;
+
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-      <div className="container mx-auto px-4 py-6">
-        {/* Header with Level */}
+      <div className="container mx-auto px-4 py-5 max-w-lg">
+        
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 flex items-start justify-between"
+          className="flex items-center justify-between mb-6"
         >
           <div>
-            <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-2">
-              {t('welcomeMessage')} 👋
+            <p className="text-sm text-muted-foreground">{t('welcomeMessage')}</p>
+            <h1 className="font-display font-bold text-xl text-foreground">
+              Leitner
             </h1>
-            <p className="text-muted-foreground">
-              {wordsForReview.length > 0
-                ? t('wordsWaiting').replace('{count}', String(wordsForReview.length))
-                : t('allReviewedToday')}
-            </p>
           </div>
-          <XpBar compact />
-        </motion.div>
-
-        {/* XP Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="mb-6"
-        >
-          <XpBar />
+          <div className="flex items-center gap-2">
+            <XpBar compact />
+            <div className="px-2.5 py-1.5 rounded-full bg-muted text-xs font-medium text-muted-foreground">
+              {streakText}
+            </div>
+          </div>
         </motion.div>
 
         {/* Language Selector */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.05 }}
           className="mb-6"
         >
           <LanguageSelector />
         </motion.div>
 
+        {/* Daily Goal - Circular Progress */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-card rounded-2xl p-6 shadow-card mb-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-semibold text-sm text-foreground">Kunlik maqsad</h2>
+            <span className="text-xs text-muted-foreground">{Math.round(dailyProgress * 100)}%</span>
+          </div>
+          
+          <div className="flex items-center justify-center">
+            <CircularProgress value={stats.today_reviewed} max={dailyGoal} size={160} strokeWidth={10}>
+              <div className="text-center">
+                <span className="font-display font-bold text-3xl text-foreground">
+                  {stats.today_reviewed}
+                </span>
+                <span className="text-muted-foreground text-lg">/{dailyGoal}</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">so'z</p>
+              </div>
+            </CircularProgress>
+          </div>
+
+          {/* Start button */}
+          {wordsForReview.length > 0 && (
+            <Link to="/learn" className="block mt-4">
+              <Button size="lg" className="w-full gap-2 gradient-primary text-primary-foreground h-12 text-base rounded-xl">
+                <Play className="w-5 h-5" />
+                Boshlash
+              </Button>
+            </Link>
+          )}
+
+          {wordsForReview.length > 0 && (
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              {t('wordsWaiting').replace('{count}', String(wordsForReview.length))}
+            </p>
+          )}
+        </motion.div>
+
         {/* Language Statistics */}
         <LanguageStats />
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={BookOpen}
-            label={t('totalWords')}
-            value={totalWords}
-            delay={0.15}
-          />
-          <StatCard
-            icon={Target}
-            label={t('todayProgress')}
-            value={stats.today_reviewed}
-            subtext={t('words')}
-            delay={0.2}
-          />
-          <StatCard
-            icon={TrendingUp}
-            label={t('accuracy')}
-            value={accuracy}
-            delay={0.25}
-          />
-          <StatCard
-            icon={Flame}
-            label={t('streak')}
-            value={stats.streak === 0 ? '🌱' : stats.streak}
-            subtext={stats.streak === 0 ? t('startToday') : t('days')}
-            gradient
-            delay={0.3}
-          />
-        </div>
+        {/* Unclaimed Rewards */}
+        <UnclaimedRewards />
 
-        {/* Daily Goal Progress */}
+        {/* Leitner System - Compact */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.32 }}
+          transition={{ delay: 0.2 }}
           className="mb-6"
         >
-          <DailyGoalProgress 
-            reviewed={stats.today_reviewed} 
-            goal={stats.daily_goal || 20} 
-          />
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display font-semibold text-sm text-foreground">{t('leitnerBoxes')}</h2>
+            <span className="text-xs text-muted-foreground">{totalWords} {t('words')}</span>
+          </div>
+          
+          <div className="grid grid-cols-5 gap-2">
+            {([1, 2, 3, 4, 5] as const).map((boxNumber) => (
+              <motion.div
+                key={boxNumber}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + boxNumber * 0.05 }}
+                className="bg-card rounded-xl p-3 text-center shadow-card"
+              >
+                <div
+                  className="text-[10px] font-medium mb-1 uppercase tracking-wider"
+                  style={{ color: `hsl(var(--box-${boxNumber}))` }}
+                >
+                  Box {boxNumber}
+                </div>
+                <span className="font-display font-bold text-lg text-foreground">
+                  {boxCounts[boxNumber]}
+                </span>
+                {/* Mini progress bar */}
+                <div className="h-1 bg-muted rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${totalWords > 0 ? (boxCounts[boxNumber] / totalWords) * 100 : 0}%`,
+                      backgroundColor: `hsl(var(--box-${boxNumber}))`,
+                    }}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
-        {/* Unclaimed Rewards */}
-        <UnclaimedRewards />
+        {/* Quick Study */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-6"
+        >
+          <h2 className="font-display font-semibold text-sm text-foreground mb-3">Tez o'rganish</h2>
+          <div className="grid grid-cols-3 gap-2">
+            <Link to="/dictation">
+              <div className="bg-card rounded-xl p-3 text-center shadow-card hover:shadow-elevated transition-shadow group">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: 'hsl(var(--feature-dictation) / 0.15)' }}>
+                  <Mic className="w-5 h-5" style={{ color: 'hsl(var(--feature-dictation))' }} />
+                </div>
+                <p className="text-xs font-medium text-foreground">Diktant</p>
+              </div>
+            </Link>
+            <Link to="/mnemonics">
+              <div className="bg-card rounded-xl p-3 text-center shadow-card hover:shadow-elevated transition-shadow group">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-accent/15 flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-accent" />
+                </div>
+                <p className="text-xs font-medium text-foreground">Mnemonika</p>
+              </div>
+            </Link>
+            <Link to="/books">
+              <div className="bg-card rounded-xl p-3 text-center shadow-card hover:shadow-elevated transition-shadow group">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: 'hsl(var(--feature-books) / 0.15)' }}>
+                  <Book className="w-5 h-5" style={{ color: 'hsl(var(--feature-books))' }} />
+                </div>
+                <p className="text-xs font-medium text-foreground">Kitoblar</p>
+              </div>
+            </Link>
+          </div>
+        </motion.div>
 
         {/* Weekly Challenge */}
         <motion.div
@@ -168,41 +233,6 @@ const Dashboard: React.FC = () => {
           <WeeklyChallenge />
         </motion.div>
 
-        {/* Quick Access - Dictation & Books */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.38 }}
-          className="grid grid-cols-2 gap-4 mb-6"
-        >
-          <Link to="/dictation">
-            <div className="bg-gradient-to-br from-feature-dictation/10 to-feature-dictation/5 rounded-2xl p-4 hover:from-feature-dictation/20 hover:to-feature-dictation/10 transition-colors border border-feature-dictation/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-feature-dictation/10 flex items-center justify-center">
-                  <Mic className="w-5 h-5 text-feature-dictation" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">{t('audioDictation')}</p>
-                  <p className="text-xs text-muted-foreground">{t('listenAndWrite')}</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-          <Link to="/books">
-            <div className="bg-gradient-to-br from-feature-books/10 to-feature-books/5 rounded-2xl p-4 hover:from-feature-books/20 hover:to-feature-books/10 transition-colors border border-feature-books/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-feature-books/10 flex items-center justify-center">
-                  <Book className="w-5 h-5 text-feature-books" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">{t('books')}</p>
-                  <p className="text-xs text-muted-foreground">{t('readAndLearn')}</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-        </motion.div>
-
         {/* Achievements Preview */}
         {unlockedAchievements.length > 0 && (
           <motion.div
@@ -212,60 +242,28 @@ const Dashboard: React.FC = () => {
             className="mb-6"
           >
             <Link to="/stats" className="block">
-              <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 flex items-center justify-between hover:from-primary/20 hover:to-secondary/20 transition-colors">
+              <div className="bg-card rounded-xl p-4 shadow-card flex items-center justify-between hover:shadow-elevated transition-shadow">
                 <div className="flex items-center gap-3">
-                  <Trophy className="w-6 h-6 text-primary" />
+                  <Trophy className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="font-semibold text-foreground">{t('achievements')}</p>
-                    <p className="text-sm text-muted-foreground">{t('achievementsUnlocked').replace('{count}', String(unlockedAchievements.length))}</p>
+                    <p className="font-medium text-sm text-foreground">{t('achievements')}</p>
+                    <p className="text-xs text-muted-foreground">{t('achievementsUnlocked').replace('{count}', String(unlockedAchievements.length))}</p>
                   </div>
                 </div>
-                <div className="flex -space-x-2">
-                  {unlockedAchievements.slice(0, 5).map((a) => (
-                    <div key={a.id} className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-lg shadow-sm">
-                      {a.icon}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-1">
+                  <div className="flex -space-x-1.5">
+                    {unlockedAchievements.slice(0, 4).map((a) => (
+                      <div key={a.id} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-sm border-2 border-card">
+                        {a.icon}
+                      </div>
+                    ))}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
             </Link>
           </motion.div>
         )}
-
-        {/* Start Learning Button */}
-        {wordsForReview.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            className="mb-8"
-          >
-            <Link to="/learn">
-              <Button size="lg" className="w-full md:w-auto gap-2 gradient-primary text-primary-foreground h-14 text-lg shadow-elevated">
-                <BookOpen className="w-5 h-5" />
-                {t('startLearning')} ({wordsForReview.length} {t('words')})
-              </Button>
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Leitner Boxes */}
-        <div className="mb-6">
-          <h2 className="font-display font-semibold text-xl text-foreground mb-4">
-            {t('leitnerBoxes')}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {([1, 2, 3, 4, 5] as const).map((boxNumber, index) => (
-              <BoxCard
-                key={boxNumber}
-                boxNumber={boxNumber}
-                wordCount={boxCounts[boxNumber]}
-                totalWords={totalWords}
-                delay={0.1 * index}
-              />
-            ))}
-          </div>
-        </div>
 
         {/* Empty State */}
         {totalWords === 0 && (
@@ -273,15 +271,15 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="text-center py-12 px-6 rounded-3xl bg-card shadow-card"
+            className="text-center py-10 px-6 rounded-2xl bg-card shadow-card"
           >
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl gradient-primary flex items-center justify-center">
-              <BookOpen className="w-10 h-10 text-primary-foreground" />
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl gradient-primary flex items-center justify-center">
+              <BookOpen className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h3 className="font-display font-semibold text-xl mb-2">
+            <h3 className="font-display font-semibold text-lg mb-2">
               {t('noWordsYet')}
             </h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+            <p className="text-muted-foreground text-sm mb-5 max-w-sm mx-auto">
               {t('addFirstWordDesc')}
             </p>
             <Link to="/add">
