@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Flame, Play, Trophy, Mic, Brain, Book, ChevronRight } from 'lucide-react';
+import { BookOpen, Play, Trophy, Mic, Brain, Book, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
-import { useWordsDB } from '@/hooks/useWordsDB';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import CircularProgress from '@/components/dashboard/CircularProgress';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -16,16 +16,13 @@ import UnclaimedRewards from '@/components/gamification/UnclaimedRewards';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
-  const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
-  const { stats, getBoxCounts, getWordsForReview, isLoading } = useWordsDB();
-  const { level, getUnlockedAchievements } = useGamificationContext();
+  const { activeLanguage } = useLearningLanguage();
+  const { stats, boxCounts, reviewCount, totalWords, isLoading } = useDashboardData();
+  const { getUnlockedAchievements } = useGamificationContext();
   
-  const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
-  const wordsForReview = useMemo(() => getWordsForReview(), [getWordsForReview]);
-  const totalWords = useMemo(() => Object.values(boxCounts).reduce((a, b) => a + b, 0), [boxCounts]);
   const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [getUnlockedAchievements]);
 
-  if (isLoading || langLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
@@ -118,7 +115,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Start button */}
-          {wordsForReview.length > 0 && (
+          {reviewCount > 0 && (
             <Link to="/learn" className="block mt-4">
               <Button size="lg" className="w-full gap-2 gradient-primary text-primary-foreground h-12 text-base rounded-xl">
                 <Play className="w-5 h-5" />
@@ -127,9 +124,9 @@ const Dashboard: React.FC = () => {
             </Link>
           )}
 
-          {wordsForReview.length > 0 && (
+          {reviewCount > 0 && (
             <p className="text-xs text-center text-muted-foreground mt-2">
-              {t('wordsWaiting').replace('{count}', String(wordsForReview.length))}
+              {t('wordsWaiting').replace('{count}', String(reviewCount))}
             </p>
           )}
         </motion.div>

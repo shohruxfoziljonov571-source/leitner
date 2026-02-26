@@ -374,12 +374,46 @@ export const useWordDuels = () => {
           table: 'word_duels',
         },
         (payload: any) => {
-          // Only refetch if this duel involves the current user
-          if (payload.new?.challenger_id === user.id || 
-              payload.new?.opponent_id === user.id ||
-              payload.old?.challenger_id === user.id ||
-              payload.old?.opponent_id === user.id) {
+          const row = payload.new || payload.old;
+          if (row?.challenger_id === user.id || row?.opponent_id === user.id) {
+            // Update active duel state in real-time
+            if (activeDuel && payload.new?.id === activeDuel.id) {
+              setActiveDuel(prev => prev ? {
+                ...prev,
+                ...payload.new,
+                words: (payload.new.words as unknown as DuelWord[]) || prev.words,
+                status: payload.new.status as Duel['status'],
+                challenger_name: prev.challenger_name,
+                opponent_name: prev.opponent_name,
+                challenger_avatar: prev.challenger_avatar,
+                opponent_avatar: prev.opponent_avatar,
+              } : null);
+            }
             debouncedFetch();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'duel_responses',
+        },
+        (payload: any) => {
+          // Opponent answered — update active duel's score in real-time
+          if (activeDuel && payload.new?.duel_id === activeDuel.id && payload.new?.user_id !== user.id) {
+            const isOpponentChallenger = activeDuel.challenger_id !== user.id;
+            setActiveDuel(prev => {
+              if (!prev) return null;
+              const scoreKey = isOpponentChallenger ? 'challenger_score' : 'opponent_score';
+              const timeKey = isOpponentChallenger ? 'challenger_time_ms' : 'opponent_time_ms';
+              return {
+                ...prev,
+                [scoreKey]: prev[scoreKey] + (payload.new.is_correct ? 1 : 0),
+                [timeKey]: prev[timeKey] + (payload.new.response_time_ms || 0),
+              };
+            });
           }
         }
       )
@@ -389,7 +423,7 @@ export const useWordDuels = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [user, fetchDuels]);
+  }, [user, fetchDuels, activeDuel]);
 
   useEffect(() => {
     fetchDuels();

@@ -1420,6 +1420,10 @@ export type Database = {
           winner_count: number
         }[]
       }
+      get_box_counts: {
+        Args: { p_language_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_contest_leaderboard: {
         Args: { p_contest_id: string }
         Returns: {
@@ -1444,6 +1448,10 @@ export type Database = {
         }[]
       }
       get_or_create_weekly_challenge: { Args: never; Returns: string }
+      get_review_count: {
+        Args: { p_language_id: string; p_user_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
