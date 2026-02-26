@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, FileText, Loader2 } from 'lucide-react';
+import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, FileText, Loader2, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -217,7 +217,7 @@ const Books: React.FC = () => {
       intermediate: 'O\'rta',
       advanced: 'Yuqori'
     };
-    return <Badge className={colors[level]}>{labels[level]}</Badge>;
+    return <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${colors[level]}`}>{labels[level]}</span>;
   };
 
   const filteredBooks = levelFilter === 'all' 
@@ -445,9 +445,29 @@ const Books: React.FC = () => {
         <div className="grid gap-4">
           {filteredBooks.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <Book className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Hali kitob mavjud emas</p>
+              <CardContent className="py-16 text-center">
+                <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-muted flex items-center justify-center">
+                  <Book className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="font-display font-bold text-lg mb-2">Hali kitob mavjud emas</h3>
+                <p className="text-muted-foreground text-sm max-w-xs mx-auto mb-6">
+                  {levelFilter !== 'all' 
+                    ? `"${levelFilter === 'beginner' ? "Boshlang'ich" : levelFilter === 'intermediate' ? "O'rta" : "Yuqori"}" darajadagi kitoblar hali qo'shilmagan. Boshqa darajani sinab ko'ring.`
+                    : 'Kitoblar tez orada qo\'shiladi. Hozircha so\'z o\'rganishni davom ettiring!'
+                  }
+                </p>
+                {levelFilter !== 'all' ? (
+                  <Button variant="outline" onClick={() => setLevelFilter('all')} className="gap-2">
+                    Barcha darajalar
+                  </Button>
+                ) : (
+                  <Link to="/add">
+                    <Button className="gap-2 gradient-primary text-primary-foreground">
+                      <Plus className="w-4 h-4" />
+                      So'z qo'shish
+                    </Button>
+                  </Link>
+                )}
               </CardContent>
             </Card>
           ) : (
