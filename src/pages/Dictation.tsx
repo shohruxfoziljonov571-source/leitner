@@ -213,9 +213,9 @@ const Dictation: React.FC = () => {
 
   const getLevelBadge = (level: string) => {
     const colors: Record<string, string> = {
-      beginner: 'bg-green-500/10 text-green-500',
-      intermediate: 'bg-yellow-500/10 text-yellow-500',
-      advanced: 'bg-red-500/10 text-red-500'
+      beginner: 'bg-primary/10 text-primary',
+      intermediate: 'bg-accent/10 text-accent',
+      advanced: 'bg-destructive/10 text-destructive'
     };
     const labels: Record<string, string> = {
       beginner: 'Boshlang\'ich',
@@ -419,10 +419,10 @@ const Dictation: React.FC = () => {
                       <div className="text-center py-6">
                         <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full ${
                           result.accuracy_percentage >= 80 
-                            ? 'bg-green-500/10 text-green-500' 
+                            ? 'bg-primary/10 text-primary' 
                             : result.accuracy_percentage >= 50 
-                              ? 'bg-yellow-500/10 text-yellow-500'
-                              : 'bg-red-500/10 text-red-500'
+                              ? 'bg-accent/10 text-accent'
+                              : 'bg-destructive/10 text-destructive'
                         }`}>
                           <span className="text-3xl font-bold">
                             {Math.round(result.accuracy_percentage)}%
@@ -437,11 +437,11 @@ const Dictation: React.FC = () => {
                         </p>
                         <div className="flex items-center justify-center gap-4 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <X className="h-4 w-4 text-red-500" />
+                            <X className="h-4 w-4 text-destructive" />
                             {result.errors_count} xato
                           </span>
                           <span className="flex items-center gap-1">
-                            <Check className="h-4 w-4 text-green-500" />
+                            <Check className="h-4 w-4 text-primary" />
                             +{result.xp_earned} XP
                           </span>
                         </div>

@@ -80,7 +80,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ onBreakStart, onBreakEnd 
         onClick={() => setIsRunning(!isRunning)}
         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-medium transition-colors ${
           isBreak
-            ? 'bg-amber-500/20 text-amber-600'
+            ? 'bg-accent/20 text-accent'
             : 'bg-primary/10 text-primary'
         }`}
         title={isRunning ? 'Pauza' : 'Boshlash'}
@@ -111,9 +111,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ onBreakStart, onBreakEnd 
               <motion.div
                 animate={{ rotate: [0, 10, -10, 0] }}
                 transition={{ repeat: Infinity, duration: 2 }}
-                className="w-20 h-20 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center"
+                className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center"
               >
-                <Coffee className="w-10 h-10 text-amber-500" />
+                <Coffee className="w-10 h-10 text-accent" />
               </motion.div>
               <h3 className="font-display font-bold text-xl mb-2">
                 Dam olish vaqti! ☕
@@ -131,7 +131,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ onBreakStart, onBreakEnd 
                 </Button>
                 <Button
                   onClick={startBreak}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+                  className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
                 >
                   Dam olish
                 </Button>
