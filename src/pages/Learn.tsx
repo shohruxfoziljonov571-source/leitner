@@ -285,105 +285,53 @@ const Learn: React.FC = () => {
   if (!learningMode) {
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-5 max-w-lg">
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6"
           >
-            <h1 className="font-display font-bold text-2xl text-foreground mb-2">
+            <h1 className="font-display font-bold text-xl text-foreground mb-1">
               {t('selectMode')}
             </h1>
-            <p className="text-muted-foreground mb-1">
-              {getLanguageFlag(activeLanguage.source_language)} {getLanguageName(activeLanguage.source_language, language)} → {getLanguageFlag(activeLanguage.target_language)} {getLanguageName(activeLanguage.target_language, language)}
-            </p>
-            <p className="text-muted-foreground">
-              {t('wordsReadyForReview').replace('{count}', String(totalToReview))}
+            <p className="text-xs text-muted-foreground">
+              {getLanguageFlag(activeLanguage.source_language)} {getLanguageName(activeLanguage.source_language, language)} → {getLanguageFlag(activeLanguage.target_language)} {getLanguageName(activeLanguage.target_language, language)} • {totalToReview} {t('words')}
             </p>
           </motion.div>
 
-          <div className="grid gap-3 max-w-md mx-auto">
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              onClick={() => setLearningMode('flashcard')}
-              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-primary text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Layers className="w-6 h-6" />
+          <div className="grid gap-2.5">
+            {([
+              { mode: 'flashcard' as LearningMode, icon: Layers, title: 'Flashcard', desc: t('flashcardDesc'), color: 'primary' },
+              { mode: 'quiz' as LearningMode, icon: Gamepad2, title: 'Quiz (4 variant)', desc: t('quizDesc'), color: 'primary' },
+              { mode: 'speed' as LearningMode, icon: Zap, title: t('speedMode'), desc: t('speedDesc'), color: 'accent', badge: '10s' },
+              { mode: 'writing' as LearningMode, icon: PenLine, title: t('writingMode'), desc: t('writingDesc'), color: 'secondary', badge: t('newLabel') },
+            ]).map((item, index) => (
+              <motion.button
+                key={item.mode}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 + index * 0.08 }}
+                onClick={() => setLearningMode(item.mode)}
+                className="p-3.5 rounded-xl bg-card shadow-card hover:shadow-elevated transition-all border border-border hover:border-primary/50 text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg bg-${item.color}/10 text-${item.color} group-hover:bg-primary group-hover:text-primary-foreground transition-colors`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      {item.title}
+                      {item.badge && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                          {item.badge}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base">Flashcard</h3>
-                  <p className="text-xs text-muted-foreground">{t('flashcardDesc')}</p>
-                </div>
-              </div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              onClick={() => setLearningMode('quiz')}
-              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-primary text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-accent/50 text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Gamepad2 className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base">Quiz (4 variant)</h3>
-                  <p className="text-xs text-muted-foreground">{t('quizDesc')}</p>
-                </div>
-              </div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              onClick={() => setLearningMode('speed')}
-              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-amber-500 text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-amber-50 transition-colors">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base flex items-center gap-2">
-                    {t('speedMode')}
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500">
-                      10s
-                    </span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground">{t('speedDesc')}</p>
-                </div>
-              </div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              onClick={() => setLearningMode('writing')}
-              className="p-4 rounded-2xl bg-card shadow-card hover:shadow-lg transition-all border border-border hover:border-secondary text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-secondary/20 text-secondary-foreground group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
-                  <PenLine className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base flex items-center gap-2">
-                    {t('writingMode')}
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {t('newLabel')}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground">{t('writingDesc')}</p>
-                </div>
-              </div>
-            </motion.button>
+              </motion.button>
+            ))}
           </div>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { Edit2, Trash2, Volume2, Check, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import WordExport from '@/components/WordExport';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +29,6 @@ const WordList: React.FC = () => {
   const filteredWords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return words;
-
     return words.filter(word =>
       word.original_word.toLowerCase().includes(q) ||
       word.translated_word.toLowerCase().includes(q)
@@ -39,10 +37,7 @@ const WordList: React.FC = () => {
 
   const handleEdit = (word: typeof words[0]) => {
     setEditingId(word.id);
-    setEditForm({
-      original: word.original_word,
-      translated: word.translated_word,
-    });
+    setEditForm({ original: word.original_word, translated: word.translated_word });
   };
 
   const handleSave = async (wordId: string) => {
@@ -50,12 +45,10 @@ const WordList: React.FC = () => {
       toast.error("Bo'sh qoldirib bo'lmaydi");
       return;
     }
-
     const result = await updateWord(wordId, {
       original_word: editForm.original.trim(),
       translated_word: editForm.translated.trim(),
     });
-
     if (result) {
       toast.success("So'z yangilandi");
       setEditingId(null);
@@ -85,13 +78,13 @@ const WordList: React.FC = () => {
   if (words.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Hali so'zlar yo'q</p>
+        <p className="text-muted-foreground text-sm">Hali so'zlar yo'q</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Search + Export */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -100,18 +93,23 @@ const WordList: React.FC = () => {
             placeholder="So'z qidirish..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-10 bg-card border-border rounded-xl text-sm"
           />
         </div>
         <WordExport />
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Jami: {filteredWords.length} ta so'z
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+          So'nggi qo'shilganlar
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          {filteredWords.length} ta
+        </p>
+      </div>
 
       {/* Word List */}
-      <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-0.5">
         <AnimatePresence mode="popLayout">
           {filteredWords.map((word) => (
             <motion.div
@@ -122,101 +120,79 @@ const WordList: React.FC = () => {
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.2 }}
             >
-              <Card className="p-3">
+              <div className="bg-card rounded-xl p-3 border border-border/50">
                 {editingId === word.id ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div className="grid grid-cols-2 gap-2">
                       <Input
                         value={editForm.original}
                         onChange={(e) => setEditForm({ ...editForm, original: e.target.value })}
                         placeholder="Asl so'z"
                         autoFocus
+                        className="h-9 text-sm"
                       />
                       <Input
                         value={editForm.translated}
                         onChange={(e) => setEditForm({ ...editForm, translated: e.target.value })}
                         placeholder="Tarjima"
+                        className="h-9 text-sm"
                       />
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCancel}
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Bekor
+                    <div className="flex justify-end gap-1.5">
+                      <Button variant="ghost" size="sm" onClick={handleCancel} className="h-8 text-xs">
+                        <X className="w-3 h-3 mr-1" /> Bekor
                       </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSave(word.id)}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Saqlash
+                      <Button size="sm" onClick={() => handleSave(word.id)} className="h-8 text-xs gradient-primary text-primary-foreground">
+                        <Check className="w-3 h-3 mr-1" /> Saqlash
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">{word.original_word}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-foreground truncate">{word.original_word}</span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 shrink-0"
+                          className="h-5 w-5 shrink-0"
                           onClick={() => speak(word.original_word, { lang: word.source_language })}
                           disabled={isSpeaking}
                         >
                           <Volume2 className="w-3 h-3" />
                         </Button>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {word.translated_word}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                        <span>📅 {new Date(word.created_at).toLocaleDateString()}</span>
-                        <span>🔄 {word.times_reviewed}x</span>
-                        {word.times_reviewed > 0 && (
-                          <span>✅ {Math.round((word.times_correct / word.times_reviewed) * 100)}%</span>
-                        )}
-                      </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 ml-2">
-                      <span className={`
-                        text-xs px-2 py-0.5 rounded-full shrink-0
-                        ${word.box_number >= 4 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 
-                          word.box_number >= 2 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 
-                          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}
-                      `}>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-medium"
+                        style={{
+                          backgroundColor: `hsl(var(--box-${word.box_number}) / 0.15)`,
+                          color: `hsl(var(--box-${word.box_number}))`,
+                        }}
+                      >
                         #{word.box_number}
                       </span>
                       
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(word)}
-                      >
-                        <Edit2 className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(word)}>
+                        <Edit2 className="w-3.5 h-3.5" />
                       </Button>
                       
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>So'zni o'chirish</AlertDialogTitle>
                             <AlertDialogDescription>
-                              "{word.original_word}" so'zini o'chirishni xohlaysizmi? Bu amalni qaytarib bo'lmaydi.
+                              "{word.original_word}" so'zini o'chirishni xohlaysizmi?
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -233,7 +209,7 @@ const WordList: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </Card>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>

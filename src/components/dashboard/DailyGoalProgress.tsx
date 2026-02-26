@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Target, Trophy, Flame } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 
 interface DailyGoalProgressProps {
   reviewed: number;
@@ -17,51 +16,45 @@ const DailyGoalProgress: React.FC<DailyGoalProgressProps> = ({ reviewed, goal })
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-2xl p-4 ${
+      className={`rounded-xl p-3.5 ${
         isCompleted 
-          ? 'bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20' 
+          ? 'bg-primary/10 border border-primary/20' 
           : 'bg-card shadow-card'
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
           {isCompleted ? (
-            <motion.div
-              initial={{ rotate: 0 }}
-              animate={{ rotate: [0, -10, 10, -10, 0] }}
-              transition={{ duration: 0.5 }}
-            >
-              <Trophy className="w-5 h-5 text-primary" />
-            </motion.div>
+            <Trophy className="w-4 h-4 text-primary" />
           ) : (
-            <Target className="w-5 h-5 text-primary" />
+            <Target className="w-4 h-4 text-primary" />
           )}
-          <span className="font-medium text-sm">Kunlik maqsad</span>
+          <span className="font-medium text-xs">Kunlik maqsad</span>
         </div>
-        <div className="text-sm">
+        <div className="text-xs">
           <span className="font-bold text-primary">{reviewed}</span>
           <span className="text-muted-foreground">/{goal}</span>
         </div>
       </div>
 
-      <Progress 
-        value={progress} 
-        className="h-3 mb-2" 
-      />
+      <div className="h-2 bg-muted rounded-full overflow-hidden mb-1.5">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.6 }}
+          className="h-full gradient-primary rounded-full"
+        />
+      </div>
 
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between text-[11px]">
         {isCompleted ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-1 text-primary font-medium"
-          >
-            <Flame className="w-4 h-4" />
+          <div className="flex items-center gap-1 text-primary font-medium">
+            <Flame className="w-3 h-3" />
             <span>Maqsadga erishildi! 🎉</span>
-          </motion.div>
+          </div>
         ) : (
           <span className="text-muted-foreground">
-            Yana {remaining} so'z qoldi
+            Yana {remaining} so'z
           </span>
         )}
         <span className="text-muted-foreground">{Math.round(progress)}%</span>
