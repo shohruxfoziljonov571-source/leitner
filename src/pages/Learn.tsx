@@ -301,10 +301,10 @@ const Learn: React.FC = () => {
 
           <div className="grid gap-2.5">
             {([
-              { mode: 'flashcard' as LearningMode, icon: Layers, title: 'Flashcard', desc: t('flashcardDesc'), color: 'primary' },
-              { mode: 'quiz' as LearningMode, icon: Gamepad2, title: 'Quiz (4 variant)', desc: t('quizDesc'), color: 'primary' },
-              { mode: 'speed' as LearningMode, icon: Zap, title: t('speedMode'), desc: t('speedDesc'), color: 'accent', badge: '10s' },
-              { mode: 'writing' as LearningMode, icon: PenLine, title: t('writingMode'), desc: t('writingDesc'), color: 'secondary', badge: t('newLabel') },
+              { mode: 'flashcard' as LearningMode, icon: Layers, title: 'Flashcard', desc: t('flashcardDesc'), iconClass: 'bg-primary/10 text-primary' },
+              { mode: 'quiz' as LearningMode, icon: Gamepad2, title: 'Quiz (4 variant)', desc: t('quizDesc'), iconClass: 'bg-primary/10 text-primary' },
+              { mode: 'speed' as LearningMode, icon: Zap, title: t('speedMode'), desc: t('speedDesc'), iconClass: 'bg-accent/10 text-accent', badge: '10s' },
+              { mode: 'writing' as LearningMode, icon: PenLine, title: t('writingMode'), desc: t('writingDesc'), iconClass: 'bg-secondary/10 text-secondary', badge: t('newLabel') },
             ]).map((item, index) => (
               <motion.button
                 key={item.mode}
@@ -315,7 +315,7 @@ const Learn: React.FC = () => {
                 className="p-3.5 rounded-xl bg-card shadow-card hover:shadow-elevated transition-all border border-border hover:border-primary/50 text-left group"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg bg-${item.color}/10 text-${item.color} group-hover:bg-primary group-hover:text-primary-foreground transition-colors`}>
+                  <div className={`p-2 rounded-lg ${item.iconClass} group-hover:bg-primary group-hover:text-primary-foreground transition-colors`}>
                     <item.icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -420,7 +420,7 @@ const Learn: React.FC = () => {
             </span>
             <div className="flex items-center gap-2">
               {comboStreak >= 3 && (
-                <span className="text-xs font-medium text-amber-500">
+                <span className="text-xs font-medium text-accent">
                   🔥 x{comboStreak}
                 </span>
               )}
