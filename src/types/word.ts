@@ -9,6 +9,7 @@ export interface Word {
   source_language: string;
   target_language: string;
   example_sentences: string[];
+  mnemonic_hint?: string | null;
   box_number: number;
   next_review_time: string;
   times_reviewed: number;

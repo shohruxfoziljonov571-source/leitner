@@ -16,48 +16,45 @@ const Navigation: React.FC = () => {
   const location = useLocation();
   const { t, language, setLanguage } = useLanguage();
 
-  // Primary nav items (always visible)
   const primaryNavItems = useMemo(() => ([
     { path: '/', icon: Home, label: 'dashboard' },
-    { path: '/add', icon: Plus, label: 'addWord' },
+    { path: '/add', icon: Library, label: 'addWord' },
     { path: '/learn', icon: BookOpen, label: 'learn' },
     { path: '/friends', icon: Users, label: 'friends' },
+    { path: '/profile', icon: User, label: 'profile' },
   ]), []);
 
-  // Secondary nav items (in "more" menu on mobile)
   const secondaryNavItems = useMemo(() => ([
     { path: '/stats', icon: TrendingUp, label: 'statistics' },
     { path: '/dictation', icon: Mic, label: 'dictation' },
     { path: '/books', icon: Library, label: 'books' },
     { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
-    { path: '/profile', icon: User, label: 'profile' },
     { path: '/settings', icon: Settings, label: 'settings' },
   ]), []);
 
-  // All items for desktop
   const allNavItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
 
   const languages: { code: Language; name: string; flag: string }[] = useMemo(() => ([
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
     { code: 'ru', name: 'Русский', flag: '🇷🇺' },
     { code: 'en', name: 'English', flag: '🇬🇧' },
-  ]), [ ]);
+  ]), []);
 
   const isSecondaryActive = secondaryNavItems.some(item => location.pathname === item.path);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border z-fixed md:top-0 md:bottom-auto md:border-t-0 md:border-b">
-      <div className="container mx-auto px-4">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-xl border-t border-border z-fixed md:top-0 md:bottom-auto md:border-t-0 md:border-b">
+      <div className="container mx-auto px-2 md:px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo - Desktop only */}
           <Link to="/" className="hidden md:flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-primary-foreground" />
+            <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
+              <BookOpen className="w-4.5 h-4.5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-xl text-foreground">Leitner</span>
+            <span className="font-display font-bold text-lg text-foreground">Leitner</span>
           </Link>
 
-          {/* Nav Items - Mobile (limited) */}
+          {/* Nav Items - Mobile */}
           <div className="flex items-center justify-around w-full md:hidden">
             {primaryNavItems.map((item) => {
               const isActive = location.pathname === item.path;
@@ -67,7 +64,7 @@ const Navigation: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="relative flex flex-col items-center gap-1 p-2 rounded-xl transition-colors group"
+                  className="relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors group"
                 >
                   {isActive && (
                     <motion.div
@@ -81,6 +78,13 @@ const Navigation: React.FC = () => {
                       isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                     }`}
                   />
+                  <span
+                    className={`text-[10px] relative z-10 transition-colors ${
+                      isActive ? 'text-primary font-medium' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {t(item.label)}
+                  </span>
                 </Link>
               );
             })}
@@ -89,7 +93,7 @@ const Navigation: React.FC = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${
+                  className={`relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-colors ${
                     isSecondaryActive ? 'text-primary' : 'text-muted-foreground'
                   }`}
                 >
@@ -101,6 +105,9 @@ const Navigation: React.FC = () => {
                     />
                   )}
                   <MoreHorizontal className="w-5 h-5 relative z-10" />
+                  <span className={`text-[10px] relative z-10 ${isSecondaryActive ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                    Yana
+                  </span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 mb-2">
@@ -120,7 +127,6 @@ const Navigation: React.FC = () => {
                   );
                 })}
                 <DropdownMenuSeparator />
-                {/* Language selector in mobile menu */}
                 <div className="px-2 py-1.5">
                   <p className="text-xs text-muted-foreground mb-2">Til</p>
                   <div className="flex gap-1">
@@ -143,8 +149,8 @@ const Navigation: React.FC = () => {
             </DropdownMenu>
           </div>
 
-          {/* Nav Items - Desktop (all items) */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Nav Items - Desktop */}
+          <div className="hidden md:flex items-center gap-1">
             {allNavItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
@@ -153,7 +159,7 @@ const Navigation: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="relative flex flex-col items-center gap-1 p-3 rounded-xl transition-colors group"
+                  className="relative flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-colors group"
                 >
                   {isActive && (
                     <motion.div
@@ -163,12 +169,12 @@ const Navigation: React.FC = () => {
                     />
                   )}
                   <Icon
-                    className={`w-6 h-6 relative z-10 transition-colors ${
+                    className={`w-5 h-5 relative z-10 transition-colors ${
                       isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                     }`}
                   />
                   <span
-                    className={`text-xs relative z-10 transition-colors ${
+                    className={`text-[10px] relative z-10 transition-colors ${
                       isActive ? 'text-primary font-medium' : 'text-muted-foreground'
                     }`}
                   >
