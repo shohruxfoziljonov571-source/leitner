@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Globe, BookOpen, Flame, TrendingUp, Star } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { getLanguageFlag, getLanguageName } from '@/lib/languages';
-import { Progress } from '@/components/ui/progress';
 
 interface LanguageStat {
   id: string;
@@ -77,14 +76,14 @@ const LanguageStats: React.FC = () => {
       transition={{ delay: 0.12 }}
       className="mb-6"
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Globe className="w-5 h-5 text-primary" />
-        <h2 className="font-display font-semibold text-lg text-foreground">
+      <div className="flex items-center gap-2 mb-3">
+        <Globe className="w-4 h-4 text-primary" />
+        <h2 className="font-display font-semibold text-sm text-foreground">
           Til statistikasi
         </h2>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-2">
         {languageStats.map((stat, index) => {
           const isActive = activeLanguage?.id === stat.id;
           const progress = stat.total_words > 0 
@@ -96,66 +95,45 @@ const LanguageStats: React.FC = () => {
               key={stat.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * index }}
+              transition={{ delay: 0.05 * index }}
               onClick={() => {
                 const lang = userLanguages.find(l => l.id === stat.id);
                 if (lang) setActiveLanguage(lang);
               }}
-              className={`relative p-4 rounded-2xl cursor-pointer transition-all duration-200 ${
+              className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
                 isActive 
-                  ? 'bg-primary/10 border-2 border-primary shadow-lg' 
-                  : 'bg-card border border-border hover:border-primary/50 hover:bg-card/80'
+                  ? 'bg-primary/10 border border-primary/30' 
+                  : 'bg-card border border-border hover:border-primary/20'
               }`}
             >
-              {isActive && (
-                <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
-                  Faol
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="text-lg">
+                    {getLanguageFlag(stat.source_language)}→{getLanguageFlag(stat.target_language)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-foreground">
+                      {getLanguageName(stat.source_language)} → {getLanguageName(stat.target_language)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Lv.{stat.level} • {stat.total_words} so'z • 🔥{stat.streak}
+                    </p>
+                  </div>
                 </div>
-              )}
+                <div className="text-right">
+                  <span className="text-xs font-semibold text-primary">{stat.xp} XP</span>
+                  {isActive && (
+                    <p className="text-[10px] text-primary font-medium">Faol</p>
+                  )}
+                </div>
+              </div>
               
-              {/* Language Header */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="text-2xl">
-                  {getLanguageFlag(stat.source_language)}
-                  <span className="mx-1 text-muted-foreground">→</span>
-                  {getLanguageFlag(stat.target_language)}
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {getLanguageName(stat.source_language)} → {getLanguageName(stat.target_language)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Level {stat.level} • {stat.xp} XP
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>O'zlashtirilgan</span>
-                  <span>{stat.learned_words}/{stat.total_words} so'z ({progress}%)</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
-
-              {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-background/50 rounded-lg p-2">
-                  <BookOpen className="w-4 h-4 mx-auto text-primary mb-1" />
-                  <p className="text-sm font-semibold text-foreground">{stat.total_words}</p>
-                  <p className="text-xs text-muted-foreground">So'z</p>
-                </div>
-                <div className="bg-background/50 rounded-lg p-2">
-                  <Flame className="w-4 h-4 mx-auto text-destructive mb-1" />
-                  <p className="text-sm font-semibold text-foreground">{stat.streak}</p>
-                  <p className="text-xs text-muted-foreground">Streak</p>
-                </div>
-                <div className="bg-background/50 rounded-lg p-2">
-                  <Star className="w-4 h-4 mx-auto text-accent-foreground mb-1" />
-                  <p className="text-sm font-semibold text-foreground">{stat.level}</p>
-                  <p className="text-xs text-muted-foreground">Daraja</p>
-                </div>
+              {/* Compact progress */}
+              <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </motion.div>
           );

@@ -34,8 +34,8 @@ const WeeklyChallenge: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="flex items-center justify-center py-6">
+        <Loader2 className="w-5 h-5 animate-spin text-primary" />
       </div>
     );
   }
@@ -45,164 +45,77 @@ const WeeklyChallenge: React.FC = () => {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-red-500/10 rounded-2xl p-3 sm:p-5 border border-amber-500/20"
-    >
+    <div className="bg-card rounded-xl p-4 shadow-card">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg flex-shrink-0">
-            <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center">
+            <Trophy className="w-4 h-4 text-accent" />
           </div>
-          <div className="min-w-0">
-            <h3 className="font-bold text-base sm:text-lg truncate">{t('weeklyChallenge')}</h3>
-            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <div>
+            <h3 className="font-semibold text-sm">{t('weeklyChallenge')}</h3>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-0.5">
+                <Clock className="w-3 h-3" />
                 {t('daysLeft').replace('{count}', String(daysLeft))}
               </span>
-              <span className="hidden xs:inline">•</span>
-              <span className="flex items-center gap-1">
-                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {t('participants').replace('{count}', String(participants.length))}
+              <span>•</span>
+              <span className="flex items-center gap-0.5">
+                <Users className="w-3 h-3" />
+                {participants.length}
               </span>
             </div>
           </div>
         </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
       </div>
 
-      {/* Top 3 Podium - Responsive */}
+      {/* Top 3 compact */}
       {top3.length > 0 && (
-        <div className="flex items-end justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 py-2">
-          {/* 2nd Place */}
-          {top3[1] && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex flex-col items-center"
-            >
-              <Avatar className="w-9 h-9 sm:w-11 sm:h-11 border-2 border-gray-400 shadow-md">
-                {top3[1].avatar_url && <AvatarImage src={top3[1].avatar_url} />}
-                <AvatarFallback className="bg-gray-400 text-white text-xs sm:text-sm font-semibold">
-                  {top3[1].full_name?.charAt(0)?.toUpperCase() || '?'}
+        <div className="space-y-1.5 mb-3">
+          {top3.map((p, i) => (
+            <div key={p.user_id} className="flex items-center gap-2 py-1">
+              <span className="text-sm w-5 text-center">
+                {i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
+              </span>
+              <Avatar className="w-6 h-6">
+                {p.avatar_url && <AvatarImage src={p.avatar_url} />}
+                <AvatarFallback className="text-[10px] bg-muted">
+                  {p.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </AvatarFallback>
               </Avatar>
-              <div className="mt-1.5 text-center">
-                <p className="text-[11px] sm:text-xs font-medium text-foreground truncate max-w-[60px] sm:max-w-[80px]">
-                  {top3[1].full_name?.split(' ')[0] || 'Foydalanuvchi'}
-                </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                  {top3[1].xp_earned} XP
-                </p>
-              </div>
-              <div className="bg-gray-400/30 w-14 sm:w-16 h-10 sm:h-14 rounded-t-lg mt-1 flex items-center justify-center">
-                <span className="text-lg sm:text-xl">🥈</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 1st Place */}
-          {top3[0] && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center -mt-2"
-            >
-              <Avatar className="w-11 h-11 sm:w-14 sm:h-14 border-2 border-amber-500 ring-2 ring-amber-400/40 shadow-lg">
-                {top3[0].avatar_url && <AvatarImage src={top3[0].avatar_url} />}
-                <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-600 text-white text-sm sm:text-base font-bold">
-                  {top3[0].full_name?.charAt(0)?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="mt-1.5 text-center">
-                <p className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-[70px] sm:max-w-[90px]">
-                  {top3[0].full_name?.split(' ')[0] || 'Foydalanuvchi'}
-                </p>
-                <p className="text-[10px] sm:text-xs text-amber-600 font-bold">
-                  {top3[0].xp_earned} XP
-                </p>
-              </div>
-              <div className="bg-amber-500/30 w-16 sm:w-20 h-14 sm:h-20 rounded-t-lg mt-1 flex items-center justify-center">
-                <span className="text-xl sm:text-2xl">👑</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 3rd Place */}
-          {top3[2] && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col items-center"
-            >
-              <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-amber-700 shadow-md">
-                {top3[2].avatar_url && <AvatarImage src={top3[2].avatar_url} />}
-                <AvatarFallback className="bg-amber-700 text-white text-[10px] sm:text-xs font-semibold">
-                  {top3[2].full_name?.charAt(0)?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="mt-1.5 text-center">
-                <p className="text-[10px] sm:text-xs font-medium text-foreground truncate max-w-[55px] sm:max-w-[70px]">
-                  {top3[2].full_name?.split(' ')[0] || 'Foydalanuvchi'}
-                </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                  {top3[2].xp_earned} XP
-                </p>
-              </div>
-              <div className="bg-amber-700/30 w-12 sm:w-14 h-8 sm:h-10 rounded-t-lg mt-1 flex items-center justify-center">
-                <span className="text-base sm:text-lg">🥉</span>
-              </div>
-            </motion.div>
-          )}
+              <span className="text-xs font-medium text-foreground flex-1 truncate">
+                {p.full_name?.split(' ')[0] || 'Foydalanuvchi'}
+              </span>
+              <span className="text-[11px] text-muted-foreground font-medium">{p.xp_earned} XP</span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* User Status / Join Button */}
+      {/* User Status / Join */}
       {userParticipation ? (
-        <div className="bg-card/50 backdrop-blur rounded-lg sm:rounded-xl p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="font-bold text-primary text-sm sm:text-base">#{userRank}</span>
-              </div>
-              <div className="min-w-0">
-                <p className="font-medium text-sm sm:text-base">{t('yourRank')}</p>
-                <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500" />
-                    {userParticipation.xp_earned} XP
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-500" />
-                    {userParticipation.words_reviewed} {t('words')}
-                  </span>
-                </div>
-              </div>
+        <div className="bg-muted/50 rounded-lg p-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-primary text-sm">#{userRank}</span>
+            <div className="text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-0.5"><Zap className="w-3 h-3 text-accent" />{userParticipation.xp_earned} XP</span>
+              <span className="mx-1.5">•</span>
+              <span className="inline-flex items-center gap-0.5"><Target className="w-3 h-3 text-primary" />{userParticipation.words_reviewed}</span>
             </div>
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
           </div>
         </div>
       ) : (
         <Button
           onClick={handleJoin}
-          className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg"
+          size="sm"
+          className="w-full gap-1.5 gradient-primary text-primary-foreground text-xs h-9"
         >
-          <Trophy className="w-4 h-4" />
+          <Trophy className="w-3.5 h-3.5" />
           {t('joinChallenge')}
         </Button>
       )}
-
-      {/* Info */}
-      {!userParticipation && (
-        <p className="text-xs text-center text-muted-foreground mt-3">
-          {t('challengeInfo')} 🏆
-        </p>
-      )}
-    </motion.div>
+    </div>
   );
 };
 
