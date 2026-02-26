@@ -5,7 +5,7 @@ import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, PenLine } from 'luc
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
-import { useWordsDB } from '@/hooks/useWordsDB';
+import { useLearnSession } from '@/hooks/useLearnSession';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
@@ -32,7 +32,7 @@ type LearningMode = 'flashcard' | 'quiz' | 'speed' | 'writing';
 const Learn: React.FC = () => {
   const { t, language } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
-  const { getWordsForReview, reviewWord, isLoading, stats, words } = useWordsDB();
+  const { reviewWords: wordsToReview, allWords, reviewWord, isLoading, stats } = useLearnSession();
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamificationContext();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showStreak } = useNotificationQueue();
@@ -73,12 +73,6 @@ const Learn: React.FC = () => {
     } catch { /* ignore */ }
   }, [learningMode]);
 
-  // Get words for review - memoized based on words array content
-  const wordsToReview = useMemo(() => {
-    const now = new Date();
-    return words.filter(word => new Date(word.next_review_time) <= now);
-  }, [words]);
-
   // Shuffle words ONCE per session using a ref — prevents reshuffle mid-session
   // when words state updates after each reviewWord() call
   const shuffledWordsWithDirectionRef = useRef<Array<{ word: typeof wordsToReview[0]; isReversed: boolean }>>([]);
@@ -87,16 +81,10 @@ const Learn: React.FC = () => {
   // Only re-shuffle when the set of reviewable word IDs changes (new session or new words added)
   const currentIdsKey = wordsToReview.map(w => w.id).sort().join(',');
 
-  // Yangi so'z qo'shilganda yoki sessiya yangi bo'lganda qayta shuffle qilish
-  // currentIdsKey o'zgarsa — bu sessiondagi yangi so'z demak, tozalab qayta tartiblaymiz
   const prevIdsKey = wordsToReviewIdsRef.current;
   const idsChanged = prevIdsKey !== '' && prevIdsKey !== currentIdsKey;
 
   if (shuffledWordsWithDirectionRef.current.length === 0 || idsChanged) {
-    if (idsChanged) {
-      // Yangi so'z qo'shildi yoki o'chirildi — sessionni tozalaymiz
-      // Faqat yangi qo'shilganlarni sessiyaga qo'shamiz (reviewed bo'lmaganlar saqlanib qoladi)
-    }
     const shuffled = shuffleArray(wordsToReview);
     shuffledWordsWithDirectionRef.current = shuffled.map(word => ({
       word,
@@ -111,9 +99,6 @@ const Learn: React.FC = () => {
   const wordsForReview = useMemo(() => {
     return shuffledWordsWithDirection.filter(item => !reviewedIds.has(item.word.id));
   }, [shuffledWordsWithDirection, reviewedIds]);
-
-  // Words already in snake_case — no transformation needed
-  const allWords = words;
 
   const currentWordItem = wordsForReview[0];
   const totalToReview = shuffledWordsWithDirection.length;
@@ -167,11 +152,11 @@ const Learn: React.FC = () => {
         await updateParticipantStats(xpForChallenge, 1, isCorrect ? 1 : 0);
       }
 
-      const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0) + (isCorrect ? 1 : 0);
-      const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
+      const totalCorrect = allWords.reduce((acc, w) => acc + w.times_correct, 0) + (isCorrect ? 1 : 0);
+      const totalReviews = allWords.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
       const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
       await checkAndUnlockAchievements({
-        totalWords: words.length,
+        totalWords: allWords.length,
         streak: stats.streak,
         totalReviews,
         accuracy,
@@ -183,7 +168,7 @@ const Learn: React.FC = () => {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, words, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, allWords, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -217,7 +202,7 @@ const Learn: React.FC = () => {
 
   // No words to review
   if (totalToReview === 0) {
-    const hasWords = words.length > 0;
+    const hasWords = allWords.length > 0;
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh]">
@@ -242,7 +227,7 @@ const Learn: React.FC = () => {
             </h2>
             <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
               {hasWords 
-                ? `Siz ${words.length} ta so'zni qo'shgansiz. Ular belgilangan vaqtda takrorlash uchun tayyor bo'ladi. Hozircha yangi so'z qo'shing! 💪`
+                ? `Siz ${allWords.length} ta so'zni qo'shgansiz. Ular belgilangan vaqtda takrorlash uchun tayyor bo'ladi. Hozircha yangi so'z qo'shing! 💪`
                 : 'Birinchi so\'zingizni qo\'shing va o\'rganishni boshlang. Leitner tizimi sizga samarali yodlashni ta\'minlaydi.'
               }
             </p>

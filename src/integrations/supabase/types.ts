@@ -1501,6 +1501,34 @@ export type Database = {
         Args: { p_challenge_id: string }
         Returns: undefined
       }
+      search_words: {
+        Args: {
+          p_box_number?: number
+          p_language_id: string
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_user_id: string
+        }
+        Returns: {
+          box_number: number
+          category_id: string
+          created_at: string
+          example_sentences: string[]
+          id: string
+          last_reviewed: string
+          mnemonic_hint: string
+          next_review_time: string
+          original_word: string
+          source_language: string
+          target_language: string
+          times_correct: number
+          times_incorrect: number
+          times_reviewed: number
+          total_count: number
+          translated_word: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
