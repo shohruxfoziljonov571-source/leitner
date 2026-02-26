@@ -15,7 +15,7 @@ const Install = () => {
     // Detect environment
     const ua = navigator.userAgent || '';
     setIsIOS(/iPad|iPhone|iPod/.test(ua));
-    setIsTelegram(!!window.Telegram?.WebApp?.initData);
+    setIsTelegram(!!(window as any).Telegram?.WebApp?.initData);
 
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -49,8 +49,8 @@ const Install = () => {
 
   const handleOpenInBrowser = () => {
     // Telegram WebApp.openLink opens URL in system browser
-    if (window.Telegram?.WebApp) {
-      (window.Telegram.WebApp as any).openLink(PUBLISHED_URL);
+    if ((window as any).Telegram?.WebApp) {
+      ((window as any).Telegram.WebApp as any).openLink(PUBLISHED_URL);
     } else {
       window.open(PUBLISHED_URL, '_blank');
     }

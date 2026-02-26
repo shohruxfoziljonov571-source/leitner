@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import CategorySelect from '@/components/CategorySelect';
 import { getLanguageName, getLanguageFlag } from '@/lib/languages';
 
@@ -29,6 +30,7 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
   onAddWord 
 }) => {
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
   const [originalWord, setOriginalWord] = useState('');
   const [translatedWord, setTranslatedWord] = useState('');
   const [examples, setExamples] = useState('');
@@ -65,7 +67,12 @@ const AddWordForm: React.FC<AddWordFormProps> = ({
       setTranslatedWord('');
       setExamples('');
 
-      toast.success(t('wordAdded'));
+      toast.success(t('wordAdded'), {
+        action: {
+          label: "O'rganishni boshlash →",
+          onClick: () => navigate('/learn'),
+        },
+      });
     } catch (error) {
       toast.error('Xatolik yuz berdi');
     } finally {

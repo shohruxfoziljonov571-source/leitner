@@ -217,20 +217,34 @@ const Learn: React.FC = () => {
 
   // No words to review
   if (totalToReview === 0) {
+    const hasWords = words.length > 0;
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-6 flex flex-col items-center justify-center min-h-[60vh]">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center"
+            className="text-center max-w-sm"
           >
-            <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-muted flex items-center justify-center">
-              <BookOpen className="w-12 h-12 text-muted-foreground" />
-            </div>
-            <h2 className="font-display font-bold text-2xl mb-2">{t('noWordsToReview')}</h2>
-            <p className="text-muted-foreground mb-8 max-w-sm">
-              {t('noWordsAddMore')}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+              className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-primary/10 flex items-center justify-center"
+            >
+              {hasWords ? (
+                <span className="text-5xl">🎯</span>
+              ) : (
+                <BookOpen className="w-12 h-12 text-primary" />
+              )}
+            </motion.div>
+            <h2 className="font-display font-bold text-2xl mb-2">
+              {hasWords ? 'Hozircha takrorlanadigan so\'z yo\'q' : t('noWordsToReview')}
+            </h2>
+            <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
+              {hasWords 
+                ? `Siz ${words.length} ta so'zni qo'shgansiz. Ular belgilangan vaqtda takrorlash uchun tayyor bo'ladi. Hozircha yangi so'z qo'shing! 💪`
+                : 'Birinchi so\'zingizni qo\'shing va o\'rganishni boshlang. Leitner tizimi sizga samarali yodlashni ta\'minlaydi.'
+              }
             </p>
             <Link to="/add">
               <Button size="lg" className="gap-2 gradient-primary text-primary-foreground">
