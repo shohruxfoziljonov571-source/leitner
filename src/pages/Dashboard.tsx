@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, Play, Trophy, Mic, Brain, Book, ChevronRight } from 'lucide-react';
+import { BookOpen, Play, Trophy, Mic, Brain, Book, ChevronRight, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
@@ -13,12 +13,14 @@ import LanguageStats from '@/components/dashboard/LanguageStats';
 import XpBar from '@/components/gamification/XpBar';
 import WeeklyChallenge from '@/components/gamification/WeeklyChallenge';
 import UnclaimedRewards from '@/components/gamification/UnclaimedRewards';
+import { usePremium } from '@/contexts/PremiumContext';
 
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { stats, boxCounts, reviewCount, totalWords, isLoading } = useDashboardData();
   const { getUnlockedAchievements } = useGamificationContext();
+  const { isPremium } = usePremium();
   
   const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [getUnlockedAchievements]);
 
@@ -181,6 +183,29 @@ const Dashboard: React.FC = () => {
             ))}
           </div>
         </motion.div>
+
+        {/* Premium CTA */}
+        {!isPremium && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="mb-6"
+          >
+            <Link to="/premium">
+              <div className="bg-gradient-to-r from-accent/15 to-accent/5 border border-accent/20 rounded-2xl p-4 flex items-center gap-3 hover:shadow-elevated transition-shadow">
+                <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
+                  <Crown className="w-5 h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-foreground">Premium ga o'ting</p>
+                  <p className="text-xs text-muted-foreground">Cheksiz so'z, AI review, diktant va boshqalar</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            </Link>
+          </motion.div>
+        )}
 
         {/* Quick Study */}
         <motion.div

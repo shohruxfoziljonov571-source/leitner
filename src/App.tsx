@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NotificationProvider } from "@/components/notifications/NotificationQueue";
 import { AdminProvider, useAdminContext } from "@/contexts/AdminContext";
 import { GamificationProvider } from "@/contexts/GamificationContext";
+import { PremiumProvider } from "@/contexts/PremiumContext";
 import Navigation from "@/components/layout/Navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 // Lazy load pages for better initial load performance
@@ -26,6 +27,7 @@ const Admin = lazy(() => import("@/pages/Admin"));
 const Dictation = lazy(() => import("@/pages/Dictation"));
 const Books = lazy(() => import("@/pages/Books"));
 const Mnemonics = lazy(() => import("@/pages/Mnemonics"));
+const Premium = lazy(() => import("@/pages/Premium"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Install = lazy(() => import("@/pages/Install"));
 
@@ -116,6 +118,7 @@ const AppRoutes = () => {
             <Route path="/dictation" element={<ProtectedRoute><Dictation /></ProtectedRoute>} />
             <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
             <Route path="/mnemonics" element={<ProtectedRoute><Mnemonics /></ProtectedRoute>} />
+            <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
             <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -133,6 +136,7 @@ const App = () => (
           <LanguageProvider>
             <LearningLanguageProvider>
               <GamificationProvider>
+                <PremiumProvider>
                 <TooltipProvider>
                   <NotificationProvider>
                     <Toaster position="top-center" richColors closeButton />
@@ -141,6 +145,7 @@ const App = () => (
                     </BrowserRouter>
                   </NotificationProvider>
                 </TooltipProvider>
+                </PremiumProvider>
               </GamificationProvider>
             </LearningLanguageProvider>
           </LanguageProvider>
