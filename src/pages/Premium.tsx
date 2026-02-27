@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Crown, Check, Upload, Loader2, Clock, Star, Zap, Brain, BookOpen, Mic, BarChart3, Swords, FileSpreadsheet, Infinity } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { usePremium } from '@/contexts/PremiumContext';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Crown,
+  Check,
+  Upload,
+  Loader2,
+  Clock,
+  Star,
+  Zap,
+  Brain,
+  BookOpen,
+  Mic,
+  BarChart3,
+  Swords,
+  FileSpreadsheet,
+  Infinity,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePremium } from "@/contexts/PremiumContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface PlanOption {
-  plan: 'monthly' | 'quarterly' | 'yearly';
+  plan: "monthly" | "quarterly" | "yearly";
   label: string;
   price: string;
   perMonth: string;
@@ -19,27 +34,27 @@ interface PlanOption {
 }
 
 const plans: PlanOption[] = [
-  { plan: 'monthly', label: '1 oy', price: '$3.99', perMonth: '$3.99/oy' },
-  { plan: 'quarterly', label: '3 oy', price: '$9.99', perMonth: '$3.33/oy', savings: '17%', popular: true },
-  { plan: 'yearly', label: '1 yil', price: '$24.99', perMonth: '$2.08/oy', savings: '48%' },
+  { plan: "monthly", label: "1 oy", price: "$3.99", perMonth: "$3.99/oy" },
+  { plan: "quarterly", label: "3 oy", price: "$9.99", perMonth: "$3.33/oy", savings: "17%", popular: true },
+  { plan: "yearly", label: "1 yil", price: "$24.99", perMonth: "$2.08/oy", savings: "48%" },
 ];
 
 const features = [
-  { icon: Infinity, label: "Cheksiz so'z qo'shish", free: '10/kun', premium: 'Cheksiz' },
-  { icon: Zap, label: 'Cheksiz takrorlash', free: '15/kun', premium: 'Cheksiz' },
-  { icon: Brain, label: 'AI Smart Review', free: '❌', premium: '✅' },
-  { icon: Mic, label: 'Diktant mashqlari', free: '❌', premium: '✅' },
-  { icon: BookOpen, label: 'Kitoblar', free: '❌', premium: '✅' },
-  { icon: Star, label: 'Mnemonikalar', free: '❌', premium: '✅' },
-  { icon: FileSpreadsheet, label: 'Excel import/export', free: '❌', premium: '✅' },
-  { icon: BarChart3, label: 'Kengaytirilgan statistika', free: '❌', premium: '✅' },
-  { icon: Swords, label: 'Word Duels', free: '❌', premium: '✅' },
+  { icon: Infinity, label: "Cheksiz so'z qo'shish", free: "10/kun", premium: "Cheksiz" },
+  { icon: Zap, label: "Cheksiz takrorlash", free: "15/kun", premium: "Cheksiz" },
+  { icon: Brain, label: "AI Smart Review", free: "❌", premium: "✅" },
+  { icon: Mic, label: "Diktant mashqlari", free: "❌", premium: "✅" },
+  { icon: BookOpen, label: "Kitoblar", free: "❌", premium: "✅" },
+  { icon: Star, label: "Mnemonikalar", free: "❌", premium: "✅" },
+  { icon: FileSpreadsheet, label: "Excel import/export", free: "❌", premium: "✅" },
+  { icon: BarChart3, label: "Kengaytirilgan statistika", free: "❌", premium: "✅" },
+  { icon: Swords, label: "Word Duels", free: "❌", premium: "✅" },
 ];
 
 const PAYMENT_DETAILS = {
-  card: '8600 1234 5678 9012',
-  holder: 'Leitner Premium',
-  bank: 'Uzcard / Humo / Visa',
+  card: "9860 3501 4530 3078",
+  holder: "Shohruxbek Foziljonov",
+  bank: "Humo",
 };
 
 const Premium: React.FC = () => {
@@ -48,7 +63,7 @@ const Premium: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<PlanOption>(plans[1]);
   const [uploading, setUploading] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [step, setStep] = useState<'plans' | 'payment' | 'upload' | 'done'>('plans');
+  const [step, setStep] = useState<"plans" | "payment" | "upload" | "done">("plans");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,39 +82,33 @@ const Premium: React.FC = () => {
 
     try {
       // Upload receipt
-      const fileExt = receiptFile.name.split('.').pop();
+      const fileExt = receiptFile.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('payment-receipts')
-        .upload(filePath, receiptFile);
+      const { error: uploadError } = await supabase.storage.from("payment-receipts").upload(filePath, receiptFile);
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('payment-receipts')
-        .getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.from("payment-receipts").getPublicUrl(filePath);
 
       // Create payment record
-      const amount = selectedPlan.plan === 'monthly' ? 3.99 : selectedPlan.plan === 'quarterly' ? 9.99 : 24.99;
+      const amount = selectedPlan.plan === "monthly" ? 3.99 : selectedPlan.plan === "quarterly" ? 9.99 : 24.99;
 
-      const { error: paymentError } = await supabase
-        .from('premium_payments')
-        .insert({
-          user_id: user.id,
-          plan: selectedPlan.plan,
-          amount,
-          receipt_url: filePath,
-          status: 'pending',
-        });
+      const { error: paymentError } = await supabase.from("premium_payments").insert({
+        user_id: user.id,
+        plan: selectedPlan.plan,
+        amount,
+        receipt_url: filePath,
+        status: "pending",
+      });
 
       if (paymentError) throw paymentError;
 
-      setStep('done');
+      setStep("done");
       await refetch();
       toast.success("To'lov yuborildi! Admin tez orada tekshiradi.");
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error("Payment error:", error);
       toast.error("Xatolik yuz berdi. Qaytadan urinib ko'ring.");
     } finally {
       setUploading(false);
@@ -111,17 +120,16 @@ const Premium: React.FC = () => {
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-6 max-w-lg">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-12">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-accent/20 flex items-center justify-center">
               <Crown className="w-10 h-10 text-accent" />
             </div>
             <h1 className="font-display font-bold text-2xl mb-2">Siz Premium foydalanuvchisiz! 👑</h1>
             <p className="text-muted-foreground mb-4">
-              Rejangiz: <Badge variant="secondary" className="ml-1">{subscription?.plan}</Badge>
+              Rejangiz:{" "}
+              <Badge variant="secondary" className="ml-1">
+                {subscription?.plan}
+              </Badge>
             </p>
             {daysUntilExpiry !== null && (
               <p className="text-sm text-muted-foreground">
@@ -135,25 +143,17 @@ const Premium: React.FC = () => {
   }
 
   // Pending payment
-  if (hasPendingPayment || step === 'done') {
+  if (hasPendingPayment || step === "done") {
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-6 max-w-lg">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-12">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-accent/20 flex items-center justify-center">
               <Clock className="w-10 h-10 text-accent" />
             </div>
             <h1 className="font-display font-bold text-2xl mb-2">To'lov tekshirilmoqda ⏳</h1>
-            <p className="text-muted-foreground mb-2">
-              Sizning to'lovingiz admin tomonidan tekshirilmoqda.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Odatda 1-24 soat ichida tasdiqlanadi.
-            </p>
+            <p className="text-muted-foreground mb-2">Sizning to'lovingiz admin tomonidan tekshirilmoqda.</p>
+            <p className="text-sm text-muted-foreground">Odatda 1-24 soat ichida tasdiqlanadi.</p>
           </motion.div>
         </div>
       </div>
@@ -164,21 +164,15 @@ const Premium: React.FC = () => {
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <div className="container mx-auto px-4 py-6 max-w-lg">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
             <Crown className="w-8 h-8 text-accent" />
           </div>
           <h1 className="font-display font-bold text-2xl mb-2">Premium olish</h1>
-          <p className="text-muted-foreground text-sm">
-            Barcha funksiyalardan cheksiz foydalaning
-          </p>
+          <p className="text-muted-foreground text-sm">Barcha funksiyalardan cheksiz foydalaning</p>
         </motion.div>
 
-        {step === 'plans' && (
+        {step === "plans" && (
           <>
             {/* Plans */}
             <motion.div
@@ -193,8 +187,8 @@ const Premium: React.FC = () => {
                   onClick={() => setSelectedPlan(plan)}
                   className={`w-full p-4 rounded-2xl border-2 text-left transition-all relative ${
                     selectedPlan.plan === plan.plan
-                      ? 'border-primary bg-primary/5 shadow-md'
-                      : 'border-border bg-card hover:border-primary/30'
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border bg-card hover:border-primary/30"
                   }`}
                 >
                   {plan.popular && (
@@ -238,7 +232,10 @@ const Premium: React.FC = () => {
                   {features.map((f, i) => {
                     const Icon = f.icon;
                     return (
-                      <div key={i} className="grid grid-cols-[1fr_60px_60px] text-xs items-center p-3 border-b last:border-0">
+                      <div
+                        key={i}
+                        className="grid grid-cols-[1fr_60px_60px] text-xs items-center p-3 border-b last:border-0"
+                      >
                         <div className="flex items-center gap-2">
                           <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="text-foreground">{f.label}</span>
@@ -255,7 +252,7 @@ const Premium: React.FC = () => {
             <Button
               size="lg"
               className="w-full gradient-primary text-primary-foreground h-12 text-base rounded-xl"
-              onClick={() => setStep('payment')}
+              onClick={() => setStep("payment")}
             >
               <Crown className="w-5 h-5 mr-2" />
               {selectedPlan.price} — Premium olish
@@ -263,19 +260,17 @@ const Premium: React.FC = () => {
           </>
         )}
 
-        {step === 'payment' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
+        {step === "payment" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <Card>
               <CardContent className="p-5 space-y-4">
                 <h3 className="font-display font-semibold">To'lov ma'lumotlari</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Reja</span>
-                    <span className="font-medium">{selectedPlan.label} — {selectedPlan.price}</span>
+                    <span className="font-medium">
+                      {selectedPlan.label} — {selectedPlan.price}
+                    </span>
                   </div>
                   <div className="border-t pt-3 space-y-2">
                     <p className="text-sm font-medium">Karta rekvizitlari:</p>
@@ -293,74 +288,57 @@ const Premium: React.FC = () => {
                         <span className="text-foreground">{PAYMENT_DETAILS.bank}</span>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      ⚠️ To'lovni amalga oshirgandan keyin chekni yuklang
-                    </p>
+                    <p className="text-xs text-muted-foreground">⚠️ To'lovni amalga oshirgandan keyin chekni yuklang</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep('plans')}>
+              <Button variant="outline" className="flex-1" onClick={() => setStep("plans")}>
                 Orqaga
               </Button>
-              <Button className="flex-1 gradient-primary text-primary-foreground" onClick={() => setStep('upload')}>
+              <Button className="flex-1 gradient-primary text-primary-foreground" onClick={() => setStep("upload")}>
                 To'lov qildim
               </Button>
             </div>
           </motion.div>
         )}
 
-        {step === 'upload' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
+        {step === "upload" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <Card>
               <CardContent className="p-5 space-y-4">
                 <h3 className="font-display font-semibold">Chek yuklash</h3>
-                <p className="text-sm text-muted-foreground">
-                  To'lov chekining rasmini yoki skrinshtotini yuklang
-                </p>
+                <p className="text-sm text-muted-foreground">To'lov chekining rasmini yoki skrinshtotini yuklang</p>
 
                 <label className="block">
-                  <div className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                    receiptFile ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
-                  }`}>
+                  <div
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                      receiptFile ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+                    }`}
+                  >
                     {receiptFile ? (
                       <div>
                         <Check className="w-8 h-8 mx-auto mb-2 text-primary" />
                         <p className="text-sm font-medium text-foreground">{receiptFile.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {(receiptFile.size / 1024).toFixed(0)} KB
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{(receiptFile.size / 1024).toFixed(0)} KB</p>
                       </div>
                     ) : (
                       <div>
                         <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                          Rasm yoki PDF tanlang
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Max 5MB
-                        </p>
+                        <p className="text-sm text-muted-foreground">Rasm yoki PDF tanlang</p>
+                        <p className="text-xs text-muted-foreground mt-1">Max 5MB</p>
                       </div>
                     )}
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+                  <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
                 </label>
               </CardContent>
             </Card>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setStep('payment')}>
+              <Button variant="outline" className="flex-1" onClick={() => setStep("payment")}>
                 Orqaga
               </Button>
               <Button
