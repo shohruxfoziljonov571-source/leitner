@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor, Folder, Target } from 'lucide-react';
+import { Languages, Bell, Info, LogOut, User, Moon, Sun, Monitor, Folder, Target, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
@@ -11,11 +11,13 @@ import { toast } from 'sonner';
 import CategoryManager from '@/components/CategoryManager';
 import NotificationSettings from '@/components/NotificationSettings';
 import DailyGoalSetting from '@/components/settings/DailyGoalSetting';
+import { usePremium } from '@/contexts/PremiumContext';
 
 const Settings: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const { user, signOut } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { isPremium, subscription, daysUntilExpiry } = usePremium();
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
@@ -65,6 +67,39 @@ const Settings: React.FC = () => {
               <div className="flex-1">
                 <h3 className="font-medium">{user?.email}</h3>
                 <p className="text-sm text-muted-foreground">Profilni ko'rish →</p>
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+
+        {/* Premium Status */}
+        <Link to="/premium">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.07 }}
+            className={`rounded-2xl shadow-card p-5 mb-4 hover:shadow-elevated transition-shadow cursor-pointer ${
+              isPremium ? 'bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/20' : 'bg-card'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                {isPremium ? (
+                  <>
+                    <h3 className="font-medium">Premium 👑</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {subscription?.plan} • {daysUntilExpiry !== null ? `${daysUntilExpiry} kun qoldi` : 'Faol'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-medium">Premium olish</h3>
+                    <p className="text-sm text-muted-foreground">Barcha funksiyalarni oching →</p>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

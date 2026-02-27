@@ -5,7 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import FeedbackSupport from '@/components/admin/FeedbackSupport';
 import LeaderboardManager from '@/components/admin/LeaderboardManager';
 import DictationManager from '@/components/admin/DictationManager';
 import BookManager from '@/components/admin/BookManager';
+import PaymentManager from '@/components/admin/PaymentManager';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -142,9 +143,13 @@ const Admin = () => {
           <p className="text-muted-foreground">Bot va foydalanuvchilar statistikasi</p>
         </motion.div>
 
-        <Tabs defaultValue="analytics" className="space-y-6">
+        <Tabs defaultValue="payments" className="space-y-6">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max">
+              <TabsTrigger value="payments" className="flex items-center gap-1 text-xs sm:text-sm">
+                <DollarSign className="h-4 w-4" />
+                <span className="hidden sm:inline">To'lovlar</span>
+              </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center gap-1 text-xs sm:text-sm">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Analitika</span>
@@ -430,6 +435,11 @@ const Admin = () => {
           {/* Books Tab */}
           <TabsContent value="books">
             <BookManager />
+          </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments">
+            <PaymentManager />
           </TabsContent>
 
           {/* Channels Tab */}
