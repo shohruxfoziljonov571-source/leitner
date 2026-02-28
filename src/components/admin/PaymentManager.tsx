@@ -238,7 +238,7 @@ const PaymentManager: React.FC = () => {
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold">${stats.revenue.toFixed(0)}</p>
+            <p className="text-2xl font-bold">{stats.revenue.toLocaleString()} so'm</p>
             <p className="text-xs text-muted-foreground">Jami daromad</p>
           </CardContent>
         </Card>
@@ -288,7 +288,7 @@ const PaymentManager: React.FC = () => {
                           {payment.profiles?.full_name || 'Nomsiz'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {payment.plan} — ${payment.amount} • {formatDate(payment.created_at)}
+                          {payment.plan} — {Number(payment.amount).toLocaleString()} so'm • {formatDate(payment.created_at)}
                         </p>
                       </div>
                     </div>
@@ -333,7 +333,7 @@ const PaymentManager: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Summa</p>
-                  <p className="font-medium">${selectedPayment.amount}</p>
+                  <p className="font-medium">{Number(selectedPayment.amount).toLocaleString()} so'm</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Status</p>

@@ -34,9 +34,9 @@ interface PlanOption {
 }
 
 const plans: PlanOption[] = [
-  { plan: "monthly", label: "1 oy", price: "$3.99", perMonth: "$3.99/oy" },
-  { plan: "quarterly", label: "3 oy", price: "$9.99", perMonth: "$3.33/oy", savings: "17%", popular: true },
-  { plan: "yearly", label: "1 yil", price: "$24.99", perMonth: "$2.08/oy", savings: "48%" },
+  { plan: "monthly", label: "1 oy", price: "12 000 so'm", perMonth: "12 000 so'm/oy" },
+  { plan: "quarterly", label: "3 oy", price: "29 000 so'm", perMonth: "9 667 so'm/oy", savings: "19%", popular: true },
+  { plan: "yearly", label: "1 yil", price: "99 000 so'm", perMonth: "8 250 so'm/oy", savings: "31%" },
 ];
 
 const features = [
@@ -92,17 +92,27 @@ const Premium: React.FC = () => {
       const { data: urlData } = supabase.storage.from("payment-receipts").getPublicUrl(filePath);
 
       // Create payment record
-      const amount = selectedPlan.plan === "monthly" ? 3.99 : selectedPlan.plan === "quarterly" ? 9.99 : 24.99;
+      const amount = selectedPlan.plan === "monthly" ? 12000 : selectedPlan.plan === "quarterly" ? 29000 : 99000;
 
-      const { error: paymentError } = await supabase.from("premium_payments").insert({
+      const { data: paymentData, error: paymentError } = await supabase.from("premium_payments").insert({
         user_id: user.id,
         plan: selectedPlan.plan,
         amount,
+        currency: "UZS",
         receipt_url: filePath,
         status: "pending",
-      });
+      }).select("id").single();
 
       if (paymentError) throw paymentError;
+
+      // Notify admin via Telegram bot
+      try {
+        await supabase.functions.invoke("notify-payment", {
+          body: { payment_id: paymentData.id },
+        });
+      } catch (e) {
+        console.error("Notify error:", e);
+      }
 
       setStep("done");
       await refetch();
