@@ -192,9 +192,15 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     return;
   }
 
-  // Handle quiz answer - this one edits messages
+  // Handle quiz answer
   if (data.startsWith("quiz_")) {
     await handleQuizAnswer(supabase, token, chatId, messageId, data);
+    return;
+  }
+
+  // Handle payment approval/rejection
+  if (data.startsWith("pay_approve_") || data.startsWith("pay_reject_")) {
+    await handlePaymentAction(supabase, token, chatId, messageId, data);
     return;
   }
 
@@ -2349,6 +2355,117 @@ async function sendTimeSettingsInfo(token: string, chatId: number, messageId?: n
     "━━━━━━━━━━━━━━━━━━\n\n" +
     "Quyidagi vaqtlardan birini tanlang:"
   );
+}
+
+// ============ PAYMENT APPROVAL HANDLER ============
+
+async function handlePaymentAction(supabase: any, token: string, chatId: number, messageId: number, data: string) {
+  const isApprove = data.startsWith("pay_approve_");
+  const paymentId = data.replace(isApprove ? "pay_approve_" : "pay_reject_", "");
+
+  // Get payment
+  const { data: payment, error } = await supabase
+    .from("premium_payments")
+    .select("*")
+    .eq("id", paymentId)
+    .single();
+
+  if (error || !payment) {
+    await editMessage(token, chatId, messageId, "❌ To'lov topilmadi.");
+    return;
+  }
+
+  if (payment.status !== "pending") {
+    await editMessage(token, chatId, messageId, `⚠️ Bu to'lov allaqachon ${payment.status === "approved" ? "tasdiqlangan" : "rad etilgan"}.`);
+    return;
+  }
+
+  // Get user profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, telegram_chat_id")
+    .eq("user_id", payment.user_id)
+    .single();
+
+  const userName = profile?.full_name || "Nomsiz";
+
+  if (isApprove) {
+    // Update payment status
+    const { error: updateErr } = await supabase
+      .from("premium_payments")
+      .update({
+        status: "approved",
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", paymentId);
+
+    if (updateErr) {
+      await editMessage(token, chatId, messageId, "❌ Xatolik: " + updateErr.message);
+      return;
+    }
+
+    // Calculate expiry
+    const durationDays = payment.plan === "monthly" ? 30 : payment.plan === "quarterly" ? 90 : 365;
+    const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+    // Upsert subscription
+    await supabase
+      .from("subscriptions")
+      .upsert({
+        user_id: payment.user_id,
+        plan: payment.plan,
+        status: "active",
+        starts_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+
+    // Update admin message
+    await editMessage(token, chatId, messageId,
+      `✅ <b>To'lov tasdiqlandi!</b>\n\n` +
+      `👤 ${userName}\n` +
+      `📋 ${payment.plan}\n` +
+      `💵 ${Number(payment.amount).toLocaleString()} so'm\n` +
+      `📅 Tugash: ${new Date(expiresAt).toLocaleDateString("uz-UZ")}`
+    );
+
+    // Notify user via Telegram
+    if (profile?.telegram_chat_id) {
+      await sendMessage(token, profile.telegram_chat_id,
+        `🎉 <b>Tabriklaymiz! Siz Premium oldingiz!</b> 👑\n\n` +
+        `📋 Reja: <b>${payment.plan}</b>\n` +
+        `📅 Tugash: <b>${new Date(expiresAt).toLocaleDateString("uz-UZ")}</b>\n\n` +
+        `Endi barcha funksiyalardan cheksiz foydalanishingiz mumkin! 🚀`,
+        { inline_keyboard: [[{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }]] }
+      );
+    }
+  } else {
+    // Reject
+    await supabase
+      .from("premium_payments")
+      .update({
+        status: "rejected",
+        admin_note: "Telegram orqali rad etildi",
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", paymentId);
+
+    await editMessage(token, chatId, messageId,
+      `❌ <b>To'lov rad etildi</b>\n\n` +
+      `👤 ${userName}\n` +
+      `💵 ${Number(payment.amount).toLocaleString()} so'm`
+    );
+
+    // Notify user
+    if (profile?.telegram_chat_id) {
+      await sendMessage(token, profile.telegram_chat_id,
+        `😔 <b>To'lovingiz rad etildi</b>\n\n` +
+        `Iltimos, to'lov ma'lumotlarini tekshirib qaytadan urinib ko'ring.\n` +
+        `Savol bo'lsa, admin bilan bog'laning.`,
+        { inline_keyboard: [[{ text: "📱 Qayta urinish", web_app: { url: WEBAPP_URL + "/premium" } }]] }
+      );
+    }
+  }
 }
 
 // ============ TELEGRAM API FUNCTIONS ============
