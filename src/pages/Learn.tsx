@@ -9,12 +9,14 @@ import { useLearnSession } from '@/hooks/useLearnSession';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
+import { useDailyLimits } from '@/hooks/useDailyLimits';
 import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
 import WritingCard from '@/components/learning/WritingCard';
 import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
+import UpgradePrompt from '@/components/premium/UpgradePrompt';
 import { getLanguageFlag, getLanguageName } from '@/lib/languages';
 
 // Fisher-Yates shuffle algorithm
@@ -36,6 +38,8 @@ const Learn: React.FC = () => {
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamificationContext();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showStreak } = useNotificationQueue();
+  const { quizLimitReached, quizRemaining, maxQuizPerDay, isPremium } = useDailyLimits(0, stats.today_reviewed);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   // Persist learning session in sessionStorage so progress survives tab switches / calls
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(() => {
@@ -119,6 +123,10 @@ const Learn: React.FC = () => {
   }, [currentWordItem, reviewWord]);
 
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
+    if (quizLimitReached) {
+      setShowUpgrade(true);
+      return;
+    }
     if (currentWordItem) {
       await reviewWord(currentWordItem.word.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
@@ -168,7 +176,7 @@ const Learn: React.FC = () => {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, allWords, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, allWords, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak, quizLimitReached]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -470,6 +478,22 @@ const Learn: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Quiz limit indicator */}
+      {!isPremium && learningMode && (
+        <div className="fixed bottom-20 left-4 md:bottom-8 z-30">
+          <div className="text-[10px] bg-card/90 backdrop-blur-sm border rounded-full px-3 py-1.5 shadow-sm text-muted-foreground">
+            {stats.today_reviewed}/{maxQuizPerDay} takrorlash
+          </div>
+        </div>
+      )}
+
+      <UpgradePrompt
+        open={showUpgrade}
+        onOpenChange={setShowUpgrade}
+        feature="Kunlik takrorlash limiti"
+        description={`Bepul rejada kuniga ${maxQuizPerDay} ta takrorlash mumkin. Premium olsangiz — cheksiz!`}
+      />
     </div>
   );
 };
