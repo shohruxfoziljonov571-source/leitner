@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, Play, Pause, Send, Check, X, ArrowLeft, RotateCcw, FileAudio } from 'lucide-react';
+import { Volume2, Play, Pause, Send, Check, X, ArrowLeft, RotateCcw, FileAudio, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
+import { usePremium } from '@/contexts/PremiumContext';
 import ErrorHighlight from '@/components/dictation/ErrorHighlight';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -49,6 +50,7 @@ const Dictation: React.FC = () => {
   const { speak, stop, isSpeaking } = useSpeech();
   const { addXp } = useGamificationContext();
   const { showXp, showSuccess } = useNotificationQueue();
+  const { isPremium } = usePremium();
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const [dictations, setDictations] = useState<Dictation[]>([]);
@@ -233,6 +235,27 @@ const Dictation: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Yuklanmoqda...</div>
+      </div>
+    );
+  }
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
+              <Crown className="w-10 h-10 text-accent" />
+            </div>
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">Audio Diktant 🎧</h1>
+            <p className="text-muted-foreground text-sm mb-6">Audio diktant faqat Premium foydalanuvchilari uchun.</p>
+            <Link to="/premium">
+              <Button className="gradient-primary text-primary-foreground gap-2" size="lg">
+                <Crown className="w-4 h-4" /> Premium olish
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
       </div>
     );
   }

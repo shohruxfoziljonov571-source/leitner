@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, PenLine } from 'lucide-react';
+import { BookOpen, PartyPopper, Plus, Layers, Gamepad2, Zap, PenLine, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
@@ -9,7 +9,7 @@ import { useLearnSession } from '@/hooks/useLearnSession';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { useWeeklyChallenge } from '@/hooks/useWeeklyChallenge';
 import { useNotificationQueue } from '@/components/notifications/NotificationQueue';
-import { useDailyLimits } from '@/hooks/useDailyLimits';
+import { usePremium } from '@/contexts/PremiumContext';
 import FlashCard from '@/components/learning/FlashCard';
 import QuizCard from '@/components/learning/QuizCard';
 import WritingCard from '@/components/learning/WritingCard';
@@ -17,6 +17,7 @@ import XpBar from '@/components/gamification/XpBar';
 import PomodoroTimer from '@/components/learning/PomodoroTimer';
 import SpeedModeTimer from '@/components/learning/SpeedModeTimer';
 import UpgradePrompt from '@/components/premium/UpgradePrompt';
+import { PremiumLock } from '@/components/premium/UpgradePrompt';
 import { getLanguageFlag, getLanguageName } from '@/lib/languages';
 
 // Fisher-Yates shuffle algorithm
@@ -38,7 +39,7 @@ const Learn: React.FC = () => {
   const { addXp, checkAndUnlockAchievements, XP_PER_CORRECT, level } = useGamificationContext();
   const { userParticipation, updateParticipantStats } = useWeeklyChallenge();
   const { showStreak } = useNotificationQueue();
-  const { quizLimitReached, quizRemaining, maxQuizPerDay, isPremium } = useDailyLimits(0, stats.today_reviewed);
+  const { isPremium, checkFeature } = usePremium();
   const [showUpgrade, setShowUpgrade] = useState(false);
   // Persist learning session in sessionStorage so progress survives tab switches / calls
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -77,12 +78,10 @@ const Learn: React.FC = () => {
     } catch { /* ignore */ }
   }, [learningMode]);
 
-  // Shuffle words ONCE per session using a ref — prevents reshuffle mid-session
-  // when words state updates after each reviewWord() call
+  // Shuffle words ONCE per session using a ref
   const shuffledWordsWithDirectionRef = useRef<Array<{ word: typeof wordsToReview[0]; isReversed: boolean }>>([]);
   const wordsToReviewIdsRef = useRef<string>('');
 
-  // Only re-shuffle when the set of reviewable word IDs changes (new session or new words added)
   const currentIdsKey = wordsToReview.map(w => w.id).sort().join(',');
 
   const prevIdsKey = wordsToReviewIdsRef.current;
@@ -109,52 +108,38 @@ const Learn: React.FC = () => {
   const reviewedCount = reviewedIds.size;
 
   const handleSpeedTimeout = useCallback(async () => {
-    // Auto-answer as incorrect when timer runs out
     if (currentWordItem) {
       await reviewWord(currentWordItem.word.id, false);
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
-      
-      // Reset combo on timeout
       setComboStreak(0);
-      
       setSpeedResetTrigger(prev => prev + 1);
     }
   }, [currentWordItem, reviewWord]);
 
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
-    if (quizLimitReached) {
-      setShowUpgrade(true);
-      return;
-    }
     if (currentWordItem) {
       await reviewWord(currentWordItem.word.id, isCorrect);
       setReviewedIds((prev) => new Set([...prev, currentWordItem.word.id]));
       setCurrentIndex((prev) => prev + 1);
 
-      // Update combo streak
       const newStreak = isCorrect ? comboStreak + 1 : 0;
       setComboStreak(newStreak);
       
       if (isCorrect) {
-        // Calculate XP with combo bonus (based on new streak)
         const comboBonus = newStreak >= 10 ? 5 : newStreak >= 5 ? 3 : newStreak >= 3 ? 1 : 0;
         const xpGain = XP_PER_CORRECT + comboBonus;
         
-        // Only show popup for streak milestones (not every XP gain)
         const streakMilestones = [3, 5, 10, 15, 20];
         const isStreakMilestone = streakMilestones.includes(newStreak);
         
         if (isStreakMilestone) {
           showStreak(newStreak);
         }
-        // XP popup faqat level up da chiqadi (addXp ichida avtomatik)
         
         await addXp(xpGain, 'correct_answer');
       }
-      // Noto'g'ri javob uchun XP berilmaydi
       
-      // Update weekly challenge stats if user is participating
       if (userParticipation) {
         const xpForChallenge = isCorrect ? XP_PER_CORRECT : 0;
         await updateParticipantStats(xpForChallenge, 1, isCorrect ? 1 : 0);
@@ -171,14 +156,12 @@ const Learn: React.FC = () => {
         level,
       });
 
-      // Reset speed timer for next word
       if (learningMode === 'speed') {
         setSpeedResetTrigger(prev => prev + 1);
       }
     }
-  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, allWords, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak, quizLimitReached]);
+  }, [currentWordItem, reviewWord, XP_PER_CORRECT, addXp, allWords, checkAndUnlockAchievements, stats.streak, level, userParticipation, updateParticipantStats, comboStreak, learningMode, showStreak]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (comboTimeoutRef.current) {
@@ -186,6 +169,15 @@ const Learn: React.FC = () => {
       }
     };
   }, []);
+
+  const handleModeSelect = (mode: LearningMode) => {
+    // Flashcard is free, others need premium
+    if (mode !== 'flashcard' && !checkFeature('hasQuizModes')) {
+      setShowUpgrade(true);
+      return;
+    }
+    setLearningMode(mode);
+  };
 
   if (isLoading) {
     return (
@@ -290,6 +282,13 @@ const Learn: React.FC = () => {
 
   // Mode selection screen
   if (!learningMode) {
+    const modes = [
+      { mode: 'flashcard' as LearningMode, icon: Layers, title: 'Flashcard', desc: t('flashcardDesc'), iconClass: 'bg-primary/10 text-primary', premium: false },
+      { mode: 'quiz' as LearningMode, icon: Gamepad2, title: 'Quiz (4 variant)', desc: t('quizDesc'), iconClass: 'bg-primary/10 text-primary', premium: true },
+      { mode: 'speed' as LearningMode, icon: Zap, title: t('speedMode'), desc: t('speedDesc'), iconClass: 'bg-accent/10 text-accent', badge: '10s', premium: true },
+      { mode: 'writing' as LearningMode, icon: PenLine, title: t('writingMode'), desc: t('writingDesc'), iconClass: 'bg-secondary/10 text-secondary', badge: t('newLabel'), premium: true },
+    ];
+
     return (
       <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
         <div className="container mx-auto px-4 py-5 max-w-lg">
@@ -307,18 +306,13 @@ const Learn: React.FC = () => {
           </motion.div>
 
           <div className="grid gap-2.5">
-            {([
-              { mode: 'flashcard' as LearningMode, icon: Layers, title: 'Flashcard', desc: t('flashcardDesc'), iconClass: 'bg-primary/10 text-primary' },
-              { mode: 'quiz' as LearningMode, icon: Gamepad2, title: 'Quiz (4 variant)', desc: t('quizDesc'), iconClass: 'bg-primary/10 text-primary' },
-              { mode: 'speed' as LearningMode, icon: Zap, title: t('speedMode'), desc: t('speedDesc'), iconClass: 'bg-accent/10 text-accent', badge: '10s' },
-              { mode: 'writing' as LearningMode, icon: PenLine, title: t('writingMode'), desc: t('writingDesc'), iconClass: 'bg-secondary/10 text-secondary', badge: t('newLabel') },
-            ]).map((item, index) => (
+            {modes.map((item, index) => (
               <motion.button
                 key={item.mode}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 + index * 0.08 }}
-                onClick={() => setLearningMode(item.mode)}
+                onClick={() => handleModeSelect(item.mode)}
                 className="p-3.5 rounded-xl bg-card shadow-card hover:shadow-elevated transition-all border border-border hover:border-primary/50 text-left group"
               >
                 <div className="flex items-center gap-3">
@@ -333,6 +327,7 @@ const Learn: React.FC = () => {
                           {item.badge}
                         </span>
                       )}
+                      {item.premium && !isPremium && <PremiumLock />}
                     </h3>
                     <p className="text-[11px] text-muted-foreground">{item.desc}</p>
                   </div>
@@ -341,11 +336,18 @@ const Learn: React.FC = () => {
             ))}
           </div>
         </div>
+
+        <UpgradePrompt
+          open={showUpgrade}
+          onOpenChange={setShowUpgrade}
+          feature="Quiz rejimlari"
+          description="Quiz, Tezlik rejimi va Yozma tekshirish faqat Premium foydalanuvchilari uchun. Flashcard bepul!"
+        />
       </div>
     );
   }
 
-  // Use word directly — no transformation needed (snake_case throughout)
+  // Use word directly
   const currentWord = currentWordItem?.word ?? null;
 
   const getModeLabel = () => {
@@ -394,7 +396,6 @@ const Learn: React.FC = () => {
         >
           {/* Row 1: Title + right controls */}
           <div className="flex items-center justify-between mb-3 gap-2">
-            {/* Left: mode badge only */}
             <button
               onClick={() => setLearningMode(null)}
               className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors whitespace-nowrap shrink-0"
@@ -402,7 +403,6 @@ const Learn: React.FC = () => {
               {getModeLabel()}
             </button>
 
-            {/* Right: speed timer + pomodoro + xp */}
             <div className="flex items-center gap-2 shrink-0">
               {learningMode === 'speed' && (
                 <SpeedModeTimer
@@ -420,80 +420,78 @@ const Learn: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 2: progress count + combo + XP */}
+          {/* Row 2: progress count + combo */}
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">
               {reviewedCount + 1} / {totalToReview} {t('words')}
             </span>
-            <div className="flex items-center gap-2">
-              {comboStreak >= 3 && (
-                <span className="text-xs font-medium text-accent">
-                  🔥 x{comboStreak}
-                </span>
-              )}
-              <span className="text-xs text-primary font-medium">
-                +{XP_PER_CORRECT} XP
-              </span>
-            </div>
+            {comboStreak >= 3 && (
+              <motion.span
+                key={comboStreak}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-xs font-bold text-accent"
+              >
+                🔥 {comboStreak}x combo
+              </motion.span>
+            )}
           </div>
 
           {/* Progress bar */}
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <motion.div
+              className="h-full rounded-full gradient-primary"
               initial={{ width: 0 }}
-              animate={{ width: `${(reviewedCount / totalToReview) * 100}%` }}
-              className="h-full gradient-primary rounded-full"
+              animate={{ width: `${totalToReview > 0 ? (reviewedCount / totalToReview) * 100 : 0}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
         </motion.div>
 
-
-        {/* Card based on mode */}
+        {/* Card */}
         <AnimatePresence mode="wait">
-          {currentWord && (learningMode === 'flashcard') && (
-            <FlashCard
+          {currentWord && (
+            <motion.div
               key={currentWord.id}
-              word={currentWord}
-              onAnswer={handleAnswer}
-              isReversed={currentWordItem?.isReversed}
-            />
-          )}
-          {currentWord && (learningMode === 'quiz' || learningMode === 'speed') && (
-            <QuizCard
-              key={currentWord.id}
-              word={currentWord}
-              allWords={allWords}
-              onAnswer={handleAnswer}
-              isReversed={currentWordItem?.isReversed}
-            />
-          )}
-          {currentWord && learningMode === 'writing' && (
-            <WritingCard
-              key={currentWord.id}
-              word={currentWord}
-              onAnswer={handleAnswer}
-              isReversed={currentWordItem?.isReversed}
-            />
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.2 }}
+            >
+              {learningMode === 'flashcard' && (
+                <FlashCard
+                  word={currentWord}
+                  isReversed={currentWordItem?.isReversed ?? false}
+                  onAnswer={handleAnswer}
+                />
+              )}
+              {learningMode === 'quiz' && (
+                <QuizCard
+                  word={currentWord}
+                  allWords={allWords}
+                  isReversed={currentWordItem?.isReversed ?? false}
+                  onAnswer={handleAnswer}
+                />
+              )}
+              {learningMode === 'speed' && (
+                <QuizCard
+                  word={currentWord}
+                  allWords={allWords}
+                  isReversed={currentWordItem?.isReversed ?? false}
+                  onAnswer={handleAnswer}
+                />
+              )}
+              {learningMode === 'writing' && (
+                <WritingCard
+                  word={currentWord}
+                  isReversed={currentWordItem?.isReversed ?? false}
+                  onAnswer={handleAnswer}
+                />
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      {/* Quiz limit indicator */}
-      {!isPremium && learningMode && (
-        <div className="fixed bottom-20 left-4 md:bottom-8 z-30">
-          <div className="text-[10px] bg-card/90 backdrop-blur-sm border rounded-full px-3 py-1.5 shadow-sm text-muted-foreground">
-            {stats.today_reviewed}/{maxQuizPerDay} takrorlash
-          </div>
-        </div>
-      )}
-
-      <UpgradePrompt
-        open={showUpgrade}
-        onOpenChange={setShowUpgrade}
-        feature="Kunlik takrorlash limiti"
-        description={`Bepul rejada kuniga ${maxQuizPerDay} ta takrorlash mumkin. Premium olsangiz — cheksiz!`}
-      />
     </div>
   );
 };

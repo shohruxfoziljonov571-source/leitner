@@ -2371,12 +2371,12 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
     .single();
 
   if (error || !payment) {
-    await editMessage(token, chatId, messageId, "❌ To'lov topilmadi.");
+    await editMessageOrCaption(token, chatId, messageId, "❌ To'lov topilmadi.");
     return;
   }
 
   if (payment.status !== "pending") {
-    await editMessage(token, chatId, messageId, `⚠️ Bu to'lov allaqachon ${payment.status === "approved" ? "tasdiqlangan" : "rad etilgan"}.`);
+    await editMessageOrCaption(token, chatId, messageId, `⚠️ Bu to'lov allaqachon ${payment.status === "approved" ? "tasdiqlangan" : "rad etilgan"}.`);
     return;
   }
 
@@ -2400,7 +2400,7 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
       .eq("id", paymentId);
 
     if (updateErr) {
-      await editMessage(token, chatId, messageId, "❌ Xatolik: " + updateErr.message);
+      await editMessageOrCaption(token, chatId, messageId, "❌ Xatolik: " + updateErr.message);
       return;
     }
 
@@ -2421,7 +2421,7 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
       }, { onConflict: "user_id" });
 
     // Update admin message
-    await editMessage(token, chatId, messageId,
+    await editMessageOrCaption(token, chatId, messageId,
       `✅ <b>To'lov tasdiqlandi!</b>\n\n` +
       `👤 ${userName}\n` +
       `📋 ${payment.plan}\n` +
@@ -2450,7 +2450,7 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
       })
       .eq("id", paymentId);
 
-    await editMessage(token, chatId, messageId,
+    await editMessageOrCaption(token, chatId, messageId,
       `❌ <b>To'lov rad etildi</b>\n\n` +
       `👤 ${userName}\n` +
       `💵 ${Number(payment.amount).toLocaleString()} so'm`
@@ -2466,6 +2466,29 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
       );
     }
   }
+}
+
+// Try editMessageCaption first (for photo messages), fall back to editMessageText
+async function editMessageOrCaption(token: string, chatId: number, messageId: number, text: string, replyMarkup?: any) {
+  // Try caption edit first (works for photo/document messages)
+  const captionBody: any = {
+    chat_id: chatId,
+    message_id: messageId,
+    caption: text,
+    parse_mode: "HTML",
+  };
+  if (replyMarkup) captionBody.reply_markup = replyMarkup;
+
+  const captionRes = await fetch(`https://api.telegram.org/bot${token}/editMessageCaption`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(captionBody),
+  });
+
+  if (captionRes.ok) return captionRes;
+
+  // Fall back to text edit (for text-only messages)
+  return editMessage(token, chatId, messageId, text, replyMarkup);
 }
 
 // ============ TELEGRAM API FUNCTIONS ============

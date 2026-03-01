@@ -1,11 +1,12 @@
-import React, { useMemo, lazy, Suspense } from 'react';
+import React, { useMemo, lazy, Suspense, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap } from 'lucide-react';
+import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap, Crown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { ACHIEVEMENTS } from '@/hooks/useGamification';
+import { usePremium } from '@/contexts/PremiumContext';
 import StatCard from '@/components/dashboard/StatCard';
 import LanguageSelector from '@/components/LanguageSelector';
 import XpBar from '@/components/gamification/XpBar';
@@ -14,11 +15,16 @@ import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/Lazy
 import StreakHeatmap from '@/components/statistics/StreakHeatmap';
 import DictationStats from '@/components/statistics/DictationStats';
 import ReviewForecast from '@/components/statistics/ReviewForecast';
+import UpgradePrompt from '@/components/premium/UpgradePrompt';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
   const { stats, getBoxCounts, words, isLoading } = useWordsDB();
   const { achievements, level, xp } = useGamificationContext();
+  const { isPremium, checkFeature } = usePremium();
+  const [showUpgrade, setShowUpgrade] = useState(false);
   
   // Memoize expensive calculations
   const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
@@ -38,6 +44,37 @@ const Statistics: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse-soft text-muted-foreground">{t('loading')}</div>
+      </div>
+    );
+  }
+
+  // Premium gate for advanced stats
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center"
+          >
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
+              <Crown className="w-10 h-10 text-accent" />
+            </div>
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">
+              Batafsil Statistika 📊
+            </h1>
+            <p className="text-muted-foreground text-sm mb-6">
+              Batafsil statistika faqat Premium foydalanuvchilari uchun. Grafik, heatmap va boshqa tahlillar!
+            </p>
+            <Link to="/premium">
+              <Button className="gradient-primary text-primary-foreground gap-2" size="lg">
+                <Crown className="w-4 h-4" />
+                Premium olish
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
       </div>
     );
   }

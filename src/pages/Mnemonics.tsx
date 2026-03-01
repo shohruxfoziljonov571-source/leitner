@@ -1,15 +1,40 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Castle, BookText, Lightbulb, Plus } from 'lucide-react';
+import { Castle, BookText, Lightbulb, Plus, Crown } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { usePremium } from '@/contexts/PremiumContext';
+import { Link } from 'react-router-dom';
 import MemoryPalaceTab from '@/components/mnemonics/MemoryPalaceTab';
 import WordStoriesTab from '@/components/mnemonics/WordStoriesTab';
 import MnemonicHintsTab from '@/components/mnemonics/MnemonicHintsTab';
 
 const Mnemonics: React.FC = () => {
   const { t } = useLanguage();
+  const { isPremium } = usePremium();
   const [activeTab, setActiveTab] = useState('palace');
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
+              <Crown className="w-10 h-10 text-accent" />
+            </div>
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">🧠 Mnemonic usullari</h1>
+            <p className="text-muted-foreground text-sm mb-6">Xotira saroyi, hikoyalar va eslatmalar — faqat Premium uchun.</p>
+            <Link to="/premium">
+              <Button className="gradient-primary text-primary-foreground gap-2" size="lg">
+                <Crown className="w-4 h-4" /> Premium olish
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">

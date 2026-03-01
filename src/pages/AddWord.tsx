@@ -6,12 +6,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
 import { useGamificationContext } from '@/contexts/GamificationContext';
-import { useDailyLimits } from '@/hooks/useDailyLimits';
+import { usePremium } from '@/contexts/PremiumContext';
 import AddWordForm from '@/components/AddWordForm';
 import ExcelImport from '@/components/ExcelImport';
 import WordList from '@/components/WordList';
 import LanguageSelector from '@/components/LanguageSelector';
 import UpgradePrompt from '@/components/premium/UpgradePrompt';
+import { PremiumLock } from '@/components/premium/UpgradePrompt';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,16 +22,9 @@ const AddWord: React.FC = () => {
   const { activeLanguage } = useLearningLanguage();
   const { addWord, addWordsBulk, words, stats } = useWordsDB();
   const { checkAndUnlockAchievements, level } = useGamificationContext();
+  const { isPremium, checkFeature } = usePremium();
   const [activeTab, setActiveTab] = useState('list');
   const [showUpgrade, setShowUpgrade] = useState(false);
-
-  // Count words added today
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayWordsAdded = useMemo(() => {
-    return words.filter(w => w.created_at?.startsWith(todayStr)).length;
-  }, [words, todayStr]);
-
-  const { wordLimitReached, wordsRemaining, maxWordsPerDay, isPremium } = useDailyLimits(todayWordsAdded, 0);
 
   const handleAddWord = async (word: {
     originalWord: string;
@@ -40,10 +34,6 @@ const AddWord: React.FC = () => {
     exampleSentences: string[];
     categoryId?: string | null;
   }) => {
-    if (wordLimitReached) {
-      setShowUpgrade(true);
-      return;
-    }
     const result = await addWord({
       original_word: word.originalWord,
       translated_word: word.translatedWord,
@@ -71,11 +61,11 @@ const AddWord: React.FC = () => {
   const handleBulkImport = async (wordsToImport: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
     if (!activeLanguage) return;
 
-    if (!isPremium && todayWordsAdded + wordsToImport.length > maxWordsPerDay) {
+    if (!checkFeature('hasExcelImport')) {
       setShowUpgrade(true);
-      toast.error(`Kunlik limit: ${maxWordsPerDay} ta. Bugun ${wordsRemaining} ta qo'shishingiz mumkin.`);
       return;
     }
+
     try {
       const result = await addWordsBulk(wordsToImport.map(word => ({
         original_word: word.originalWord,
@@ -135,6 +125,14 @@ const AddWord: React.FC = () => {
     );
   }
 
+  const handleExcelTabClick = () => {
+    if (!checkFeature('hasExcelImport')) {
+      setShowUpgrade(true);
+      return;
+    }
+    setActiveTab('import');
+  };
+
   return (
     <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
       <div className="container mx-auto px-4 py-5 max-w-lg">
@@ -174,27 +172,6 @@ const AddWord: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Daily limit indicator */}
-        {!isPremium && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-4 p-3 rounded-xl bg-accent/10 border border-accent/20 text-center"
-          >
-            <p className="text-xs text-muted-foreground">
-              Bugun: <strong className="text-foreground">{todayWordsAdded}</strong> / {maxWordsPerDay} so'z
-              {wordLimitReached && (
-                <span className="text-destructive ml-2">
-                  • Limit tugadi!{' '}
-                  <button onClick={() => setShowUpgrade(true)} className="underline text-accent font-medium">
-                    Premium olish
-                  </button>
-                </span>
-              )}
-            </p>
-          </motion.div>
-        )}
-
         {/* Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -211,9 +188,19 @@ const AddWord: React.FC = () => {
                 <Plus className="w-3.5 h-3.5" />
                 Qo'shish
               </TabsTrigger>
-              <TabsTrigger value="import" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <TabsTrigger 
+                value="import" 
+                className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                onClick={(e) => {
+                  if (!checkFeature('hasExcelImport')) {
+                    e.preventDefault();
+                    setShowUpgrade(true);
+                  }
+                }}
+              >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 Excel
+                {!isPremium && <PremiumLock />}
               </TabsTrigger>
             </TabsList>
 
@@ -259,8 +246,8 @@ const AddWord: React.FC = () => {
       <UpgradePrompt
         open={showUpgrade}
         onOpenChange={setShowUpgrade}
-        feature="Kunlik so'z limiti"
-        description={`Bepul rejada kuniga ${maxWordsPerDay} ta so'z qo'shish mumkin. Premium olsangiz — cheksiz!`}
+        feature="Excel import"
+        description="Excel orqali so'z qo'shish faqat Premium foydalanuvchilari uchun. Premium olsangiz — cheksiz import!"
       />
     </div>
   );
