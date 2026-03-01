@@ -22,11 +22,12 @@ interface PremiumLimits {
   hasExcelImport: boolean;
   hasAdvancedStats: boolean;
   hasDuels: boolean;
+  hasQuizModes: boolean;
 }
 
 const FREE_LIMITS: PremiumLimits = {
-  maxWordsPerDay: 10,
-  maxQuizPerDay: 15,
+  maxWordsPerDay: Infinity,
+  maxQuizPerDay: Infinity,
   maxCategories: 3,
   maxLanguages: 1,
   hasAIReview: false,
@@ -36,6 +37,7 @@ const FREE_LIMITS: PremiumLimits = {
   hasExcelImport: false,
   hasAdvancedStats: false,
   hasDuels: false,
+  hasQuizModes: false,
 };
 
 const PREMIUM_LIMITS: PremiumLimits = {
@@ -50,6 +52,7 @@ const PREMIUM_LIMITS: PremiumLimits = {
   hasExcelImport: true,
   hasAdvancedStats: true,
   hasDuels: true,
+  hasQuizModes: true,
 };
 
 interface PremiumContextType {

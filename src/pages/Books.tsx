@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, FileText, Loader2, Plus } from 'lucide-react';
+import { Book, ArrowLeft, ChevronLeft, ChevronRight, Volume2, Pause, FileText, Loader2, Plus, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSpeech } from '@/hooks/useSpeech';
+import { usePremium } from '@/contexts/PremiumContext';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import WordPopup from '@/components/books/WordPopup';
@@ -48,6 +49,7 @@ interface ReadingProgress {
 const Books: React.FC = () => {
   const { user } = useAuth();
   const { speak, stop, isSpeaking } = useSpeech();
+  const { isPremium } = usePremium();
   
   const [books, setBooks] = useState<BookType[]>([]);
   const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
@@ -235,6 +237,27 @@ const Books: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Yuklanmoqda...</div>
+      </div>
+    );
+  }
+
+  if (!isPremium) {
+    return (
+      <div className="min-h-screen pb-24 md:pt-24 md:pb-8">
+        <div className="container mx-auto px-4 py-6 max-w-md flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
+              <Crown className="w-10 h-10 text-accent" />
+            </div>
+            <h1 className="font-display font-bold text-2xl text-foreground mb-2">Kitoblar 📚</h1>
+            <p className="text-muted-foreground text-sm mb-6">Kitoblar faqat Premium foydalanuvchilari uchun.</p>
+            <Link to="/premium">
+              <Button className="gradient-primary text-primary-foreground gap-2" size="lg">
+                <Crown className="w-4 h-4" /> Premium olish
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
       </div>
     );
   }

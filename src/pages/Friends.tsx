@@ -15,7 +15,8 @@ import {
   Globe,
   Crown,
   Medal,
-  Swords
+  Swords,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +26,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFriends } from '@/hooks/useFriends';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { usePremium } from '@/contexts/PremiumContext';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import DuelsList from '@/components/duels/DuelsList';
 
 const Friends: React.FC = () => {
@@ -50,6 +53,7 @@ const Friends: React.FC = () => {
   const [friendCode, setFriendCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const { isPremium } = usePremium();
 
   const copyFriendCode = () => {
     if (myFriendCode) {
@@ -310,7 +314,24 @@ const Friends: React.FC = () => {
         </AnimatePresence>
 
         {/* Word Duels Section */}
-        <DuelsList />
+        {isPremium ? (
+          <DuelsList />
+        ) : (
+          <Card className="border-accent/20">
+            <CardContent className="py-8 text-center">
+              <Lock className="w-8 h-8 mx-auto mb-3 text-accent" />
+              <h3 className="font-semibold mb-1">So'z duellari — Premium</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Do'stlaringiz bilan so'z dueliga chiqish uchun Premium olish kerak.
+              </p>
+              <Link to="/premium">
+                <Button className="gradient-primary text-primary-foreground gap-2" size="sm">
+                  <Crown className="w-4 h-4" /> Premium olish
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Leaderboard Tabs */}
         <Tabs defaultValue="global" className="w-full">
