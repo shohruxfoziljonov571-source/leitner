@@ -15,12 +15,18 @@ import {
   Swords,
   FileSpreadsheet,
   Infinity,
+  Users,
+  Copy,
+  Share2,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePremium } from "@/contexts/PremiumContext";
+import { useReferrals, REQUIRED_REFERRALS } from "@/hooks/useReferrals";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -58,6 +64,164 @@ const PAYMENT_DETAILS = {
   bank: "Humo",
 };
 
+const SHARE_TEXT = "Men so'zlarni shu platformada 2x tezroq yodlayapman 🚀 Sen ham qo'shil!";
+
+// ─── Referral Section ───────────────────────────────
+const ReferralSection: React.FC = () => {
+  const { validReferrals, referralUrl, referralCode, isLoading } = useReferrals();
+  const [copied, setCopied] = useState(false);
+
+  if (isLoading || !referralCode) return null;
+
+  const progress = Math.min((validReferrals / REQUIRED_REFERRALS) * 100, 100);
+  const shareMessage = `${SHARE_TEXT}\n${referralUrl}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(referralUrl);
+    setCopied(true);
+    toast.success("Havola nusxalandi!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = (platform: string) => {
+    const encodedMsg = encodeURIComponent(shareMessage);
+    const encodedUrl = encodeURIComponent(referralUrl);
+    let url = "";
+
+    switch (platform) {
+      case "telegram":
+        url = `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(SHARE_TEXT)}`;
+        break;
+      case "whatsapp":
+        url = `https://wa.me/?text=${encodedMsg}`;
+        break;
+      case "instagram":
+        handleCopy();
+        toast.info("Havola nusxalandi! Instagram story yoki DM ga joylang.");
+        return;
+    }
+
+    if (url) window.open(url, "_blank");
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 }}
+      className="mb-8"
+    >
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 overflow-hidden">
+        <CardContent className="p-5 space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Gift className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-base">1 oylik Premium'ni bepul oling</h3>
+              <p className="text-xs text-muted-foreground">
+                {REQUIRED_REFERRALS} ta referal = 1 oylik Premium
+              </p>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Sizning referallaringiz</span>
+              <span className="font-bold text-primary">
+                {validReferrals} / {REQUIRED_REFERRALS}
+              </span>
+            </div>
+            <Progress value={progress} className="h-3" />
+            {validReferrals >= REQUIRED_REFERRALS && (
+              <p className="text-xs text-primary font-medium">
+                🎉 Tabriklaymiz! Siz Premium oldingiz!
+              </p>
+            )}
+          </div>
+
+          {/* Referral link */}
+          <div className="bg-background/60 rounded-xl p-3">
+            <p className="text-xs text-muted-foreground mb-2">Shaxsiy referal havolangiz:</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 text-xs font-mono bg-muted rounded-lg px-3 py-2 truncate">
+                {referralUrl}
+              </div>
+              <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* Share buttons */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Ulashish:</p>
+            <div className="grid grid-cols-4 gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShare("telegram")}
+                className="flex flex-col items-center gap-1 h-auto py-2"
+              >
+                <span className="text-base">📨</span>
+                <span className="text-[10px]">Telegram</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShare("whatsapp")}
+                className="flex flex-col items-center gap-1 h-auto py-2"
+              >
+                <span className="text-base">💬</span>
+                <span className="text-[10px]">WhatsApp</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShare("instagram")}
+                className="flex flex-col items-center gap-1 h-auto py-2"
+              >
+                <span className="text-base">📷</span>
+                <span className="text-[10px]">Instagram</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopy}
+                className="flex flex-col items-center gap-1 h-auto py-2"
+              >
+                <Copy className="w-4 h-4" />
+                <span className="text-[10px]">Nusxa</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="bg-muted/50 rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-semibold">Qanday ishlaydi?</p>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>1️⃣ Referal havolangizni do'stlaringizga yuboring</p>
+              <p>2️⃣ Do'stingiz ro'yxatdan o'tib, birinchi so'zini qo'shsin</p>
+              <p>3️⃣ {REQUIRED_REFERRALS} ta tasdiqlangan referal = 1 oy Premium bepul!</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+// ─── Free Premium Alternative CTA ──────────────────
+const FreePremiumHint: React.FC = () => (
+  <p className="text-center text-xs text-muted-foreground mt-2">
+    <Gift className="w-3 h-3 inline mr-1" />
+    Yoki <span className="text-primary font-medium">{REQUIRED_REFERRALS} ta referal</span> orqali tekin oling ↑
+  </p>
+);
+
+// ─── Main Component ─────────────────────────────────
 const Premium: React.FC = () => {
   const { user } = useAuth();
   const { isPremium, subscription, hasPendingPayment, daysUntilExpiry, refetch } = usePremium();
@@ -82,17 +246,12 @@ const Premium: React.FC = () => {
     setUploading(true);
 
     try {
-      // Upload receipt
       const fileExt = receiptFile.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage.from("payment-receipts").upload(filePath, receiptFile);
-
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage.from("payment-receipts").getPublicUrl(filePath);
-
-      // Create payment record
       const amount = selectedPlan.plan === "monthly" ? 12000 : selectedPlan.plan === "quarterly" ? 29000 : 99000;
 
       const { data: paymentData, error: paymentError } = await supabase.from("premium_payments").insert({
@@ -106,7 +265,6 @@ const Premium: React.FC = () => {
 
       if (paymentError) throw paymentError;
 
-      // Notify admin via Telegram bot
       try {
         await supabase.functions.invoke("notify-payment", {
           body: { payment_id: paymentData.id },
@@ -185,6 +343,9 @@ const Premium: React.FC = () => {
 
         {step === "plans" && (
           <>
+            {/* Free Premium via Referrals */}
+            <ReferralSection />
+
             {/* Plans */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -268,6 +429,7 @@ const Premium: React.FC = () => {
               <Crown className="w-5 h-5 mr-2" />
               {selectedPlan.price} — Premium olish
             </Button>
+            <FreePremiumHint />
           </>
         )}
 

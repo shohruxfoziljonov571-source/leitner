@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, Lock } from 'lucide-react';
+import { Crown, Lock, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
@@ -32,6 +32,12 @@ const UpgradePrompt: React.FC<UpgradePromptProps> = ({
             <Crown className="w-4 h-4 mr-2" />
             Premium olish
           </Button>
+        </Link>
+        <Link to="/premium" onClick={() => onOpenChange(false)} className="block">
+          <p className="text-xs text-muted-foreground mt-1">
+            <Gift className="w-3 h-3 inline mr-1" />
+            Yoki <span className="text-primary font-medium">10 ta referal</span> orqali tekin oling
+          </p>
         </Link>
       </DialogContent>
     </Dialog>
