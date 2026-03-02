@@ -1159,6 +1159,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          is_valid: boolean
+          referred_user_id: string
+          referrer_user_id: string
+          validated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_valid?: boolean
+          referred_user_id: string
+          referrer_user_id: string
+          validated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_valid?: boolean
+          referred_user_id?: string
+          referrer_user_id?: string
+          validated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1527,6 +1554,7 @@ export type Database = {
         Args: { p_language_id: string; p_user_id: string }
         Returns: number
       }
+      get_valid_referral_count: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

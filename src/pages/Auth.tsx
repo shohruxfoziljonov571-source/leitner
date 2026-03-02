@@ -27,6 +27,15 @@ const Auth: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
 
+  // Track referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+      localStorage.setItem('referral_code', refCode);
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       navigate('/');
@@ -159,6 +168,31 @@ const Auth: React.FC = () => {
             toast.error(error.message);
           }
         } else {
+          // Track referral if exists
+          const refCode = localStorage.getItem('referral_code');
+          if (refCode) {
+            try {
+              const { data: sessionData } = await supabase.auth.getSession();
+              const currentUserId = sessionData?.session?.user?.id;
+              if (currentUserId) {
+                const { data: referrerProfile } = await supabase
+                  .from('profiles')
+                  .select('user_id')
+                  .eq('friend_code', refCode)
+                  .single();
+
+                if (referrerProfile && referrerProfile.user_id !== currentUserId) {
+                  await (supabase as any).from('user_referrals').insert({
+                    referrer_user_id: referrerProfile.user_id,
+                    referred_user_id: currentUserId,
+                  });
+                }
+              }
+              localStorage.removeItem('referral_code');
+            } catch (e) {
+              console.error('Referral tracking error:', e);
+            }
+          }
           toast.success('Muvaffaqiyatli ro\'yxatdan o\'tdingiz!');
           navigate('/');
         }
