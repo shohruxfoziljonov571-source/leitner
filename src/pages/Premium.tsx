@@ -40,15 +40,16 @@ const plans: PlanOption[] = [
 ];
 
 const features = [
-  { icon: Infinity, label: "Cheksiz so'z qo'shish", free: "10/kun", premium: "Cheksiz" },
-  { icon: Zap, label: "Cheksiz takrorlash", free: "15/kun", premium: "Cheksiz" },
+  { icon: Infinity, label: "So'z qo'shish", free: "✅ Cheksiz", premium: "✅ Cheksiz" },
+  { icon: Zap, label: "Flashcard takrorlash", free: "✅ Cheksiz", premium: "✅ Cheksiz" },
+  { icon: Zap, label: "Quiz rejimlar (4 variant, Tezlik, Yozma)", free: "❌", premium: "✅" },
   { icon: Brain, label: "AI Smart Review", free: "❌", premium: "✅" },
   { icon: Mic, label: "Diktant mashqlari", free: "❌", premium: "✅" },
   { icon: BookOpen, label: "Kitoblar", free: "❌", premium: "✅" },
   { icon: Star, label: "Mnemonikalar", free: "❌", premium: "✅" },
   { icon: FileSpreadsheet, label: "Excel import/export", free: "❌", premium: "✅" },
   { icon: BarChart3, label: "Kengaytirilgan statistika", free: "❌", premium: "✅" },
-  { icon: Swords, label: "Word Duels", free: "❌", premium: "✅" },
+  { icon: Swords, label: "So'z duellari", free: "❌", premium: "✅" },
 ];
 
 const PAYMENT_DETAILS = {
