@@ -37,7 +37,7 @@ export const useReferrals = (): ReferralData => {
       setReferralCode(profile?.friend_code || null);
 
       // Count referrals - table may not be in generated types yet
-      const { data: referrals } = await (supabase as any)
+      const { data: referrals } = await supabase
         .from('user_referrals')
         .select('id, is_valid')
         .eq('referrer_user_id', user.id);
@@ -58,7 +58,7 @@ export const useReferrals = (): ReferralData => {
   }, [fetchData]);
 
   const referralUrl = referralCode
-    ? `${window.location.origin}/auth?ref=${referralCode}`
+    ? `https://t.me/Leitner_robot?start=ref_${referralCode}`
     : '';
 
   return {

@@ -670,6 +670,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   const parts = text.split(" ");
   const firstName = message?.from?.first_name || "Foydalanuvchi";
   const lastName = message?.from?.last_name || "";
+  let premiumRefCode: string | null = null;
   
   if (parts.length > 1) {
     const param = parts[1];
@@ -683,8 +684,9 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     
     // Check if it's a referral link (starts with ref_)
     if (param.startsWith("ref_")) {
-      const refCode = param.replace("ref_", "");
-      await trackReferralVisit(supabase, refCode, chatId, username);
+      premiumRefCode = param.replace("ref_", "");
+      // Also track admin referral visits if matching
+      await trackReferralVisit(supabase, premiumRefCode, chatId, username);
     }
     
     // Check if it's a user connection link (base64 encoded)
@@ -740,7 +742,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   
   if (!existingProfile) {
     // Auto-create account for Telegram user
-    const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName);
+    const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
     if (autoCreated) {
       await sendMessage(
@@ -757,9 +759,45 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
       );
       return;
     }
+  } else if (premiumRefCode) {
+    // Existing user clicked a referral link - still track it
+    await trackPremiumReferral(supabase, premiumRefCode, existingProfile.userId);
   }
 
   await sendWelcomeMessage(token, chatId);
+}
+
+// Track premium referral (user_referrals table)
+async function trackPremiumReferral(supabase: any, refCode: string, referredUserId: string) {
+  try {
+    // Find referrer by friend_code
+    const { data: referrerProfile } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .eq("friend_code", refCode)
+      .maybeSingle();
+
+    if (!referrerProfile || referrerProfile.user_id === referredUserId) return;
+
+    // Check if referral already exists
+    const { data: existing } = await supabase
+      .from("user_referrals")
+      .select("id")
+      .eq("referrer_user_id", referrerProfile.user_id)
+      .eq("referred_user_id", referredUserId)
+      .maybeSingle();
+
+    if (existing) return;
+
+    await supabase.from("user_referrals").insert({
+      referrer_user_id: referrerProfile.user_id,
+      referred_user_id: referredUserId,
+    });
+
+    console.log(`Premium referral tracked: ${refCode} -> ${referredUserId}`);
+  } catch (e) {
+    console.error("Track premium referral error:", e);
+  }
 }
 
 // Auto-create Telegram account
@@ -768,7 +806,8 @@ async function autoCreateTelegramAccount(
   chatId: number, 
   username?: string, 
   firstName?: string, 
-  lastName?: string
+  lastName?: string,
+  premiumRefCode?: string | null
 ): Promise<boolean> {
   try {
     console.log(`Auto-creating account for Telegram user: ${chatId} (${firstName})`);
@@ -819,6 +858,11 @@ async function autoCreateTelegramAccount(
           .from("notification_settings")
           .upsert({ user_id: matchingUser.id, telegram_enabled: true }, { onConflict: "user_id" });
 
+        // Track premium referral
+        if (premiumRefCode) {
+          await trackPremiumReferral(supabase, premiumRefCode, matchingUser.id);
+        }
+
         profileCache.delete(chatId);
         return true;
       }
@@ -867,6 +911,11 @@ async function autoCreateTelegramAccount(
             user_id: signUpData.user.id,
             user_language_id: langData.id,
           });
+      }
+
+      // Track premium referral
+      if (premiumRefCode) {
+        await trackPremiumReferral(supabase, premiumRefCode, signUpData.user.id);
       }
 
       profileCache.delete(chatId);
