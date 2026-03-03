@@ -182,7 +182,7 @@ const Auth: React.FC = () => {
                   .single();
 
                 if (referrerProfile && referrerProfile.user_id !== currentUserId) {
-                  await (supabase as any).from('user_referrals').insert({
+                  await supabase.from('user_referrals').insert({
                     referrer_user_id: referrerProfile.user_id,
                     referred_user_id: currentUserId,
                   });
