@@ -772,7 +772,59 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   }
 
   await sendWelcomeMessage(token, chatId);
+
+  // Map ad click to telegram user (after account is ready)
+  if (adClickId) {
+    await mapAdClickToUser(supabase, adClickId, chatId, username);
+  }
 }
+
+// Map ad click_id to telegram user and trigger conversion
+async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, username?: string) {
+  try {
+    const { data: click, error } = await supabase
+      .from("ad_clicks")
+      .select("id, conversion_sent")
+      .eq("click_id", clickId)
+      .maybeSingle();
+
+    if (error || !click) {
+      console.log(`Ad click not found: ${clickId}`);
+      return;
+    }
+
+    // Update with telegram user data
+    await supabase
+      .from("ad_clicks")
+      .update({
+        telegram_user_id: chatId,
+        telegram_username: username || null,
+        channel_joined: true, // They started the bot
+      })
+      .eq("click_id", clickId);
+
+    // Send conversion event if not already sent
+    if (!click.conversion_sent) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+        const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+        
+        await fetch(`${supabaseUrl}/functions/v1/meta-conversion`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ click_id: clickId }),
+        });
+        console.log(`Conversion event sent for click: ${clickId}`);
+      } catch (e) {
+        console.error("Failed to send conversion:", e);
+      }
+    }
+  } catch (e) {
+    console.error("Map ad click error:", e);
+  }
 
 // Track premium referral (user_referrals table)
 async function trackPremiumReferral(supabase: any, refCode: string, referredUserId: string) {
