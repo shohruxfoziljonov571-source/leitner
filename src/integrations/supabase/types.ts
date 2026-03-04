@@ -59,6 +59,66 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_clicks: {
+        Row: {
+          channel_joined: boolean
+          click_id: string
+          conversion_sent: boolean
+          conversion_sent_at: string | null
+          created_at: string
+          fbclid: string | null
+          id: string
+          ip_hash: string | null
+          telegram_user_id: number | null
+          telegram_username: string | null
+          updated_at: string
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          channel_joined?: boolean
+          click_id: string
+          conversion_sent?: boolean
+          conversion_sent_at?: string | null
+          created_at?: string
+          fbclid?: string | null
+          id?: string
+          ip_hash?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          channel_joined?: boolean
+          click_id?: string
+          conversion_sent?: boolean
+          conversion_sent_at?: string | null
+          created_at?: string
+          fbclid?: string | null
+          id?: string
+          ip_hash?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: []
+      }
       audio_dictations: {
         Row: {
           audio_text: string
