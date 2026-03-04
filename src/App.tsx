@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LearningLanguageProvider } from "@/contexts/LearningLanguageContext";
@@ -90,6 +90,8 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AppRoutes = () => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/lp';
   const isLandingPage = window.location.pathname === '/lp';
 
   if (isLoading) {
