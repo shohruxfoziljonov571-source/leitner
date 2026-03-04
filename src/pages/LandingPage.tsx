@@ -160,18 +160,18 @@ const LandingPage: React.FC = () => {
         >
           <div className="flex items-center justify-center gap-8 flex-wrap">
             <div>
-              <p className="text-3xl font-bold text-primary">10,000+</p>
+              <p className="text-3xl font-bold text-primary">300+</p>
               <p className="text-sm text-muted-foreground">foydalanuvchilar</p>
             </div>
             <div className="w-px h-12 bg-border hidden sm:block" />
             <div>
-              <p className="text-3xl font-bold text-primary">500,000+</p>
+              <p className="text-3xl font-bold text-primary">17,000+</p>
               <p className="text-sm text-muted-foreground">o'rganilgan so'zlar</p>
             </div>
             <div className="w-px h-12 bg-border hidden sm:block" />
             <div>
-              <p className="text-3xl font-bold text-primary">⭐ 4.9</p>
-              <p className="text-sm text-muted-foreground">reyting</p>
+              <p className="text-3xl font-bold text-primary">🇺🇿 #1</p>
+              <p className="text-sm text-muted-foreground">Leitner ilovasi</p>
             </div>
           </div>
         </motion.div>
