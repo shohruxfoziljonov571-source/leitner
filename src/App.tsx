@@ -30,6 +30,7 @@ const Mnemonics = lazy(() => import("@/pages/Mnemonics"));
 const Premium = lazy(() => import("@/pages/Premium"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Install = lazy(() => import("@/pages/Install"));
+const LandingPage = lazy(() => import("@/pages/LandingPage"));
 
 // Loading component for Suspense
 const PageLoader = () => (
@@ -120,6 +121,7 @@ const AppRoutes = () => {
             <Route path="/mnemonics" element={<ProtectedRoute><Mnemonics /></ProtectedRoute>} />
             <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
             <Route path="/install" element={<Install />} />
+            <Route path="/lp" element={<LandingPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
