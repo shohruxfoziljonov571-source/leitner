@@ -21,6 +21,11 @@ const LandingPage: React.FC = () => {
   const handleStartNow = async () => {
     setIsRedirecting(true);
 
+    // Fire Meta Pixel Lead event
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'Lead');
+    }
+
     try {
       const params = new URLSearchParams(window.location.search);
       const clickId = generateClickId();
