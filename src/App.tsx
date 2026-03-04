@@ -90,6 +90,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AppRoutes = () => {
   const { user, isLoading } = useAuth();
+  const isLandingPage = window.location.pathname === '/lp';
 
   if (isLoading) {
     return (
@@ -101,7 +102,7 @@ const AppRoutes = () => {
 
   return (
     <>
-      {user && <Navigation />}
+      {user && !isLandingPage && <Navigation />}
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
