@@ -92,7 +92,6 @@ const AppRoutes = () => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
   const isLandingPage = location.pathname === '/lp';
-  const isLandingPage = window.location.pathname === '/lp';
 
   if (isLoading) {
     return (
