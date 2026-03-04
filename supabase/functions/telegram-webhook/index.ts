@@ -825,6 +825,7 @@ async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, 
   } catch (e) {
     console.error("Map ad click error:", e);
   }
+}
 
 // Track premium referral (user_referrals table)
 async function trackPremiumReferral(supabase: any, refCode: string, referredUserId: string) {
