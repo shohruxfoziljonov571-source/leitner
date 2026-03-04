@@ -671,9 +671,16 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   const firstName = message?.from?.first_name || "Foydalanuvchi";
   const lastName = message?.from?.last_name || "";
   let premiumRefCode: string | null = null;
+  let adClickId: string | null = null;
   
   if (parts.length > 1) {
     const param = parts[1];
+    
+    // Check if it's an ad click tracking link (starts with ad_)
+    if (param.startsWith("ad_")) {
+      adClickId = param.replace("ad_", "");
+      console.log(`Ad click detected: ${adClickId} from chat ${chatId}`);
+    }
     
     // Check if it's a contest referral link (starts with cref_)
     if (param.startsWith("cref_")) {
