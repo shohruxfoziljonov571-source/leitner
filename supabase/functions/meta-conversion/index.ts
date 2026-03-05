@@ -8,16 +8,26 @@ const corsHeaders = {
 
 const META_API_VERSION = "v21.0";
 
+// Supported Meta events
+const VALID_EVENTS = ["CompleteRegistration", "Lead", "Purchase", "Subscribe", "StartTrial"];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { click_id } = await req.json();
+    const { click_id, event_name = "CompleteRegistration", value, currency } = await req.json();
 
     if (!click_id) {
       return new Response(JSON.stringify({ error: "click_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!VALID_EVENTS.includes(event_name)) {
+      return new Response(JSON.stringify({ error: `Invalid event_name. Valid: ${VALID_EVENTS.join(", ")}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -53,7 +63,8 @@ serve(async (req) => {
       });
     }
 
-    if (click.conversion_sent) {
+    // For CompleteRegistration, check if already sent (dedup)
+    if (event_name === "CompleteRegistration" && click.conversion_sent) {
       return new Response(JSON.stringify({ message: "Already sent" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -61,10 +72,11 @@ serve(async (req) => {
     }
 
     // Build event data
+    const eventId = `${click_id}_${event_name}_${Date.now()}`;
     const eventData: any = {
-      event_name: "CompleteRegistration",
+      event_name,
       event_time: Math.floor(Date.now() / 1000),
-      event_id: click_id, // deduplication
+      event_id: eventId,
       action_source: "website",
       user_data: {},
     };
@@ -74,8 +86,13 @@ serve(async (req) => {
       eventData.user_data.fbc = `fb.1.${Date.now()}.${click.fbclid}`;
     }
 
-    // Add fbp cookie if we had it (not available in this flow, but structure is ready)
-    // eventData.user_data.fbp = "fb.1.xxx.yyy";
+    // Add value for Purchase events
+    if (value && currency) {
+      eventData.custom_data = {
+        value: parseFloat(value),
+        currency,
+      };
+    }
 
     // Send to Meta Conversions API
     const metaUrl = `https://graph.facebook.com/${META_API_VERSION}/${META_PIXEL_ID}/events`;
@@ -90,7 +107,7 @@ serve(async (req) => {
     });
 
     const metaResult = await metaResponse.json();
-    console.log("Meta API response:", JSON.stringify(metaResult));
+    console.log(`Meta API [${event_name}] response:`, JSON.stringify(metaResult));
 
     if (!metaResponse.ok) {
       console.error("Meta API error:", metaResult);
@@ -100,16 +117,18 @@ serve(async (req) => {
       });
     }
 
-    // Mark conversion as sent
-    await supabase
-      .from("ad_clicks")
-      .update({
-        conversion_sent: true,
-        conversion_sent_at: new Date().toISOString(),
-      })
-      .eq("click_id", click_id);
+    // Mark CompleteRegistration conversion as sent
+    if (event_name === "CompleteRegistration") {
+      await supabase
+        .from("ad_clicks")
+        .update({
+          conversion_sent: true,
+          conversion_sent_at: new Date().toISOString(),
+        })
+        .eq("click_id", click_id);
+    }
 
-    return new Response(JSON.stringify({ success: true, meta_response: metaResult }), {
+    return new Response(JSON.stringify({ success: true, event_name, meta_response: metaResult }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

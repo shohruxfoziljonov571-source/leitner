@@ -752,6 +752,11 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
     if (autoCreated) {
+      // Map ad click BEFORE sending message (fix: was after early return)
+      if (adClickId) {
+        await mapAdClickToUser(supabase, adClickId, chatId, username);
+      }
+
       await sendMessage(
         token, chatId,
         `🎉 <b>Xush kelibsiz, ${firstName}!</b>\n` +
@@ -773,7 +778,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
 
   await sendWelcomeMessage(token, chatId);
 
-  // Map ad click to telegram user (after account is ready)
+  // Map ad click to telegram user (for existing users)
   if (adClickId) {
     await mapAdClickToUser(supabase, adClickId, chatId, username);
   }
@@ -824,6 +829,53 @@ async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, 
     }
   } catch (e) {
     console.error("Map ad click error:", e);
+  }
+}
+
+// Send any Meta conversion event for a user (finds their ad click)
+async function sendMetaConversionForUser(supabase: any, userId: string, eventName: string, value?: number, currency?: string) {
+  try {
+    // Find the ad click for this user
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("telegram_chat_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!profile?.telegram_chat_id) return;
+
+    const { data: click } = await supabase
+      .from("ad_clicks")
+      .select("click_id")
+      .eq("telegram_user_id", profile.telegram_chat_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!click) return;
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+
+    const body: any = { click_id: click.click_id, event_name: eventName };
+    if (value && currency) {
+      body.value = value;
+      body.currency = currency;
+    }
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/meta-conversion`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const result = await res.json();
+    console.log(`Meta ${eventName} event sent for user ${userId}:`, JSON.stringify(result));
+  } catch (e) {
+    console.error(`Failed to send Meta ${eventName}:`, e);
   }
 }
 
@@ -2548,6 +2600,9 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
         { inline_keyboard: [[{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }]] }
       );
     }
+
+    // Send Purchase conversion to Meta Ads
+    await sendMetaConversionForUser(supabase, payment.user_id, "Purchase", Number(payment.amount), "UZS");
   } else {
     // Reject
     await supabase
