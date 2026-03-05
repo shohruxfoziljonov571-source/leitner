@@ -51,27 +51,33 @@ describe('streak logic', () => {
     todayReviewed: number,
     currentStreak: number,
     today: string,
-    yesterday: string
+    yesterday: string,
+    dailyGoal: number = 10
   ): number => {
     if (lastActiveDate === today) return currentStreak; // Same day, no change
     
     if (lastActiveDate === yesterday) {
-      // Streak davom etadi FAQAT kecha haqiqatdan so'z takrorlangan bo'lsa
-      return todayReviewed > 0 ? currentStreak + 1 : 0;
+      // Streak davom etadi FAQAT kecha kunlik maqsad to'liq bajarilgan bo'lsa
+      return todayReviewed >= dailyGoal ? currentStreak + 1 : 0;
     }
     
     // 2+ days missed
     return 0;
   };
 
-  it('keeps streak when user reviewed yesterday', () => {
-    const streak = calculateStreak('2026-02-24', 5, 3, '2026-02-25', '2026-02-24');
+  it('increments streak when daily goal was met yesterday', () => {
+    const streak = calculateStreak('2026-02-24', 10, 3, '2026-02-25', '2026-02-24', 10);
     expect(streak).toBe(4); // 3 + 1
+  });
+
+  it('resets streak when daily goal was NOT met yesterday', () => {
+    const streak = calculateStreak('2026-02-24', 5, 3, '2026-02-25', '2026-02-24', 10);
+    expect(streak).toBe(0); // Goal not met
   });
 
   it('resets streak when user opened app but did NOT review yesterday', () => {
     const streak = calculateStreak('2026-02-24', 0, 3, '2026-02-25', '2026-02-24');
-    expect(streak).toBe(0); // BUG FIX: was incorrectly keeping streak
+    expect(streak).toBe(0);
   });
 
   it('resets streak when 2+ days missed', () => {
