@@ -2600,6 +2600,9 @@ async function handlePaymentAction(supabase: any, token: string, chatId: number,
         { inline_keyboard: [[{ text: "📱 Ilovani ochish", web_app: { url: WEBAPP_URL } }]] }
       );
     }
+
+    // Send Purchase conversion to Meta Ads
+    await sendMetaConversionForUser(supabase, payment.user_id, "Purchase", Number(payment.amount), "UZS");
   } else {
     // Reject
     await supabase
