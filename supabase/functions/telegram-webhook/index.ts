@@ -832,6 +832,53 @@ async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, 
   }
 }
 
+// Send any Meta conversion event for a user (finds their ad click)
+async function sendMetaConversionForUser(supabase: any, userId: string, eventName: string, value?: number, currency?: string) {
+  try {
+    // Find the ad click for this user
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("telegram_chat_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!profile?.telegram_chat_id) return;
+
+    const { data: click } = await supabase
+      .from("ad_clicks")
+      .select("click_id")
+      .eq("telegram_user_id", profile.telegram_chat_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!click) return;
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+
+    const body: any = { click_id: click.click_id, event_name: eventName };
+    if (value && currency) {
+      body.value = value;
+      body.currency = currency;
+    }
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/meta-conversion`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const result = await res.json();
+    console.log(`Meta ${eventName} event sent for user ${userId}:`, JSON.stringify(result));
+  } catch (e) {
+    console.error(`Failed to send Meta ${eventName}:`, e);
+  }
+}
+
 // Track premium referral (user_referrals table)
 async function trackPremiumReferral(supabase: any, refCode: string, referredUserId: string) {
   try {
