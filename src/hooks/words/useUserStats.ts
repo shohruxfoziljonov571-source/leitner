@@ -30,9 +30,10 @@ export const useUserStats = (userId: string | undefined, languageId: string | un
 
           let newStreak = data.streak;
           if (data.last_active_date === yesterdayStr) {
-            // Streak davom etadi FAQAT kecha haqiqatdan so'z takrorlangan bo'lsa
+            // Streak davom etadi FAQAT kecha kunlik maqsad to'liq bajarilgan bo'lsa
             // data.today_reviewed hali resetlanmagan — bu kechagi qiymat
-            newStreak = data.today_reviewed > 0 ? data.streak + 1 : 0;
+            const dailyGoal = data.daily_goal || 10;
+            newStreak = data.today_reviewed >= dailyGoal ? data.streak + 1 : 0;
           } else {
             // Ikki yoki undan ko'p kun o'tgan — streak yo'qoldi
             newStreak = 0;
