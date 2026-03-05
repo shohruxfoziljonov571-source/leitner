@@ -752,6 +752,11 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
     if (autoCreated) {
+      // Map ad click BEFORE sending message (fix: was after early return)
+      if (adClickId) {
+        await mapAdClickToUser(supabase, adClickId, chatId, username);
+      }
+
       await sendMessage(
         token, chatId,
         `🎉 <b>Xush kelibsiz, ${firstName}!</b>\n` +
@@ -773,7 +778,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
 
   await sendWelcomeMessage(token, chatId);
 
-  // Map ad click to telegram user (after account is ready)
+  // Map ad click to telegram user (for existing users)
   if (adClickId) {
     await mapAdClickToUser(supabase, adClickId, chatId, username);
   }
