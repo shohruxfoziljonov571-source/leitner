@@ -126,13 +126,20 @@ serve(async (req) => {
     // Send to Meta Conversions API
     const metaUrl = `https://graph.facebook.com/${META_API_VERSION}/${META_PIXEL_ID}/events`;
     
+    const requestBody: any = {
+      data: [eventData],
+      access_token: META_ACCESS_TOKEN,
+    };
+    
+    // Add test_event_code for Events Manager testing
+    if (test_event_code) {
+      requestBody.test_event_code = test_event_code;
+    }
+
     const metaResponse = await fetch(metaUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: [eventData],
-        access_token: META_ACCESS_TOKEN,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const metaResult = await metaResponse.json();
