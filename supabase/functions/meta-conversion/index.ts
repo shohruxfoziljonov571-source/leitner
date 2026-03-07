@@ -17,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { click_id, event_name = "CompleteRegistration", value, currency } = await req.json();
+    const { click_id, event_name = "CompleteRegistration", value, currency, test_event_code } = await req.json();
 
     if (!click_id) {
       return new Response(JSON.stringify({ error: "click_id required" }), {
