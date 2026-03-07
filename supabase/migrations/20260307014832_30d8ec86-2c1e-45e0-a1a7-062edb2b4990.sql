@@ -1,0 +1,1 @@
+UPDATE ad_clicks SET conversion_sent = false, conversion_sent_at = null WHERE click_id = 'oA5slCPsx7exD8U6ozNfY0uP';
