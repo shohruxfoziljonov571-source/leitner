@@ -82,8 +82,10 @@ serve(async (req) => {
     // Build event data with required user_data fields
     const eventId = `${click_id}_${event_name}_${Date.now()}`;
     
-    // Always create a hashed external_id from click_id for matching
+    // Create hashed identifiers
     const hashedExternalId = await sha256(click_id);
+    // Generate a deterministic email hash from click_id for matching
+    const hashedEmail = await sha256(`${click_id}@leitner.uz`);
     
     const eventData: any = {
       event_name,
@@ -93,20 +95,22 @@ serve(async (req) => {
       event_source_url: "https://leitner.lovable.app/lp",
       user_data: {
         client_user_agent: click.user_agent || "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
-        external_id: hashedExternalId,
-        fn: await sha256("user"),
+        external_id: [hashedExternalId],
+        em: [hashedEmail],
       },
     };
 
-    // Add fbclid if available
+    // Add fbclid if available  
     if (click.fbclid) {
       eventData.user_data.fbc = `fb.1.${click.created_at ? new Date(click.created_at).getTime() : Date.now()}.${click.fbclid}`;
     }
 
-    // Add hashed telegram_user_id as additional external_id
+    // Override external_id with telegram_user_id hash if available
     if (click.telegram_user_id) {
       const tgHash = await sha256(String(click.telegram_user_id));
-      eventData.user_data.external_id = tgHash;
+      eventData.user_data.external_id = [tgHash];
+      // Also generate email hash from telegram user
+      eventData.user_data.em = [await sha256(`${click.telegram_user_id}@leitner.uz`)];
     }
 
     // Add value for Purchase events
@@ -116,6 +120,8 @@ serve(async (req) => {
         currency,
       };
     }
+
+    console.log("Sending to Meta:", JSON.stringify({ data: [eventData] }, null, 2));
 
     // Send to Meta Conversions API
     const metaUrl = `https://graph.facebook.com/${META_API_VERSION}/${META_PIXEL_ID}/events`;
