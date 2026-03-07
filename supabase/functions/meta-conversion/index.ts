@@ -106,7 +106,7 @@ serve(async (req) => {
     // Add hashed telegram_user_id as additional external_id
     if (click.telegram_user_id) {
       const tgHash = await sha256(String(click.telegram_user_id));
-      eventData.user_data.external_id.push(tgHash);
+      eventData.user_data.external_id = tgHash;
     }
 
     // Add value for Purchase events
