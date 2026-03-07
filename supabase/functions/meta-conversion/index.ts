@@ -93,7 +93,8 @@ serve(async (req) => {
       event_source_url: "https://leitner.lovable.app/lp",
       user_data: {
         client_user_agent: click.user_agent || "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
-        external_id: [hashedExternalId],
+        external_id: hashedExternalId,
+        fn: await sha256("user"),
       },
     };
 
