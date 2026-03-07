@@ -71,8 +71,20 @@ serve(async (req) => {
       });
     }
 
+    // Hash helper for Meta's required format
+    async function sha256(input: string): Promise<string> {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(input.trim().toLowerCase());
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
     // Build event data with required user_data fields
     const eventId = `${click_id}_${event_name}_${Date.now()}`;
+    
+    // Always create a hashed external_id from click_id for matching
+    const hashedExternalId = await sha256(click_id);
+    
     const eventData: any = {
       event_name,
       event_time: Math.floor(Date.now() / 1000),
@@ -81,7 +93,7 @@ serve(async (req) => {
       event_source_url: "https://leitner.lovable.app/lp",
       user_data: {
         client_user_agent: click.user_agent || "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
-        client_ip_address: "0.0.0.0",
+        external_id: [hashedExternalId],
       },
     };
 
@@ -90,13 +102,10 @@ serve(async (req) => {
       eventData.user_data.fbc = `fb.1.${click.created_at ? new Date(click.created_at).getTime() : Date.now()}.${click.fbclid}`;
     }
 
-    // Add external_id from telegram_user_id for better matching
+    // Add hashed telegram_user_id as additional external_id
     if (click.telegram_user_id) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(String(click.telegram_user_id));
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      eventData.user_data.external_id = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      const tgHash = await sha256(String(click.telegram_user_id));
+      eventData.user_data.external_id.push(tgHash);
     }
 
     // Add value for Purchase events
