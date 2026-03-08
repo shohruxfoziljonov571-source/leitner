@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Mail, Lock, User, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, Eye, EyeOff, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,9 @@ const Auth: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  const { signIn, signUp, user, isLoading, isTelegramUser, telegramUser, telegramAuthError } = useAuth();
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const { signIn, signUp, user, isLoading, isTelegramUser, telegramUser, telegramAuthError, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -37,10 +39,11 @@ const Auth: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    // Don't redirect if in password recovery mode
+    if (user && !isPasswordRecovery) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, isPasswordRecovery]);
 
   // Show loading for ALL users while auth state is resolving
   if (isLoading) {
