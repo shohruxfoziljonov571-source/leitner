@@ -113,6 +113,109 @@ const Auth: React.FC = () => {
   }
 
 
+  // Password Recovery Screen
+  if (isPasswordRecovery && user) {
+    const handlePasswordUpdate = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      try {
+        passwordSchema.parse(newPassword);
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          toast.error(err.errors[0].message);
+          return;
+        }
+      }
+
+      if (newPassword !== confirmPassword) {
+        toast.error('Parollar mos kelmaydi');
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+        
+        toast.success('Parol muvaffaqiyatli yangilandi!');
+        clearPasswordRecovery();
+        navigate('/');
+      } catch (error: any) {
+        toast.error(error.message || 'Parolni yangilashda xatolik');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-background to-primary/5">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <div className="text-center mb-8">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', damping: 10 }}
+              className="w-20 h-20 mx-auto mb-4 rounded-2xl gradient-primary flex items-center justify-center shadow-elevated"
+            >
+              <ShieldCheck className="w-10 h-10 text-primary-foreground" />
+            </motion.div>
+            <h1 className="font-display font-bold text-3xl text-foreground">Yangi parol</h1>
+            <p className="text-muted-foreground mt-2">Yangi parolingizni kiriting</p>
+          </div>
+
+          <motion.form
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onSubmit={handlePasswordUpdate}
+            className="bg-card rounded-3xl shadow-card p-8 space-y-5"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-sm font-medium">Yangi parol</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pl-10 h-12 rounded-xl"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Parolni tasdiqlang</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pl-10 h-12 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-12 text-base gradient-primary text-primary-foreground shadow-elevated"
+            >
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Parolni yangilash'}
+            </Button>
+          </motion.form>
+        </motion.div>
+      </div>
+    );
+  }
 
 
   const validateInputs = (): boolean => {
