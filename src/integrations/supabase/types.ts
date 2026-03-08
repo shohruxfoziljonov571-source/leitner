@@ -1582,6 +1582,16 @@ export type Database = {
           winner_count: number
         }[]
       }
+      get_active_subscription: {
+        Args: { p_user_id: string }
+        Returns: {
+          expires_at: string
+          id: string
+          plan: string
+          starts_at: string
+          status: string
+        }[]
+      }
       get_box_counts: {
         Args: { p_language_id: string; p_user_id: string }
         Returns: Json

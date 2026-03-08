@@ -19,10 +19,11 @@ const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage } = useLearningLanguage();
   const { stats, boxCounts, reviewCount, totalWords, isLoading } = useDashboardData();
-  const { getUnlockedAchievements } = useGamificationContext();
+  const { getUnlockedAchievements, achievements } = useGamificationContext();
   const { isPremium } = usePremium();
   
-  const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [getUnlockedAchievements]);
+  // Use `achievements` array as dependency instead of getUnlockedAchievements (which changes every render)
+  const unlockedAchievements = useMemo(() => getUnlockedAchievements(), [achievements]);
 
   if (isLoading) {
     return (

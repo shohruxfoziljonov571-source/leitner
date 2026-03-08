@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Plus, BookOpen, Settings, Languages, Users, Brain, TrendingUp, MoreHorizontal, Mic, Library, User } from 'lucide-react';
+import { Home, Plus, BookOpen, Settings, Languages, Users, Brain, TrendingUp, MoreHorizontal, Mic, Library, User, Shield } from 'lucide-react';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
+import { useAdminContext } from '@/contexts/AdminContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import { Button } from '@/components/ui/button';
 const Navigation: React.FC = () => {
   const location = useLocation();
   const { t, language, setLanguage } = useLanguage();
+  const { isAdmin } = useAdminContext();
 
   const primaryNavItems = useMemo(() => ([
     { path: '/', icon: Home, label: 'dashboard' },
@@ -24,13 +26,19 @@ const Navigation: React.FC = () => {
     { path: '/profile', icon: User, label: 'profile' },
   ]), []);
 
-  const secondaryNavItems = useMemo(() => ([
-    { path: '/stats', icon: TrendingUp, label: 'statistics' },
-    { path: '/dictation', icon: Mic, label: 'dictation' },
-    { path: '/books', icon: Library, label: 'books' },
-    { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
-    { path: '/settings', icon: Settings, label: 'settings' },
-  ]), []);
+  const secondaryNavItems = useMemo(() => {
+    const items = [
+      { path: '/stats', icon: TrendingUp, label: 'statistics' },
+      { path: '/dictation', icon: Mic, label: 'dictation' },
+      { path: '/books', icon: Library, label: 'books' },
+      { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
+      { path: '/settings', icon: Settings, label: 'settings' },
+    ];
+    if (isAdmin) {
+      items.push({ path: '/admin', icon: Shield, label: 'admin' });
+    }
+    return items;
+  }, [isAdmin]);
 
   const allNavItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
 

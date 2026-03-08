@@ -82,12 +82,8 @@ export const PremiumProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
 
     try {
-      const [{ data: sub }, { data: pending }] = await Promise.all([
-        supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle(),
+      const [{ data: subData }, { data: pending }] = await Promise.all([
+        supabase.rpc('get_active_subscription', { p_user_id: user.id }),
         supabase
           .from('premium_payments')
           .select('id')
@@ -96,18 +92,10 @@ export const PremiumProvider: React.FC<{ children: ReactNode }> = ({ children })
           .limit(1),
       ]);
 
+      // RPC returns array, take first
+      const sub = Array.isArray(subData) ? subData[0] : subData;
       if (sub) {
-        // Check if expired
-        if (sub.expires_at && new Date(sub.expires_at) < new Date() && sub.plan !== 'free') {
-          // Update status to expired
-          await supabase
-            .from('subscriptions')
-            .update({ status: 'expired', plan: 'free' })
-            .eq('id', sub.id);
-          setSubscription({ ...sub, status: 'expired', plan: 'free' } as Subscription);
-        } else {
-          setSubscription(sub as Subscription);
-        }
+        setSubscription(sub as Subscription);
       }
 
       setHasPendingPayment((pending?.length || 0) > 0);
