@@ -247,10 +247,33 @@ async function sendOrEdit(token: string, chatId: number, messageId: number | und
 async function handleCheckChannels(supabase: any, token: string, chatId: number, messageId?: number) {
   const channelsOk = await checkRequiredChannels(supabase, token, chatId);
   if (channelsOk) {
+    // Check for any pending ad click conversions for this user
+    await sendPendingAdConversion(supabase, chatId);
+    
     await sendOrEdit(token, chatId, messageId, 
       getWelcomeText(),
       getMainMenuKeyboard()
     );
+  }
+}
+
+// Send conversion for any pending ad clicks by telegram_user_id (called after channel check passes)
+async function sendPendingAdConversion(supabase: any, chatId: number) {
+  try {
+    const { data: pendingClicks } = await supabase
+      .from("ad_clicks")
+      .select("click_id, conversion_sent")
+      .eq("telegram_user_id", chatId)
+      .eq("channel_joined", false);
+
+    if (!pendingClicks || pendingClicks.length === 0) return;
+
+    for (const click of pendingClicks) {
+      await sendAdConversion(supabase, click.click_id, chatId);
+      console.log(`Pending ad conversion sent for click: ${click.click_id}, chat: ${chatId}`);
+    }
+  } catch (e) {
+    console.error("sendPendingAdConversion error:", e);
   }
 }
 
