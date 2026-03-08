@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 const Navigation: React.FC = () => {
   const location = useLocation();
   const { t, language, setLanguage } = useLanguage();
+  const { isAdmin } = useAdminContext();
 
   const primaryNavItems = useMemo(() => ([
     { path: '/', icon: Home, label: 'dashboard' },
