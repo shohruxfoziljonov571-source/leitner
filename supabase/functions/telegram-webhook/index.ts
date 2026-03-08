@@ -778,11 +778,6 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   }
 
   await sendWelcomeMessage(token, chatId);
-
-  // Map ad click to telegram user (for existing users)
-  if (adClickId) {
-    await mapAdClickToUser(supabase, adClickId, chatId, username);
-  }
 }
 
 // Map ad click_id to telegram user and trigger conversion
