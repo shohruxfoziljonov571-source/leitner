@@ -749,6 +749,11 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     return; // User needs to join channels first
   }
 
+  // Channel joined — now send conversion for ad clicks
+  if (adClickId) {
+    await sendAdConversion(supabase, adClickId, chatId);
+  }
+
   // Check if user already has account linked
   const existingProfile = await getCachedProfile(supabase, chatId);
   
@@ -756,8 +761,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     // Auto-create account for Telegram user
     const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
-
-
+    if (autoCreated) {
       await sendMessage(
         token, chatId,
         `🎉 <b>Xush kelibsiz, ${firstName}!</b>\n` +
