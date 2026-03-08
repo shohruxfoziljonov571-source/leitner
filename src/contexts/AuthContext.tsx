@@ -212,6 +212,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isTelegramUser,
       telegramUser,
       telegramAuthError,
+      isPasswordRecovery,
+      clearPasswordRecovery,
       signUp,
       signIn,
       signOut,
