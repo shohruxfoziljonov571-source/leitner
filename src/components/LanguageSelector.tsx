@@ -12,7 +12,7 @@ interface LanguageSelectorProps {
   showAddNew?: boolean;
 }
 
-const LanguageSelector: React.FC<LanguageSelectorProps> = ({ showAddNew = true }) => {
+const LanguageSelector = React.forwardRef<HTMLDivElement, LanguageSelectorProps>(({ showAddNew = true }, ref) => {
   const { userLanguages, activeLanguage, setActiveLanguage, addLanguage, removeLanguage } = useLearningLanguage();
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
