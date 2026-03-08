@@ -81,6 +81,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSession(session);
       setUser(session?.user ?? null);
 
+      // Detect password recovery flow
+      if (_event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
+
       // Track referral on first sign-in (after email confirmation)
       if (_event === 'SIGNED_IN' && session?.user) {
         const refCode = localStorage.getItem('referral_code');
