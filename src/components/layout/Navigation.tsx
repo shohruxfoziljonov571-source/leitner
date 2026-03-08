@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Plus, BookOpen, Settings, Languages, Users, Brain, TrendingUp, MoreHorizontal, Mic, Library, User } from 'lucide-react';
+import { Home, Plus, BookOpen, Settings, Languages, Users, Brain, TrendingUp, MoreHorizontal, Mic, Library, User, Shield } from 'lucide-react';
 import { useLanguage, Language } from '@/contexts/LanguageContext';
+import { useAdminContext } from '@/contexts/AdminContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
