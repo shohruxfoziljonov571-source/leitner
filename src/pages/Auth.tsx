@@ -168,33 +168,9 @@ const Auth: React.FC = () => {
             toast.error(error.message);
           }
         } else {
-          // Track referral if exists
-          const refCode = localStorage.getItem('referral_code');
-          if (refCode) {
-            try {
-              const { data: sessionData } = await supabase.auth.getSession();
-              const currentUserId = sessionData?.session?.user?.id;
-              if (currentUserId) {
-                const { data: referrerProfile } = await supabase
-                  .from('profiles')
-                  .select('user_id')
-                  .eq('friend_code', refCode)
-                  .single();
-
-                if (referrerProfile && referrerProfile.user_id !== currentUserId) {
-                  await supabase.from('user_referrals').insert({
-                    referrer_user_id: referrerProfile.user_id,
-                    referred_user_id: currentUserId,
-                  });
-                }
-              }
-              localStorage.removeItem('referral_code');
-            } catch (e) {
-              console.error('Referral tracking error:', e);
-            }
-          }
-          toast.success('Muvaffaqiyatli ro\'yxatdan o\'tdingiz!');
-          navigate('/');
+          toast.success('Muvaffaqiyatli ro\'yxatdan o\'tdingiz! Emailingizni tasdiqlang.');
+          // Don't navigate — user needs to verify email first
+          // Referral tracking will happen on first login via AuthContext
         }
       }
     } finally {
