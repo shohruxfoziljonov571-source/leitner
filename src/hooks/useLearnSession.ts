@@ -33,6 +33,7 @@ export const useLearnSession = () => {
 
     setIsLoading(true);
     try {
+      // Fetch review words, quiz pool, and stats all in parallel
       const [reviewResult, quizResult] = await Promise.all([
         supabase
           .from('words')
@@ -49,10 +50,8 @@ export const useLearnSession = () => {
           .eq('user_language_id', languageId)
           .order('created_at', { ascending: false })
           .limit(100),
+        fetchStats().catch(e => console.error('Stats fetch error:', e)),
       ]);
-
-      // Also fetch stats in parallel (fire and forget errors)
-      fetchStats().catch(e => console.error('Stats fetch error:', e));
 
       if (reviewResult.error) throw reviewResult.error;
       if (quizResult.error) throw quizResult.error;

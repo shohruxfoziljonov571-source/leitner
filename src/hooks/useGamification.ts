@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { notificationEmitter } from '@/components/notifications/NotificationQueue';
+import { getLocalToday } from '@/hooks/words/helpers';
 
 export interface Achievement {
   id: string;
@@ -59,14 +60,11 @@ export const ACHIEVEMENTS: Achievement[] = [
 export const XP_PER_CORRECT = 10;
 
 // Progressive level system: each level requires level * 150 XP
-// Level 2 = 150 XP, Level 3 = 300 XP more, Level 4 = 450 XP more, etc.
-// Total XP for level L = 75 * L * (L - 1)
 export const getTotalXpForLevel = (level: number): number => {
   return 75 * level * (level - 1);
 };
 
 export const calculateLevel = (xp: number): number => {
-  // Quadratic formula: 75*L^2 - 75*L <= xp
   return Math.floor((75 + Math.sqrt(5625 + 300 * xp)) / 150);
 };
 
@@ -86,6 +84,10 @@ export const useGamification = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { activeLanguage } = useLearningLanguage();
+
+  // Ref to track level for level-up detection without stale closures
+  const levelRef = useRef(1);
+  useEffect(() => { levelRef.current = level; }, [level]);
 
   const fetchGamificationData = useCallback(async () => {
     if (!user || !activeLanguage) {
@@ -119,43 +121,22 @@ export const useGamification = () => {
     fetchGamificationData();
   }, [fetchGamificationData]);
 
+  /**
+   * Atomic XP increment via server-side RPC.
+   * Prevents race conditions when multiple addXp calls happen rapidly.
+   */
   const addXp = useCallback(async (amount: number, reason?: string) => {
     if (!user || !activeLanguage) return;
 
-    // useReducer-like pattern: single synchronous state update to avoid
-    // reading computedNewXp between two separate setState calls (race condition)
-    let computedNewXp = 0;
-    let computedNewLevel = 1;
-    let didLevelUp = false;
-
-    // Batch both updates atomically using flushSync alternative:
-    // read previous state via functional updater chain
-    setXp(prevXp => {
-      computedNewXp = prevXp + amount;
-      computedNewLevel = calculateLevel(computedNewXp);
-      return computedNewXp;
-    });
-
-    setLevel(prevLevel => {
-      didLevelUp = computedNewLevel > prevLevel;
-      return computedNewLevel;
-    });
-
     try {
-      const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getLocalToday();
 
-      // 1) user_stats: absolute xp/level values
-      // 2) daily_stats: INCREMENT xp_earned (not overwrite)
-      //    PostgreSQL: INSERT ... ON CONFLICT DO UPDATE SET xp_earned = xp_earned + excluded.xp_earned
-      await Promise.all([
-        supabase
-          .from('user_stats')
-          .update({ xp: computedNewXp, level: computedNewLevel })
-          .eq('user_id', user.id)
-          .eq('user_language_id', activeLanguage.id),
-
-        // increment_daily_xp: atomic INSERT ... ON CONFLICT DO UPDATE SET xp_earned += p_xp
+      const [xpResult] = await Promise.all([
+        supabase.rpc('increment_user_xp' as any, {
+          p_user_id: user.id,
+          p_language_id: activeLanguage.id,
+          p_amount: amount,
+        }),
         supabase.rpc('increment_daily_xp', {
           p_user_id: user.id,
           p_language_id: activeLanguage.id,
@@ -164,8 +145,14 @@ export const useGamification = () => {
         }),
       ]);
 
-      if (didLevelUp) {
-        notificationEmitter.showLevelUp(computedNewLevel);
+      if (xpResult.data) {
+        const result = xpResult.data as { new_xp: number; new_level: number };
+        setXp(result.new_xp);
+        setLevel(result.new_level);
+
+        if (result.new_level > levelRef.current) {
+          notificationEmitter.showLevelUp(result.new_level);
+        }
       }
     } catch (error) {
       console.error('Error adding XP:', error);
@@ -190,39 +177,27 @@ export const useGamification = () => {
 
       switch (achievement.type) {
         case 'words':
-          if (stats.totalWords && stats.totalWords >= achievement.requirement) {
-            unlocked = true;
-          }
+          if (stats.totalWords && stats.totalWords >= achievement.requirement) unlocked = true;
           break;
         case 'streak':
-          if (stats.streak && stats.streak >= achievement.requirement) {
-            unlocked = true;
-          }
+          if (stats.streak && stats.streak >= achievement.requirement) unlocked = true;
           break;
         case 'reviews':
-          if (stats.totalReviews && stats.totalReviews >= achievement.requirement) {
-            unlocked = true;
-          }
+          if (stats.totalReviews && stats.totalReviews >= achievement.requirement) unlocked = true;
           break;
         case 'accuracy':
-          // Requires minimum 100 reviews (200 for 95%)
           if (stats.accuracy !== undefined && stats.totalReviews !== undefined) {
             const minReviews = achievement.requirement >= 95 ? 200 : 100;
-            if (stats.totalReviews >= minReviews && stats.accuracy >= achievement.requirement) {
-              unlocked = true;
-            }
+            if (stats.totalReviews >= minReviews && stats.accuracy >= achievement.requirement) unlocked = true;
           }
           break;
         case 'level':
-          if (stats.level && stats.level >= achievement.requirement) {
-            unlocked = true;
-          }
+          if (stats.level && stats.level >= achievement.requirement) unlocked = true;
           break;
       }
 
       if (unlocked) {
         newAchievements.push(achievement.id);
-        // Use global emitter for notifications from hooks
         notificationEmitter.showAchievement(achievement.name, achievement.description, achievement.icon);
       }
     }
