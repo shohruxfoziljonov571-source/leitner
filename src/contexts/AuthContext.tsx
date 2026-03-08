@@ -17,6 +17,8 @@ interface AuthContextType {
   isTelegramUser: boolean;
   telegramUser: TelegramUser | null;
   telegramAuthError: string | null;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
