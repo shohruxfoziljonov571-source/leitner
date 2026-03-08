@@ -269,6 +269,8 @@ const LanguageSelector = React.forwardRef<HTMLDivElement, LanguageSelectorProps>
       </AnimatePresence>
     </div>
   );
-};
+});
+
+LanguageSelector.displayName = 'LanguageSelector';
 
 export default LanguageSelector;
