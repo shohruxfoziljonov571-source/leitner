@@ -738,6 +738,11 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     }
   }
 
+  // Map ad click EARLY - before channel check, so it's not lost if user needs to join channels
+  if (adClickId) {
+    await mapAdClickToUser(supabase, adClickId, chatId, username);
+  }
+
   // Check for required channels before showing welcome
   const channelsCheck = await checkRequiredChannels(supabase, token, chatId);
   if (!channelsCheck) {
@@ -751,11 +756,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     // Auto-create account for Telegram user
     const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
-    if (autoCreated) {
-      // Map ad click BEFORE sending message (fix: was after early return)
-      if (adClickId) {
-        await mapAdClickToUser(supabase, adClickId, chatId, username);
-      }
+
 
       await sendMessage(
         token, chatId,
@@ -777,11 +778,6 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   }
 
   await sendWelcomeMessage(token, chatId);
-
-  // Map ad click to telegram user (for existing users)
-  if (adClickId) {
-    await mapAdClickToUser(supabase, adClickId, chatId, username);
-  }
 }
 
 // Map ad click_id to telegram user and trigger conversion
