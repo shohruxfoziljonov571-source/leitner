@@ -738,9 +738,9 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     }
   }
 
-  // Map ad click EARLY - before channel check, so it's not lost if user needs to join channels
+  // Save ad click mapping EARLY (before channel check) so telegram_user_id is not lost
   if (adClickId) {
-    await mapAdClickToUser(supabase, adClickId, chatId, username);
+    await saveAdClickMapping(supabase, adClickId, chatId, username);
   }
 
   // Check for required channels before showing welcome
