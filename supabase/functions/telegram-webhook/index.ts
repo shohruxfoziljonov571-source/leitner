@@ -784,12 +784,12 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   await sendWelcomeMessage(token, chatId);
 }
 
-// Map ad click_id to telegram user and trigger conversion
-async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, username?: string) {
+// Save ad click mapping (telegram_user_id) WITHOUT sending conversion - called before channel check
+async function saveAdClickMapping(supabase: any, clickId: string, chatId: number, username?: string) {
   try {
     const { data: click, error } = await supabase
       .from("ad_clicks")
-      .select("id, conversion_sent")
+      .select("id")
       .eq("click_id", clickId)
       .maybeSingle();
 
@@ -798,14 +798,36 @@ async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, 
       return;
     }
 
-    // Update with telegram user data
+    // Only save telegram user data, channel_joined stays false
     await supabase
       .from("ad_clicks")
       .update({
         telegram_user_id: chatId,
         telegram_username: username || null,
-        channel_joined: true, // They started the bot
       })
+      .eq("click_id", clickId);
+
+    console.log(`Ad click mapped: ${clickId} -> chat ${chatId}`);
+  } catch (e) {
+    console.error("Save ad click mapping error:", e);
+  }
+}
+
+// Send conversion AFTER channel check passes
+async function sendAdConversion(supabase: any, clickId: string, chatId: number) {
+  try {
+    const { data: click, error } = await supabase
+      .from("ad_clicks")
+      .select("id, conversion_sent")
+      .eq("click_id", clickId)
+      .maybeSingle();
+
+    if (error || !click) return;
+
+    // Mark channel as joined
+    await supabase
+      .from("ad_clicks")
+      .update({ channel_joined: true })
       .eq("click_id", clickId);
 
     // Send conversion event if not already sent
@@ -828,7 +850,7 @@ async function mapAdClickToUser(supabase: any, clickId: string, chatId: number, 
       }
     }
   } catch (e) {
-    console.error("Map ad click error:", e);
+    console.error("Send ad conversion error:", e);
   }
 }
 
