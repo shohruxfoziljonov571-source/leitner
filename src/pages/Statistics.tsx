@@ -1,9 +1,9 @@
-import React, { useMemo, lazy, Suspense, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Target, TrendingUp, Flame, Award, Calendar, Zap, Crown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
-import { useWordsDB } from '@/hooks/useWordsDB';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { useGamificationContext } from '@/contexts/GamificationContext';
 import { ACHIEVEMENTS } from '@/hooks/useGamification';
 import { usePremium } from '@/contexts/PremiumContext';
@@ -15,30 +15,20 @@ import { LazyWeeklyChart, LazyAccuracyChart } from '@/components/statistics/Lazy
 import StreakHeatmap from '@/components/statistics/StreakHeatmap';
 import DictationStats from '@/components/statistics/DictationStats';
 import ReviewForecast from '@/components/statistics/ReviewForecast';
-import UpgradePrompt from '@/components/premium/UpgradePrompt';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+
 const Statistics: React.FC = () => {
   const { t } = useLanguage();
   const { activeLanguage, isLoading: langLoading } = useLearningLanguage();
-  const { stats, getBoxCounts, words, isLoading } = useWordsDB();
+  const { stats, boxCounts, totalWords, isLoading } = useDashboardData();
   const { achievements, level, xp } = useGamificationContext();
-  const { isPremium, checkFeature } = usePremium();
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  
-  // Memoize expensive calculations
-  const boxCounts = useMemo(() => getBoxCounts(), [getBoxCounts]);
-  const totalWords = useMemo(() => Object.values(boxCounts).reduce((a, b) => a + b, 0), [boxCounts]);
+  const { isPremium } = usePremium();
 
-  // Calculate additional stats with useMemo
-  const { totalReviews, totalCorrect, totalIncorrect, overallAccuracy, masteredWords } = useMemo(() => {
-    const totalReviews = words.reduce((acc, w) => acc + w.times_reviewed, 0);
-    const totalCorrect = words.reduce((acc, w) => acc + w.times_correct, 0);
-    const totalIncorrect = words.reduce((acc, w) => acc + w.times_incorrect, 0);
-    const overallAccuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
-    const masteredWords = boxCounts[5];
-    return { totalReviews, totalCorrect, totalIncorrect, overallAccuracy, masteredWords };
-  }, [words, boxCounts]);
+  const masteredWords = boxCounts[5];
+  const overallAccuracy = stats.today_reviewed > 0
+    ? Math.round((stats.today_correct / stats.today_reviewed) * 100)
+    : 0;
 
   if (isLoading || langLoading) {
     return (
@@ -166,7 +156,7 @@ const Statistics: React.FC = () => {
           <StatCard
             icon={Calendar}
             label="Jami takrorlar"
-            value={totalReviews}
+            value={stats.today_reviewed}
             delay={0.35}
           />
           <StatCard
@@ -202,7 +192,7 @@ const Statistics: React.FC = () => {
         {/* Charts Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <LazyWeeklyChart />
-          <LazyAccuracyChart correct={totalCorrect} incorrect={totalIncorrect} />
+          <LazyAccuracyChart correct={stats.today_correct} incorrect={stats.today_reviewed - stats.today_correct} />
         </div>
 
         {/* Dictation Stats */}

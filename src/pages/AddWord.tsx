@@ -16,6 +16,7 @@ import { PremiumLock } from '@/components/premium/UpgradePrompt';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WordExport from '@/components/WordExport';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
