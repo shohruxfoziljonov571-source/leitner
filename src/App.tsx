@@ -89,7 +89,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const AppRoutes = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isPasswordRecovery } = useAuth();
   const location = useLocation();
   const isLandingPage = location.pathname === '/lp';
 
