@@ -198,8 +198,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
+    setIsPasswordRecovery(false);
     await supabase.auth.signOut();
   };
+
+  const clearPasswordRecovery = () => setIsPasswordRecovery(false);
 
   return (
     <AuthContext.Provider value={{
