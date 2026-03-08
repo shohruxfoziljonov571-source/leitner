@@ -26,13 +26,19 @@ const Navigation: React.FC = () => {
     { path: '/profile', icon: User, label: 'profile' },
   ]), []);
 
-  const secondaryNavItems = useMemo(() => ([
-    { path: '/stats', icon: TrendingUp, label: 'statistics' },
-    { path: '/dictation', icon: Mic, label: 'dictation' },
-    { path: '/books', icon: Library, label: 'books' },
-    { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
-    { path: '/settings', icon: Settings, label: 'settings' },
-  ]), []);
+  const secondaryNavItems = useMemo(() => {
+    const items = [
+      { path: '/stats', icon: TrendingUp, label: 'statistics' },
+      { path: '/dictation', icon: Mic, label: 'dictation' },
+      { path: '/books', icon: Library, label: 'books' },
+      { path: '/mnemonics', icon: Brain, label: 'mnemonics' },
+      { path: '/settings', icon: Settings, label: 'settings' },
+    ];
+    if (isAdmin) {
+      items.push({ path: '/admin', icon: Shield, label: 'admin' });
+    }
+    return items;
+  }, [isAdmin]);
 
   const allNavItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
 
