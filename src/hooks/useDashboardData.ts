@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
-import { useGamificationContext } from '@/contexts/GamificationContext';
+import { useUserStats } from './words/useUserStats';
+import { getDefaultStats } from './words/helpers';
 
 interface BoxCounts {
   1: number;
