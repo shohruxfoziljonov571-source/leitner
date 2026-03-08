@@ -27,10 +27,6 @@ export const useWordsCRUD = ({ userId, languageId, words, setWords, setStats }: 
   }) => {
     if (!userId || !languageId) return null;
 
-    if (checkDuplicate(word.original_word)) {
-      return { error: 'duplicate' as const, existingWord: word.original_word };
-    }
-
     try {
       const { data, error } = await supabase
         .from('words')
@@ -49,7 +45,13 @@ export const useWordsCRUD = ({ userId, languageId, words, setWords, setStats }: 
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Unique constraint violation = duplicate word
+        if (error.code === '23505') {
+          return { error: 'duplicate' as const, existingWord: word.original_word };
+        }
+        throw error;
+      }
 
       setWords(prev => [data as Word, ...prev]);
 

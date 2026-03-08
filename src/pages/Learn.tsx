@@ -145,11 +145,12 @@ const Learn: React.FC = () => {
         await updateParticipantStats(xpForChallenge, 1, isCorrect ? 1 : 0);
       }
 
-      const totalCorrect = allWords.reduce((acc, w) => acc + w.times_correct, 0) + (isCorrect ? 1 : 0);
-      const totalReviews = allWords.reduce((acc, w) => acc + w.times_reviewed, 0) + 1;
+      // Use DB stats for accurate totals (not session subset)
+      const totalReviews = stats.today_reviewed + 1;
+      const totalCorrect = stats.today_correct + (isCorrect ? 1 : 0);
       const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
       await checkAndUnlockAchievements({
-        totalWords: allWords.length,
+        totalWords: stats.total_words,
         streak: stats.streak,
         totalReviews,
         accuracy,
