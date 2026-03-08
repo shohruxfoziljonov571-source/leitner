@@ -17,6 +17,8 @@ interface AuthContextType {
   isTelegramUser: boolean;
   telegramUser: TelegramUser | null;
   telegramAuthError: string | null;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -69,8 +71,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isTelegramUser, setIsTelegramUser] = useState(false);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
   const [telegramAuthError, setTelegramAuthError] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   
-  // Prevent double initialization in React Strict Mode
   const initRef = useRef(false);
 
   useEffect(() => {
@@ -78,6 +80,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Detect password recovery flow
+      if (_event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
 
       // Track referral on first sign-in (after email confirmation)
       if (_event === 'SIGNED_IN' && session?.user) {
@@ -191,8 +198,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
+    setIsPasswordRecovery(false);
     await supabase.auth.signOut();
   };
+
+  const clearPasswordRecovery = () => setIsPasswordRecovery(false);
 
   return (
     <AuthContext.Provider value={{
@@ -202,6 +212,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isTelegramUser,
       telegramUser,
       telegramAuthError,
+      isPasswordRecovery,
+      clearPasswordRecovery,
       signUp,
       signIn,
       signOut,

@@ -89,7 +89,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const AppRoutes = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isPasswordRecovery } = useAuth();
   const location = useLocation();
   const isLandingPage = location.pathname === '/lp';
 
@@ -107,7 +107,7 @@ const AppRoutes = () => {
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+            <Route path="/auth" element={user && !isPasswordRecovery ? <Navigate to="/" replace /> : <Auth />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/add" element={<ProtectedRoute><AddWord /></ProtectedRoute>} />
             <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />

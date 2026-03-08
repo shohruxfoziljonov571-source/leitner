@@ -1670,6 +1670,10 @@ export type Database = {
         Args: { p_delta?: number; p_language_id: string; p_user_id: string }
         Returns: undefined
       }
+      increment_user_xp: {
+        Args: { p_amount: number; p_language_id: string; p_user_id: string }
+        Returns: Json
+      }
       process_challenge_winners: {
         Args: { p_challenge_id: string }
         Returns: undefined
