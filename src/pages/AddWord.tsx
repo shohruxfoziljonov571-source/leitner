@@ -16,6 +16,7 @@ import { PremiumLock } from '@/components/premium/UpgradePrompt';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WordExport from '@/components/WordExport';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
@@ -154,21 +155,15 @@ const AddWord: React.FC = () => {
           transition={{ delay: 0.05 }}
           className="grid grid-cols-2 gap-3 mb-5"
         >
-          <div className="bg-card rounded-xl p-4 shadow-card">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Jami so'zlar</p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display font-bold text-2xl text-foreground">{words.length.toLocaleString()}</span>
-              <span className="text-xs text-primary">+{stats.today_reviewed} bugun</span>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Jami so'zlar</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-display font-bold text-2xl text-foreground">{words.length.toLocaleString()}</span>
+                <span className="text-xs text-primary">+{stats.today_reviewed} bugun</span>
+              </div>
             </div>
-          </div>
-          <div className="bg-card rounded-xl p-4 shadow-card">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">O'zlashtirilgan</p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display font-bold text-2xl text-foreground">{masteredWords}</span>
-              <span className="text-xs text-muted-foreground">
-                {words.length > 0 ? `${Math.round((masteredWords / words.length) * 100)}%` : '0%'}
-              </span>
-            </div>
+            <WordExport />
           </div>
         </motion.div>
 
