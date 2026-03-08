@@ -738,6 +738,11 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     }
   }
 
+  // Map ad click EARLY - before channel check, so it's not lost if user needs to join channels
+  if (adClickId) {
+    await mapAdClickToUser(supabase, adClickId, chatId, username);
+  }
+
   // Check for required channels before showing welcome
   const channelsCheck = await checkRequiredChannels(supabase, token, chatId);
   if (!channelsCheck) {
