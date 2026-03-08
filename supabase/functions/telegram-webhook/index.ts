@@ -756,11 +756,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
     // Auto-create account for Telegram user
     const autoCreated = await autoCreateTelegramAccount(supabase, chatId, username, firstName, lastName, premiumRefCode);
     
-    if (autoCreated) {
-      // Map ad click BEFORE sending message (fix: was after early return)
-      if (adClickId) {
-        await mapAdClickToUser(supabase, adClickId, chatId, username);
-      }
+
 
       await sendMessage(
         token, chatId,
