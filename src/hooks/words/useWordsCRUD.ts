@@ -123,7 +123,26 @@ export const useWordsCRUD = ({ userId, languageId, words, setWords, setStats }: 
           .insert(wordsData)
           .select();
 
-        if (error) throw error;
+        if (error) {
+          // If unique constraint violation during bulk, skip and continue
+          if (error.code === '23505') {
+            // Insert one-by-one to find which ones succeed
+            for (const singleWord of wordsData) {
+              const { data: singleData, error: singleError } = await supabase
+                .from('words')
+                .insert(singleWord)
+                .select()
+                .single();
+              if (!singleError && singleData) {
+                allInserted.push(singleData as Word);
+              } else if (singleError && singleError.code !== '23505') {
+                console.error('Error inserting word:', singleError);
+              }
+            }
+            continue;
+          }
+          throw error;
+        }
         if (data) allInserted.push(...(data as Word[]));
       }
 
