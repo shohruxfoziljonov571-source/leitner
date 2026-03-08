@@ -71,8 +71,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isTelegramUser, setIsTelegramUser] = useState(false);
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
   const [telegramAuthError, setTelegramAuthError] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   
-  // Prevent double initialization in React Strict Mode
   const initRef = useRef(false);
 
   useEffect(() => {
