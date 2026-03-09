@@ -27,6 +27,7 @@ import DictationManager from '@/components/admin/DictationManager';
 import BookManager from '@/components/admin/BookManager';
 import PaymentManager from '@/components/admin/PaymentManager';
 import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
+import OnboardingWizard from '@/components/admin/OnboardingWizard';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
