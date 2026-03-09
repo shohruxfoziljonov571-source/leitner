@@ -1592,6 +1592,14 @@ export type Database = {
           status: string
         }[]
       }
+      get_ad_funnel_stats: {
+        Args: {
+          p_days?: number
+          p_utm_campaign?: string
+          p_utm_source?: string
+        }
+        Returns: Json
+      }
       get_box_counts: {
         Args: { p_language_id: string; p_user_id: string }
         Returns: Json
