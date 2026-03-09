@@ -5,7 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import DictationManager from '@/components/admin/DictationManager';
 import BookManager from '@/components/admin/BookManager';
 import PaymentManager from '@/components/admin/PaymentManager';
 import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
+import OnboardingWizard from '@/components/admin/OnboardingWizard';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -144,9 +145,13 @@ const Admin = () => {
           <p className="text-muted-foreground">Bot va foydalanuvchilar statistikasi</p>
         </motion.div>
 
-        <Tabs defaultValue="payments" className="space-y-6">
+        <Tabs defaultValue="setup" className="space-y-6">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max">
+              <TabsTrigger value="setup" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Setup</span>
+              </TabsTrigger>
               <TabsTrigger value="payments" className="flex items-center gap-1 text-xs sm:text-sm">
                 <DollarSign className="h-4 w-4" />
                 <span className="hidden sm:inline">To'lovlar</span>
@@ -210,6 +215,11 @@ const Admin = () => {
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
+
+          {/* Setup/Onboarding Tab */}
+          <TabsContent value="setup">
+            <OnboardingWizard />
+          </TabsContent>
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
