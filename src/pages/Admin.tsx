@@ -148,6 +148,10 @@ const Admin = () => {
         <Tabs defasetup="payments" className="space-y-6">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max">
+              <TabsTrigger value="setup" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Setup</span>
+              </TabsTrigger>
               <TabsTrigger value="payments" className="flex items-center gap-1 text-xs sm:text-sm">
                 <DollarSign className="h-4 w-4" />
                 <span className="hidden sm:inline">To'lovlar</span>
