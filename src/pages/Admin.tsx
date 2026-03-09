@@ -5,8 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparkles
-} from 'lucide-react';
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparklesucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,7 +144,7 @@ const Admin = () => {
           <p className="text-muted-foreground">Bot va foydalanuvchilar statistikasi</p>
         </motion.div>
 
-        <Tabs defasetup="payments" className="space-y-6">
+        <Tabs defasetup="payultValue="setupe="space-y-6">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max">
               <TabsTrigger value="setup" className="flex items-center gap-1 text-xs sm:text-sm">
