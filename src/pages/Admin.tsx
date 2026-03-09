@@ -447,6 +447,11 @@ const Admin = () => {
             <PaymentManager />
           </TabsContent>
 
+          {/* Funnel Analytics Tab */}
+          <TabsContent value="funnel">
+            <FunnelAnalytics />
+          </TabsContent>
+
           {/* Channels Tab */}
           <TabsContent value="channels" className="space-y-4">
             <div className="flex justify-between items-center">
