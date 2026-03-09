@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
-const WeeklyChallenge: React.FC = () => {
+const WeeklyChallenge = React.forwardRef<HTMLDivElement>((_, ref) => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const {
