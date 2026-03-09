@@ -63,6 +63,8 @@ const UnclaimedRewards = React.forwardRef<HTMLDivElement>((_, ref) => {
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+UnclaimedRewards.displayName = 'UnclaimedRewards';
 
 export default UnclaimedRewards;

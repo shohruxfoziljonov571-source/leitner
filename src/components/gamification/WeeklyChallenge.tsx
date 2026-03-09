@@ -117,6 +117,8 @@ const WeeklyChallenge = React.forwardRef<HTMLDivElement>((_, ref) => {
       )}
     </div>
   );
-};
+});
+
+WeeklyChallenge.displayName = 'WeeklyChallenge';
 
 export default React.memo(WeeklyChallenge);
