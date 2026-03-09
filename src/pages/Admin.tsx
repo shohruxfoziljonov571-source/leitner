@@ -216,6 +216,11 @@ const Admin = () => {
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
 
+          {/* Setup/Onboarding Tab */}
+          <TabsContent value="setup">
+            <OnboardingWizard />
+          </TabsContent>
+
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
             {/* Stats Cards */}
