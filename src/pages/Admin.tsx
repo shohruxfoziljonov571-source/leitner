@@ -26,6 +26,7 @@ import LeaderboardManager from '@/components/admin/LeaderboardManager';
 import DictationManager from '@/components/admin/DictationManager';
 import BookManager from '@/components/admin/BookManager';
 import PaymentManager from '@/components/admin/PaymentManager';
+import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
