@@ -145,7 +145,7 @@ const Admin = () => {
           <p className="text-muted-foreground">Bot va foydalanuvchilar statistikasi</p>
         </motion.div>
 
-        <Tabs defasetup="payultValue="setupe="space-y-6">
+        <Tabs defaultValue="setup" className="space-y-6">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max">
               <TabsTrigger value="setup" className="flex items-center gap-1 text-xs sm:text-sm">
