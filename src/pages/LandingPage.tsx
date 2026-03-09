@@ -18,6 +18,11 @@ function generateClickId(): string {
 const LandingPage: React.FC = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  const sanitizeUtm = (value: string | null, maxLen = 256): string | null => {
+    if (!value) return null;
+    return value.slice(0, maxLen).replace(/[<>"'`;]/g, '');
+  };
+
   const handleStartNow = async () => {
     setIsRedirecting(true);
 
@@ -30,16 +35,16 @@ const LandingPage: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const clickId = generateClickId();
 
-      // Save to DB
-      await supabase.from('ad_clicks' as any).insert({
+      // Save to DB with sanitized UTM params
+      await supabase.from('ad_clicks').insert({
         click_id: clickId,
-        fbclid: params.get('fbclid') || null,
-        utm_source: params.get('utm_source') || null,
-        utm_medium: params.get('utm_medium') || null,
-        utm_campaign: params.get('utm_campaign') || null,
-        utm_content: params.get('utm_content') || null,
-        utm_term: params.get('utm_term') || null,
-        user_agent: navigator.userAgent || null,
+        fbclid: sanitizeUtm(params.get('fbclid')),
+        utm_source: sanitizeUtm(params.get('utm_source')),
+        utm_medium: sanitizeUtm(params.get('utm_medium')),
+        utm_campaign: sanitizeUtm(params.get('utm_campaign')),
+        utm_content: sanitizeUtm(params.get('utm_content')),
+        utm_term: sanitizeUtm(params.get('utm_term')),
+        user_agent: (navigator.userAgent || '').slice(0, 512),
       });
 
       // Redirect to Telegram bot with click_id
