@@ -807,7 +807,7 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
   await sendWelcomeMessage(token, chatId);
 }
 
-// Save ad click mapping (telegram_user_id) WITHOUT sending conversion - called before channel check
+// Save ad click mapping (telegram_user_id) and fire Lead event - called before channel check
 async function saveAdClickMapping(supabase: any, clickId: string, chatId: number, username?: string) {
   try {
     const { data: click, error } = await supabase
@@ -821,7 +821,7 @@ async function saveAdClickMapping(supabase: any, clickId: string, chatId: number
       return;
     }
 
-    // Only save telegram user data, channel_joined stays false
+    // Save telegram user data, channel_joined stays false
     await supabase
       .from("ad_clicks")
       .update({
@@ -831,6 +831,24 @@ async function saveAdClickMapping(supabase: any, clickId: string, chatId: number
       .eq("click_id", clickId);
 
     console.log(`Ad click mapped: ${clickId} -> chat ${chatId}`);
+
+    // Auto Event Mapping: bot_start → Lead event to Meta
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+      
+      await fetch(`${supabaseUrl}/functions/v1/meta-conversion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ click_id: clickId, event_name: "Lead" }),
+      });
+      console.log(`Auto Lead event sent for bot_start: ${clickId}`);
+    } catch (e) {
+      console.error("Auto Lead event error:", e);
+    }
   } catch (e) {
     console.error("Save ad click mapping error:", e);
   }
