@@ -5,7 +5,8 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparklesucide-react';
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparkles
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
