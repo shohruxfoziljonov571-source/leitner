@@ -6,7 +6,7 @@ import { useChallengeRewards } from '@/hooks/useChallengeRewards';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ChallengeRewardBadge from './ChallengeRewardBadge';
 
-const UnclaimedRewards: React.FC = () => {
+const UnclaimedRewards = React.forwardRef<HTMLDivElement>((_, ref) => {
   const { t } = useLanguage();
   const { unclaimedRewards, claimReward } = useChallengeRewards();
 
@@ -63,6 +63,8 @@ const UnclaimedRewards: React.FC = () => {
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+UnclaimedRewards.displayName = 'UnclaimedRewards';
 
 export default UnclaimedRewards;
