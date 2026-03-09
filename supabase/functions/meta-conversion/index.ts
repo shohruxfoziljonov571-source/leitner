@@ -7,9 +7,23 @@ const corsHeaders = {
 };
 
 const META_API_VERSION = "v21.0";
-
-// Supported Meta events
 const VALID_EVENTS = ["CompleteRegistration", "Lead", "Purchase", "Subscribe", "StartTrial"];
+
+// Simple in-memory rate limiter (per isolate)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 30; // max requests per window
+const RATE_WINDOW_MS = 60_000; // 1 minute
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,10 +31,12 @@ serve(async (req) => {
   }
 
   try {
-    const { click_id, event_name = "CompleteRegistration", value, currency, test_event_code } = await req.json();
+    const body = await req.json();
+    const { click_id, event_name = "CompleteRegistration", value, currency, test_event_code } = body;
 
-    if (!click_id) {
-      return new Response(JSON.stringify({ error: "click_id required" }), {
+    // Input validation
+    if (!click_id || typeof click_id !== "string" || click_id.length > 100) {
+      return new Response(JSON.stringify({ error: "Invalid click_id" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -29,6 +45,14 @@ serve(async (req) => {
     if (!VALID_EVENTS.includes(event_name)) {
       return new Response(JSON.stringify({ error: `Invalid event_name. Valid: ${VALID_EVENTS.join(", ")}` }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limit by click_id
+    if (isRateLimited(click_id)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -44,7 +68,6 @@ serve(async (req) => {
       });
     }
 
-    // Get click data from DB
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -63,7 +86,7 @@ serve(async (req) => {
       });
     }
 
-    // For CompleteRegistration, check if already sent (dedup)
+    // Dedup for CompleteRegistration
     if (event_name === "CompleteRegistration" && click.conversion_sent) {
       return new Response(JSON.stringify({ message: "Already sent" }), {
         status: 200,
@@ -71,7 +94,6 @@ serve(async (req) => {
       });
     }
 
-    // Hash helper for Meta's required format
     async function sha256(input: string): Promise<string> {
       const encoder = new TextEncoder();
       const data = encoder.encode(input.trim().toLowerCase());
@@ -79,15 +101,11 @@ serve(async (req) => {
       return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    // Build event data with required user_data fields
     const eventId = `${click_id}_${event_name}_${Date.now()}`;
-    
-    // Create hashed identifiers
     const hashedExternalId = await sha256(click_id);
-    // Generate a deterministic email hash from click_id for matching
     const hashedEmail = await sha256(`${click_id}@leitner.uz`);
-    
-    const eventData: any = {
+
+    const eventData: Record<string, unknown> = {
       event_name,
       event_time: Math.floor(Date.now() / 1000),
       event_id: eventId,
@@ -100,40 +118,34 @@ serve(async (req) => {
       },
     };
 
-    // Add fbclid if available  
     if (click.fbclid) {
-      eventData.user_data.fbc = `fb.1.${click.created_at ? new Date(click.created_at).getTime() : Date.now()}.${click.fbclid}`;
+      (eventData.user_data as Record<string, unknown>).fbc = `fb.1.${click.created_at ? new Date(click.created_at).getTime() : Date.now()}.${click.fbclid}`;
     }
 
-    // Override external_id with telegram_user_id hash if available
     if (click.telegram_user_id) {
       const tgHash = await sha256(String(click.telegram_user_id));
-      eventData.user_data.external_id = [tgHash];
-      // Also generate email hash from telegram user
-      eventData.user_data.em = [await sha256(`${click.telegram_user_id}@leitner.uz`)];
+      (eventData.user_data as Record<string, unknown>).external_id = [tgHash];
+      (eventData.user_data as Record<string, unknown>).em = [await sha256(`${click.telegram_user_id}@leitner.uz`)];
     }
 
-    // Add value for Purchase events
     if (value && currency) {
       eventData.custom_data = {
         value: parseFloat(value),
-        currency,
+        currency: String(currency).slice(0, 3).toUpperCase(),
       };
     }
 
     console.log("Sending to Meta:", JSON.stringify({ data: [eventData] }, null, 2));
 
-    // Send to Meta Conversions API
     const metaUrl = `https://graph.facebook.com/${META_API_VERSION}/${META_PIXEL_ID}/events`;
-    
-    const requestBody: any = {
+
+    const requestBody: Record<string, unknown> = {
       data: [eventData],
       access_token: META_ACCESS_TOKEN,
     };
-    
-    // Add test_event_code for Events Manager testing
-    if (test_event_code) {
-      requestBody.test_event_code = test_event_code;
+
+    if (test_event_code && typeof test_event_code === "string") {
+      requestBody.test_event_code = test_event_code.slice(0, 50);
     }
 
     const metaResponse = await fetch(metaUrl, {
@@ -153,7 +165,6 @@ serve(async (req) => {
       });
     }
 
-    // Mark CompleteRegistration conversion as sent
     if (event_name === "CompleteRegistration") {
       await supabase
         .from("ad_clicks")

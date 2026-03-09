@@ -5,7 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   Plus, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Copy, BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
-  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign
+  Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import LeaderboardManager from '@/components/admin/LeaderboardManager';
 import DictationManager from '@/components/admin/DictationManager';
 import BookManager from '@/components/admin/BookManager';
 import PaymentManager from '@/components/admin/PaymentManager';
+import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -201,6 +202,10 @@ const Admin = () => {
               <TabsTrigger value="referrals" className="flex items-center gap-1 text-xs sm:text-sm">
                 <Link2 className="h-4 w-4" />
                 <span className="hidden sm:inline">Referrallar</span>
+              </TabsTrigger>
+              <TabsTrigger value="funnel" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Funnel</span>
               </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
@@ -440,6 +445,11 @@ const Admin = () => {
           {/* Payments Tab */}
           <TabsContent value="payments">
             <PaymentManager />
+          </TabsContent>
+
+          {/* Funnel Analytics Tab */}
+          <TabsContent value="funnel">
+            <FunnelAnalytics />
           </TabsContent>
 
           {/* Channels Tab */}
