@@ -203,6 +203,10 @@ const Admin = () => {
                 <Link2 className="h-4 w-4" />
                 <span className="hidden sm:inline">Referrallar</span>
               </TabsTrigger>
+              <TabsTrigger value="funnel" className="flex items-center gap-1 text-xs sm:text-sm">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Funnel</span>
+              </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
