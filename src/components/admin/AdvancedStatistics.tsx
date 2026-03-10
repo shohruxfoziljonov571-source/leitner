@@ -10,10 +10,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  BarChart,
-  Bar,
-  LineChart,
-  Line
 } from 'recharts';
 
 interface RetentionData {
@@ -57,7 +53,7 @@ const AdvancedStatistics = () => {
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      // DAU, WAU, MAU
+      // DAU, WAU, MAU — count distinct user_ids via single queries
       const [dauResult, wauResult, mauResult] = await Promise.all([
         supabase.from('user_stats').select('user_id', { count: 'exact', head: true }).eq('last_active_date', todayStr),
         supabase.from('user_stats').select('user_id', { count: 'exact', head: true }).gte('last_active_date', weekAgo),
@@ -68,7 +64,7 @@ const AdvancedStatistics = () => {
       const wau = wauResult.count || 0;
       const mau = mauResult.count || 0;
 
-      // Average words per session
+      // Average words per session today
       const { data: todayStats } = await supabase
         .from('daily_stats')
         .select('words_reviewed')
@@ -78,19 +74,13 @@ const AdvancedStatistics = () => {
         ? Math.round(todayStats.reduce((sum, s) => sum + (s.words_reviewed || 0), 0) / todayStats.length)
         : 0;
 
-      // Calculate retention rate (users active this week who were also active last week)
+      // Weekly retention: users active last week who returned this week
       const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
-      const { data: thisWeekUsers } = await supabase
-        .from('user_stats')
-        .select('user_id')
-        .gte('last_active_date', weekAgo);
-
-      const { data: lastWeekUsers } = await supabase
-        .from('user_stats')
-        .select('user_id')
-        .gte('last_active_date', twoWeeksAgo)
-        .lt('last_active_date', weekAgo);
+      const [{ data: thisWeekUsers }, { data: lastWeekUsers }] = await Promise.all([
+        supabase.from('user_stats').select('user_id').gte('last_active_date', weekAgo),
+        supabase.from('user_stats').select('user_id').gte('last_active_date', twoWeeksAgo).lt('last_active_date', weekAgo)
+      ]);
 
       const thisWeekSet = new Set(thisWeekUsers?.map(u => u.user_id) || []);
       const retained = lastWeekUsers?.filter(u => thisWeekSet.has(u.user_id)).length || 0;
@@ -98,67 +88,105 @@ const AdvancedStatistics = () => {
       const churnRate = 100 - retentionRate;
 
       setMetrics({
-        dau,
-        wau,
-        mau,
+        dau, wau, mau,
         dauMauRatio: mau ? Math.round((dau / mau) * 100) : 0,
         avgSessionWords,
         churnRate,
         retentionRate
       });
 
-      // Generate retention curve — single query, aggregate in JS
-      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const { data: allActiveUsers } = await supabase
-        .from('user_stats')
-        .select('last_active_date')
-        .gte('last_active_date', thirtyDaysAgo);
+      // Retention curve: for each day D1..D14, what % of users who signed up
+      // that many days ago came back on or after that day
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, created_at')
+        .gte('created_at', monthAgo);
 
+      const { data: allUserStats } = await supabase
+        .from('user_stats')
+        .select('user_id, last_active_date')
+        .gte('last_active_date', monthAgo);
+
+      const lastActiveMap = new Map<string, string>();
+      allUserStats?.forEach(s => {
+        const existing = lastActiveMap.get(s.user_id);
+        if (!existing || s.last_active_date > existing) {
+          lastActiveMap.set(s.user_id, s.last_active_date);
+        }
+      });
+
+      // Retention curve: of users who signed up 14+ days ago, how many were active on day N
       const retentionCurve: RetentionData[] = [];
-      for (let i = 1; i <= 14; i++) {
-        const dayAgo = new Date(today.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const count = allActiveUsers?.filter(u => u.last_active_date >= dayAgo).length || 0;
+      const oldEnoughUsers = allProfiles?.filter(p => {
+        const signupDate = new Date(p.created_at);
+        const daysSinceSignup = Math.floor((today.getTime() - signupDate.getTime()) / (24 * 60 * 60 * 1000));
+        return daysSinceSignup >= 14;
+      }) || [];
+
+      const totalBase = oldEnoughUsers.length || 1;
+
+      for (let d = 1; d <= 14; d++) {
+        let retainedCount = 0;
+        oldEnoughUsers.forEach(p => {
+          const signupDate = new Date(p.created_at).toISOString().split('T')[0];
+          const targetDate = new Date(new Date(p.created_at).getTime() + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const lastActive = lastActiveMap.get(p.user_id);
+          if (lastActive && lastActive >= targetDate) {
+            retainedCount++;
+          }
+        });
+
         retentionCurve.push({
-          day: i,
-          retained: count,
-          percentage: mau ? Math.round((count / mau) * 100) : 0
+          day: d,
+          retained: retainedCount,
+          percentage: Math.round((retainedCount / totalBase) * 100)
         });
       }
       setRetentionData(retentionCurve);
 
-      // Cohort: real new user counts per week + D1 retention
+      // Cohort analysis: last 4 weeks with real D1, D7, D14, D30
       const cohorts: CohortData[] = [];
       for (let w = 0; w < 4; w++) {
         const weekStart = new Date(today.getTime() - (w + 1) * 7 * 24 * 60 * 60 * 1000);
         const weekEnd = new Date(today.getTime() - w * 7 * 24 * 60 * 60 * 1000);
 
-        const { data: cohortUsers } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .gte('created_at', weekStart.toISOString())
-          .lt('created_at', weekEnd.toISOString());
+        const cohortUsers = allProfiles?.filter(p => {
+          const d = new Date(p.created_at);
+          return d >= weekStart && d < weekEnd;
+        }) || [];
 
-        const weekUsers = cohortUsers?.length || 0;
-        const cohortIds = (cohortUsers || []).map(u => u.user_id);
-
-        let d1Pct = 0;
-        if (cohortIds.length > 0) {
-          const d1Date = new Date(weekStart.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          const { data: d1Active } = await supabase
-            .from('user_stats')
-            .select('user_id')
-            .gte('last_active_date', d1Date)
-            .in('user_id', cohortIds);
-          d1Pct = weekUsers > 0 ? Math.round(((d1Active?.length || 0) / weekUsers) * 100) : 0;
+        const weekUsers = cohortUsers.length;
+        if (weekUsers === 0) {
+          cohorts.push({
+            week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
+            users: 0, d1: 0, d7: 0, d14: 0, d30: 0
+          });
+          continue;
         }
+
+        const calcRetention = (days: number): number => {
+          const daysFromWeekStart = Math.floor((today.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+          if (daysFromWeekStart < days) return -1; // Not enough time has passed
+
+          let count = 0;
+          cohortUsers.forEach(u => {
+            const signupDate = new Date(u.created_at);
+            const targetDate = new Date(signupDate.getTime() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const lastActive = lastActiveMap.get(u.user_id);
+            if (lastActive && lastActive >= targetDate) {
+              count++;
+            }
+          });
+          return Math.round((count / weekUsers) * 100);
+        };
 
         cohorts.push({
           week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
           users: weekUsers,
-          d1: d1Pct,
-          d7: 0,
-          d14: 0,
-          d30: 0
+          d1: calcRetention(1),
+          d7: calcRetention(7),
+          d14: calcRetention(14),
+          d30: calcRetention(30)
         });
       }
       setCohortData(cohorts.reverse());
@@ -265,7 +293,7 @@ const AdvancedStatistics = () => {
       {/* Retention Curve */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Retention egri chizig'i (14 kun)</CardTitle>
+          <CardTitle className="text-lg">Retention egri chizig'i (D1–D14)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64">
@@ -285,9 +313,9 @@ const AdvancedStatistics = () => {
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-popover p-3 rounded-lg shadow-lg border">
-                          <p className="font-medium">Kun {payload[0]?.payload.day}</p>
+                          <p className="font-medium">D{payload[0]?.payload.day}</p>
                           <p className="text-sm text-muted-foreground">
-                            Retention: {payload[0]?.value}%
+                            Retention: {payload[0]?.value}% ({payload[0]?.payload.retained} foydalanuvchi)
                           </p>
                         </div>
                       );
@@ -331,39 +359,27 @@ const AdvancedStatistics = () => {
                   <tr key={i} className="border-b">
                     <td className="p-2 font-medium">{cohort.week}</td>
                     <td className="text-center p-2">{cohort.users}</td>
-                    <td className="text-center p-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        cohort.d1 >= 60 ? 'bg-primary/20' : cohort.d1 >= 40 ? 'bg-accent' : 'bg-muted'
-                      }`}>
-                        {cohort.d1}%
-                      </span>
-                    </td>
-                    <td className="text-center p-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        cohort.d7 >= 40 ? 'bg-primary/20' : cohort.d7 >= 25 ? 'bg-accent' : 'bg-muted'
-                      }`}>
-                        {cohort.d7}%
-                      </span>
-                    </td>
-                    <td className="text-center p-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        cohort.d14 >= 30 ? 'bg-primary/20' : cohort.d14 >= 20 ? 'bg-accent' : 'bg-muted'
-                      }`}>
-                        {cohort.d14}%
-                      </span>
-                    </td>
-                    <td className="text-center p-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        cohort.d30 >= 20 ? 'bg-primary/20' : cohort.d30 >= 10 ? 'bg-accent' : 'bg-muted'
-                      }`}>
-                        {cohort.d30}%
-                      </span>
-                    </td>
+                    {[cohort.d1, cohort.d7, cohort.d14, cohort.d30].map((val, j) => (
+                      <td key={j} className="text-center p-2">
+                        {val === -1 ? (
+                          <span className="px-2 py-1 rounded text-xs bg-muted text-muted-foreground">—</span>
+                        ) : (
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            val >= 50 ? 'bg-primary/20 text-primary' : val >= 25 ? 'bg-accent' : 'bg-muted'
+                          }`}>
+                            {val}%
+                          </span>
+                        )}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            "—" — hali yetarli vaqt o'tmagan
+          </p>
         </CardContent>
       </Card>
 

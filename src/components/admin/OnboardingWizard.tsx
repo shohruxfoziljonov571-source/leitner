@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Copy, ExternalLink, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { Check, Copy, ExternalLink, ArrowRight, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface StepProps {
-  isComplete: boolean;
-}
 
 const OnboardingWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [pixelId, setPixelId] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [channelUsername, setChannelUsername] = useState('');
   const [isPixelConfigured, setIsPixelConfigured] = useState(false);
   const [isChannelConfigured, setIsChannelConfigured] = useState(false);
+  const [channelCount, setChannelCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const trackingUrl = 'https://leitner.lovable.app/lp';
@@ -29,12 +25,27 @@ const OnboardingWizard: React.FC = () => {
     { title: 'Tracking link', desc: 'Reklama havolasi' },
   ];
 
-  // Check existing configuration
+  // Check real configuration status
   useEffect(() => {
-    // Pixel is configured if META_PIXEL_ID secret exists (we know it does from secrets list)
-    setIsPixelConfigured(true);
-    // Channel is configured if required_channels has entries
-    setIsChannelConfigured(true);
+    const checkConfig = async () => {
+      try {
+        // Check if ad_clicks table has any conversion_sent=true (means pixel is working)
+        const [{ count: clicksCount }, { data: channels }] = await Promise.all([
+          supabase.from('ad_clicks').select('*', { count: 'exact', head: true }).eq('conversion_sent', true),
+          supabase.from('required_channels').select('id').eq('is_active', true)
+        ]);
+
+        setIsPixelConfigured((clicksCount || 0) > 0);
+        const activeChannels = channels?.length || 0;
+        setChannelCount(activeChannels);
+        setIsChannelConfigured(activeChannels > 0);
+      } catch (error) {
+        console.error('Error checking config:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkConfig();
   }, []);
 
   const handleCopyLink = (text: string) => {
@@ -45,16 +56,20 @@ const OnboardingWizard: React.FC = () => {
   };
 
   const goNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    }
+    if (currentStep < steps.length - 1) setCurrentStep(prev => prev + 1);
   };
 
   const goBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
+    if (currentStep > 0) setCurrentStep(prev => prev - 1);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -103,12 +118,19 @@ const OnboardingWizard: React.FC = () => {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   📊 Meta Pixel ulash
-                  {isPixelConfigured && <Badge variant="secondary" className="text-xs">✅ Sozlangan</Badge>}
+                  {isPixelConfigured ? (
+                    <Badge variant="secondary" className="text-xs">✅ Ishlayapti</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">⏳ Tekshirilmagan</Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Meta Pixel reklama konversiyalarini kuzatish uchun kerak. Hozirda Pixel va Access Token sozlangan.
+                  Meta Pixel reklama konversiyalarini kuzatish uchun kerak.
+                  {isPixelConfigured
+                    ? ' Konversiyalar muvaffaqiyatli yuborilmoqda.'
+                    : ' Hali birorta ham konversiya yuborilmagan — secrets sozlanganligini tekshiring.'}
                 </p>
                 
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
@@ -143,18 +165,25 @@ const OnboardingWizard: React.FC = () => {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   📢 Telegram kanal
-                  {isChannelConfigured && <Badge variant="secondary" className="text-xs">✅ Sozlangan</Badge>}
+                  {isChannelConfigured ? (
+                    <Badge variant="secondary" className="text-xs">✅ {channelCount} ta faol</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">⚠️ Qo'shilmagan</Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Foydalanuvchilar botni ishlatish uchun kanallarga a'zo bo'lishi shart. Bu konversiya sifatini oshiradi.
+                  Foydalanuvchilar botni ishlatish uchun kanallarga a'zo bo'lishi shart.
+                  {isChannelConfigured
+                    ? ` Hozirda ${channelCount} ta faol kanal mavjud.`
+                    : ' Hali majburiy kanal qo\'shilmagan.'}
                 </p>
 
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <p className="text-sm font-medium">Qanday ishlaydi:</p>
                   <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                    <li>Admin panel → <strong>Kanallar</strong> tabiga o'ting</li>
+                    <li>Admin panel → <strong>Kanallar</strong> bo'limiga o'ting</li>
                     <li>"+ Kanal qo'shish" tugmasini bosing</li>
                     <li>Kanal ID, nomi va username kiriting</li>
                     <li>Bot kanalni tekshiradi va foydalanuvchini a'zo bo'lishga yo'naltiradi</li>
@@ -228,7 +257,7 @@ const OnboardingWizard: React.FC = () => {
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
                   <p className="text-sm font-medium text-primary mb-1">🎉 Tayyor!</p>
                   <p className="text-sm text-muted-foreground">
-                    Havolani Meta Ads ga qo'ying va Funnel tab'dan natijalarni kuzating.
+                    Havolani Meta Ads ga qo'ying va Funnel bo'limidan natijalarni kuzating.
                   </p>
                 </div>
               </CardContent>
