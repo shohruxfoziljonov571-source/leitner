@@ -26,60 +26,69 @@ const LeaderboardManager = () => {
   const fetchLeaderboards = async () => {
     setRefreshing(true);
     try {
-      // Fetch XP leaderboard
-      const { data: xpData } = await supabase
+      // Fetch all user_stats (per-language rows) and aggregate in JS
+      const { data: allStats } = await supabase
         .from('user_stats')
-        .select('user_id, xp')
+        .select('user_id, xp, streak, total_words')
         .order('xp', { ascending: false })
-        .limit(50);
+        .limit(500);
 
-      // Fetch Streak leaderboard
-      const { data: streakData } = await supabase
-        .from('user_stats')
-        .select('user_id, streak')
-        .order('streak', { ascending: false })
-        .limit(50);
-
-      // Fetch Words leaderboard
-      const { data: wordsData } = await supabase
-        .from('user_stats')
-        .select('user_id, total_words')
-        .order('total_words', { ascending: false })
-        .limit(50);
+      // Aggregate per user_id (since user_stats has per-language rows)
+      const userAgg = new Map<string, { xp: number; streak: number; total_words: number }>();
+      allStats?.forEach(s => {
+        const existing = userAgg.get(s.user_id);
+        if (existing) {
+          existing.xp += s.xp || 0;
+          existing.streak = Math.max(existing.streak, s.streak || 0);
+          existing.total_words += s.total_words || 0;
+        } else {
+          userAgg.set(s.user_id, {
+            xp: s.xp || 0,
+            streak: s.streak || 0,
+            total_words: s.total_words || 0
+          });
+        }
+      });
 
       // Get unique user IDs
-      const allUserIds = new Set([
-        ...(xpData?.map(u => u.user_id) || []),
-        ...(streakData?.map(u => u.user_id) || []),
-        ...(wordsData?.map(u => u.user_id) || [])
-      ]);
+      const allUserIds = [...userAgg.keys()];
 
       // Fetch profiles
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name, telegram_username, avatar_url')
-        .in('user_id', [...allUserIds]);
+        .in('user_id', allUserIds.slice(0, 100));
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
 
-      // Build leaderboards
-      const buildLeaderboard = (data: any[], valueKey: string): LeaderboardEntry[] => {
-        return data?.map((item, index) => {
-          const profile = profileMap.get(item.user_id);
-          return {
+      // Build sorted leaderboards
+      const entries = allUserIds.map(uid => ({
+        user_id: uid,
+        ...userAgg.get(uid)!,
+        profile: profileMap.get(uid)
+      }));
+
+      const buildBoard = (
+        sorted: typeof entries,
+        valueKey: 'xp' | 'streak' | 'total_words',
+        valueLabel: string
+      ): LeaderboardEntry[] => {
+        return sorted
+          .sort((a, b) => b[valueKey] - a[valueKey])
+          .slice(0, 50)
+          .map((item, index) => ({
             rank: index + 1,
             user_id: item.user_id,
-            full_name: profile?.full_name || 'Nomsiz',
-            telegram_username: profile?.telegram_username,
-            value: item[valueKey] || 0,
-            avatar: profile?.avatar_url
-          };
-        }) || [];
+            full_name: item.profile?.full_name || 'Nomsiz',
+            telegram_username: item.profile?.telegram_username || null,
+            value: item[valueKey],
+            avatar: item.profile?.avatar_url || undefined
+          }));
       };
 
-      setXpLeaderboard(buildLeaderboard(xpData || [], 'xp'));
-      setStreakLeaderboard(buildLeaderboard(streakData || [], 'streak'));
-      setWordsLeaderboard(buildLeaderboard(wordsData || [], 'total_words'));
+      setXpLeaderboard(buildBoard([...entries], 'xp', 'XP'));
+      setStreakLeaderboard(buildBoard([...entries], 'streak', 'kun'));
+      setWordsLeaderboard(buildBoard([...entries], 'total_words', "so'z"));
 
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
@@ -95,14 +104,10 @@ const LeaderboardManager = () => {
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
-      case 1:
-        return <Crown className="h-5 w-5 text-yellow-500" />;
-      case 2:
-        return <Medal className="h-5 w-5 text-gray-400" />;
-      case 3:
-        return <Award className="h-5 w-5 text-amber-600" />;
-      default:
-        return <span className="w-5 text-center text-muted-foreground">{rank}</span>;
+      case 1: return <Crown className="h-5 w-5 text-yellow-500" />;
+      case 2: return <Medal className="h-5 w-5 text-gray-400" />;
+      case 3: return <Award className="h-5 w-5 text-amber-600" />;
+      default: return <span className="w-5 text-center text-muted-foreground">{rank}</span>;
     }
   };
 
@@ -192,56 +197,28 @@ const LeaderboardManager = () => {
 
       {/* Top 3 Summary */}
       <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Crown className="h-4 w-4 text-yellow-500" />
-              Top XP
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {xpLeaderboard.slice(0, 3).map((entry, i) => (
-              <div key={entry.user_id} className="flex items-center justify-between py-1">
-                <span className="text-sm">{i + 1}. {entry.full_name}</span>
-                <Badge variant="secondary">{entry.value.toLocaleString()}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Crown className="h-4 w-4 text-orange-500" />
-              Top Streak
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {streakLeaderboard.slice(0, 3).map((entry, i) => (
-              <div key={entry.user_id} className="flex items-center justify-between py-1">
-                <span className="text-sm">{i + 1}. {entry.full_name}</span>
-                <Badge variant="secondary">{entry.value} kun</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Crown className="h-4 w-4 text-primary" />
-              Top So'zlar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {wordsLeaderboard.slice(0, 3).map((entry, i) => (
-              <div key={entry.user_id} className="flex items-center justify-between py-1">
-                <span className="text-sm">{i + 1}. {entry.full_name}</span>
-                <Badge variant="secondary">{entry.value.toLocaleString()}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {[
+          { title: 'Top XP', data: xpLeaderboard, color: 'text-yellow-500', suffix: '' },
+          { title: 'Top Streak', data: streakLeaderboard, color: 'text-orange-500', suffix: ' kun' },
+          { title: "Top So'zlar", data: wordsLeaderboard, color: 'text-primary', suffix: '' },
+        ].map(({ title, data, color, suffix }) => (
+          <Card key={title}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Crown className={`h-4 w-4 ${color}`} />
+                {title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.slice(0, 3).map((entry, i) => (
+                <div key={entry.user_id} className="flex items-center justify-between py-1">
+                  <span className="text-sm">{i + 1}. {entry.full_name}</span>
+                  <Badge variant="secondary">{entry.value.toLocaleString()}{suffix}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
