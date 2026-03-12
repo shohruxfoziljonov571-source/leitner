@@ -69,6 +69,7 @@ export type Database = {
           fbclid: string | null
           id: string
           ip_hash: string | null
+          landing_variant: string | null
           telegram_user_id: number | null
           telegram_username: string | null
           updated_at: string
@@ -88,6 +89,7 @@ export type Database = {
           fbclid?: string | null
           id?: string
           ip_hash?: string | null
+          landing_variant?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
           updated_at?: string
@@ -107,6 +109,7 @@ export type Database = {
           fbclid?: string | null
           id?: string
           ip_hash?: string | null
+          landing_variant?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
           updated_at?: string
