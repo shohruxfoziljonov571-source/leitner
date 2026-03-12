@@ -1,0 +1,1 @@
+ALTER TABLE public.ad_clicks ADD COLUMN IF NOT EXISTS landing_variant text DEFAULT null;
