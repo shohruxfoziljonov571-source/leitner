@@ -789,11 +789,12 @@ async function handleStartCommand(supabase: any, token: string, chatId: number, 
         token, chatId,
         `🎉 <b>Xush kelibsiz, ${firstName}!</b>\n` +
         `━━━━━━━━━━━━━━━━━━\n\n` +
-        `Hisobingiz avtomatik yaratildi ✨\n\n` +
-        `💡 <b>Nima qilish mumkin:</b>\n` +
-        `  • <code>/add hello - salom</code> — so'z qo'shish\n` +
-        `  • /quiz — so'zlarni takrorlash\n` +
-        `  • @Leitner_robot — so'zlarni ulashing\n\n` +
+        `Hisobingiz avtomatik yaratildi ✨\n` +
+        `📚 <b>20 ta boshlang'ich so'z</b> sizga tayyor qo'shildi!\n\n` +
+        `💡 <b>Hoziroq boshlang:</b>\n` +
+        `  • /quiz — so'zlarni takrorlash 🧠\n` +
+        `  • <code>/add hello - salom</code> — yangi so'z qo'shish\n` +
+        `  • @Leitner_robot — do'stlar bilan ulashing\n\n` +
         `📱 Ilovani to'liq ochish uchun:`,
         getMainMenuKeyboard()
       );
