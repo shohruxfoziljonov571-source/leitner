@@ -247,7 +247,7 @@ const AddWord: React.FC = () => {
                 <WordPackSelector
                   sourceLanguage={activeLanguage.source_language}
                   targetLanguage={activeLanguage.target_language}
-                  onImport={handleBulkImport}
+                  onImport={handlePackImport}
                 />
               </div>
             </TabsContent>
