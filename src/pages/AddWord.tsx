@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WordExport from '@/components/WordExport';
+import WordPackSelector from '@/components/WordPackSelector';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
