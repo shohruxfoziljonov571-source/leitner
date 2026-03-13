@@ -208,6 +208,16 @@ const AddWord: React.FC = () => {
               <WordList />
             </TabsContent>
 
+            <TabsContent value="packs">
+              <div className="bg-card rounded-2xl shadow-card p-5">
+                <WordPackSelector
+                  sourceLanguage={activeLanguage.source_language}
+                  targetLanguage={activeLanguage.target_language}
+                  onImport={handleBulkImport}
+                />
+              </div>
+            </TabsContent>
+
             <TabsContent value="manual">
               <div className="bg-card rounded-2xl shadow-card p-5">
                 <AddWordForm
