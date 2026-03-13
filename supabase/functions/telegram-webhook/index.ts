@@ -1086,6 +1086,9 @@ async function autoCreateTelegramAccount(
             user_id: signUpData.user.id,
             user_language_id: langData.id,
           });
+
+        // Auto-add 20 starter words
+        await insertStarterWords(supabase, signUpData.user.id, langData.id, "uz", "en");
       }
 
       // Track premium referral
