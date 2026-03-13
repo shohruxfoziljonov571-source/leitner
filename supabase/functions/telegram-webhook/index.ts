@@ -1108,6 +1108,209 @@ async function autoCreateTelegramAccount(
   }
 }
 
+// ============ STARTER WORDS ============
+
+const STARTER_WORDS: Record<string, Array<{ original: string; translated: string }>> = {
+  "uz_en": [
+    { original: "hello", translated: "salom" },
+    { original: "goodbye", translated: "xayr" },
+    { original: "thank you", translated: "rahmat" },
+    { original: "please", translated: "iltimos" },
+    { original: "yes", translated: "ha" },
+    { original: "no", translated: "yo'q" },
+    { original: "water", translated: "suv" },
+    { original: "food", translated: "ovqat" },
+    { original: "book", translated: "kitob" },
+    { original: "school", translated: "maktab" },
+    { original: "friend", translated: "do'st" },
+    { original: "family", translated: "oila" },
+    { original: "morning", translated: "ertalab" },
+    { original: "evening", translated: "kechqurun" },
+    { original: "house", translated: "uy" },
+    { original: "money", translated: "pul" },
+    { original: "work", translated: "ish" },
+    { original: "love", translated: "sevgi" },
+    { original: "time", translated: "vaqt" },
+    { original: "teacher", translated: "o'qituvchi" },
+  ],
+  "uz_de": [
+    { original: "Hallo", translated: "salom" },
+    { original: "Tschüss", translated: "xayr" },
+    { original: "Danke", translated: "rahmat" },
+    { original: "Bitte", translated: "iltimos" },
+    { original: "Ja", translated: "ha" },
+    { original: "Nein", translated: "yo'q" },
+    { original: "Wasser", translated: "suv" },
+    { original: "Essen", translated: "ovqat" },
+    { original: "Buch", translated: "kitob" },
+    { original: "Schule", translated: "maktab" },
+    { original: "Freund", translated: "do'st" },
+    { original: "Familie", translated: "oila" },
+    { original: "Morgen", translated: "ertalab" },
+    { original: "Abend", translated: "kechqurun" },
+    { original: "Haus", translated: "uy" },
+    { original: "Geld", translated: "pul" },
+    { original: "Arbeit", translated: "ish" },
+    { original: "Liebe", translated: "sevgi" },
+    { original: "Zeit", translated: "vaqt" },
+    { original: "Lehrer", translated: "o'qituvchi" },
+  ],
+  "uz_ru": [
+    { original: "привет", translated: "salom" },
+    { original: "пока", translated: "xayr" },
+    { original: "спасибо", translated: "rahmat" },
+    { original: "пожалуйста", translated: "iltimos" },
+    { original: "да", translated: "ha" },
+    { original: "нет", translated: "yo'q" },
+    { original: "вода", translated: "suv" },
+    { original: "еда", translated: "ovqat" },
+    { original: "книга", translated: "kitob" },
+    { original: "школа", translated: "maktab" },
+    { original: "друг", translated: "do'st" },
+    { original: "семья", translated: "oila" },
+    { original: "утро", translated: "ertalab" },
+    { original: "вечер", translated: "kechqurun" },
+    { original: "дом", translated: "uy" },
+    { original: "деньги", translated: "pul" },
+    { original: "работа", translated: "ish" },
+    { original: "любовь", translated: "sevgi" },
+    { original: "время", translated: "vaqt" },
+    { original: "учитель", translated: "o'qituvchi" },
+  ],
+  "uz_fr": [
+    { original: "bonjour", translated: "salom" },
+    { original: "au revoir", translated: "xayr" },
+    { original: "merci", translated: "rahmat" },
+    { original: "s'il vous plaît", translated: "iltimos" },
+    { original: "oui", translated: "ha" },
+    { original: "non", translated: "yo'q" },
+    { original: "eau", translated: "suv" },
+    { original: "nourriture", translated: "ovqat" },
+    { original: "livre", translated: "kitob" },
+    { original: "école", translated: "maktab" },
+    { original: "ami", translated: "do'st" },
+    { original: "famille", translated: "oila" },
+    { original: "matin", translated: "ertalab" },
+    { original: "soir", translated: "kechqurun" },
+    { original: "maison", translated: "uy" },
+    { original: "argent", translated: "pul" },
+    { original: "travail", translated: "ish" },
+    { original: "amour", translated: "sevgi" },
+    { original: "temps", translated: "vaqt" },
+    { original: "professeur", translated: "o'qituvchi" },
+  ],
+  "uz_tr": [
+    { original: "merhaba", translated: "salom" },
+    { original: "hoşça kal", translated: "xayr" },
+    { original: "teşekkürler", translated: "rahmat" },
+    { original: "lütfen", translated: "iltimos" },
+    { original: "evet", translated: "ha" },
+    { original: "hayır", translated: "yo'q" },
+    { original: "su", translated: "suv" },
+    { original: "yemek", translated: "ovqat" },
+    { original: "kitap", translated: "kitob" },
+    { original: "okul", translated: "maktab" },
+    { original: "arkadaş", translated: "do'st" },
+    { original: "aile", translated: "oila" },
+    { original: "sabah", translated: "ertalab" },
+    { original: "akşam", translated: "kechqurun" },
+    { original: "ev", translated: "uy" },
+    { original: "para", translated: "pul" },
+    { original: "iş", translated: "ish" },
+    { original: "aşk", translated: "sevgi" },
+    { original: "zaman", translated: "vaqt" },
+    { original: "öğretmen", translated: "o'qituvchi" },
+  ],
+  "uz_ko": [
+    { original: "안녕하세요", translated: "salom" },
+    { original: "안녕히 가세요", translated: "xayr" },
+    { original: "감사합니다", translated: "rahmat" },
+    { original: "제발", translated: "iltimos" },
+    { original: "네", translated: "ha" },
+    { original: "아니요", translated: "yo'q" },
+    { original: "물", translated: "suv" },
+    { original: "음식", translated: "ovqat" },
+    { original: "책", translated: "kitob" },
+    { original: "학교", translated: "maktab" },
+    { original: "친구", translated: "do'st" },
+    { original: "가족", translated: "oila" },
+    { original: "아침", translated: "ertalab" },
+    { original: "저녁", translated: "kechqurun" },
+    { original: "집", translated: "uy" },
+    { original: "돈", translated: "pul" },
+    { original: "일", translated: "ish" },
+    { original: "사랑", translated: "sevgi" },
+    { original: "시간", translated: "vaqt" },
+    { original: "선생님", translated: "o'qituvchi" },
+  ],
+  "uz_ar": [
+    { original: "مرحبا", translated: "salom" },
+    { original: "مع السلامة", translated: "xayr" },
+    { original: "شكرا", translated: "rahmat" },
+    { original: "من فضلك", translated: "iltimos" },
+    { original: "نعم", translated: "ha" },
+    { original: "لا", translated: "yo'q" },
+    { original: "ماء", translated: "suv" },
+    { original: "طعام", translated: "ovqat" },
+    { original: "كتاب", translated: "kitob" },
+    { original: "مدرسة", translated: "maktab" },
+    { original: "صديق", translated: "do'st" },
+    { original: "عائلة", translated: "oila" },
+    { original: "صباح", translated: "ertalab" },
+    { original: "مساء", translated: "kechqurun" },
+    { original: "بيت", translated: "uy" },
+    { original: "مال", translated: "pul" },
+    { original: "عمل", translated: "ish" },
+    { original: "حب", translated: "sevgi" },
+    { original: "وقت", translated: "vaqt" },
+    { original: "معلم", translated: "o'qituvchi" },
+  ],
+};
+
+async function insertStarterWords(
+  supabase: any,
+  userId: string,
+  userLanguageId: string,
+  sourceLang: string,
+  targetLang: string
+): Promise<void> {
+  try {
+    const key = `${sourceLang}_${targetLang}`;
+    const words = STARTER_WORDS[key] || STARTER_WORDS["uz_en"];
+
+    const now = new Date().toISOString();
+    const rows = words.map((w) => ({
+      user_id: userId,
+      user_language_id: userLanguageId,
+      original_word: w.original,
+      translated_word: w.translated,
+      source_language: sourceLang,
+      target_language: targetLang,
+      box_number: 1,
+      next_review_time: now,
+      times_reviewed: 0,
+      times_correct: 0,
+      times_incorrect: 0,
+    }));
+
+    const { error } = await supabase.from("words").insert(rows);
+    if (error) {
+      console.error("Insert starter words error:", error);
+    } else {
+      console.log(`Inserted ${rows.length} starter words for user ${userId} (${key})`);
+      
+      // Update total_words count
+      await supabase.rpc("increment_total_words", {
+        p_user_id: userId,
+        p_language_id: userLanguageId,
+        p_delta: rows.length,
+      });
+    }
+  } catch (e) {
+    console.error("insertStarterWords error:", e);
+  }
+}
+
 // Handle contest referral
 async function handleContestReferral(supabase: any, token: string, chatId: number, contestShortId: string, referrerUserId: string, username?: string) {
   try {
