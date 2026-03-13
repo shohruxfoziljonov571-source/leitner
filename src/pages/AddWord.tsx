@@ -99,6 +99,40 @@ const AddWord: React.FC = () => {
     }
   };
 
+  // Word pack import (always free, no premium check)
+  const handlePackImport = async (wordsToImport: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
+    if (!activeLanguage) return;
+    try {
+      const result = await addWordsBulk(wordsToImport.map(word => ({
+        original_word: word.originalWord,
+        translated_word: word.translatedWord,
+        source_language: activeLanguage.source_language,
+        target_language: activeLanguage.target_language,
+        example_sentences: word.exampleSentences,
+      })));
+
+      const addedCount = result.added.length;
+      const duplicateCount = result.duplicates.length;
+
+      if (addedCount === 0 && duplicateCount > 0) {
+        toast.warning(`Barcha ${duplicateCount} ta so'z allaqachon mavjud`);
+      } else if (duplicateCount > 0) {
+        toast.warning(`${addedCount} ta qo'shildi, ${duplicateCount} ta takroriy`);
+      }
+
+      if (addedCount > 0) {
+        await checkAndUnlockAchievements({
+          totalWords: words.length + addedCount,
+          streak: stats.streak,
+          level,
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Import xatoligi');
+      throw error;
+    }
+  };
+
   // Count mastered words (box 4-5)
   const masteredWords = words.filter(w => w.box_number >= 4).length;
 
