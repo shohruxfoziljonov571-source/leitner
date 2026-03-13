@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Plus, Search, FileSpreadsheet, BookOpen } from 'lucide-react';
+import { Plus, Search, FileSpreadsheet, BookOpen, Package } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
