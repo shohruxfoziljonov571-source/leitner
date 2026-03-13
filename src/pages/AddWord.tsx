@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Plus, Search, FileSpreadsheet, BookOpen } from 'lucide-react';
+import { Plus, Search, FileSpreadsheet, BookOpen, Package } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLearningLanguage } from '@/contexts/LearningLanguageContext';
 import { useWordsDB } from '@/hooks/useWordsDB';
@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WordExport from '@/components/WordExport';
+import WordPackSelector from '@/components/WordPackSelector';
 
 const AddWord: React.FC = () => {
   const { t } = useLanguage();
@@ -67,6 +68,40 @@ const AddWord: React.FC = () => {
       return;
     }
 
+    try {
+      const result = await addWordsBulk(wordsToImport.map(word => ({
+        original_word: word.originalWord,
+        translated_word: word.translatedWord,
+        source_language: activeLanguage.source_language,
+        target_language: activeLanguage.target_language,
+        example_sentences: word.exampleSentences,
+      })));
+
+      const addedCount = result.added.length;
+      const duplicateCount = result.duplicates.length;
+
+      if (addedCount === 0 && duplicateCount > 0) {
+        toast.warning(`Barcha ${duplicateCount} ta so'z allaqachon mavjud`);
+      } else if (duplicateCount > 0) {
+        toast.warning(`${addedCount} ta qo'shildi, ${duplicateCount} ta takroriy`);
+      }
+
+      if (addedCount > 0) {
+        await checkAndUnlockAchievements({
+          totalWords: words.length + addedCount,
+          streak: stats.streak,
+          level,
+        });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Import xatoligi');
+      throw error;
+    }
+  };
+
+  // Word pack import (always free, no premium check)
+  const handlePackImport = async (wordsToImport: { originalWord: string; translatedWord: string; exampleSentences: string[] }[]) => {
+    if (!activeLanguage) return;
     try {
       const result = await addWordsBulk(wordsToImport.map(word => ({
         original_word: word.originalWord,
@@ -174,10 +209,14 @@ const AddWord: React.FC = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 h-11 bg-muted rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-4 mb-4 h-11 bg-muted rounded-xl p-1">
               <TabsTrigger value="list" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <BookOpen className="w-3.5 h-3.5" />
                 So'zlar
+              </TabsTrigger>
+              <TabsTrigger value="packs" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Package className="w-3.5 h-3.5" />
+                To'plam
               </TabsTrigger>
               <TabsTrigger value="manual" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <Plus className="w-3.5 h-3.5" />
@@ -201,6 +240,16 @@ const AddWord: React.FC = () => {
 
             <TabsContent value="list">
               <WordList />
+            </TabsContent>
+
+            <TabsContent value="packs">
+              <div className="bg-card rounded-2xl shadow-card p-5">
+                <WordPackSelector
+                  sourceLanguage={activeLanguage.source_language}
+                  targetLanguage={activeLanguage.target_language}
+                  onImport={handlePackImport}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="manual">
