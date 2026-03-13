@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Check, Loader2, BookOpen, Briefcase, Plane, ShoppingCart, Heart, Utensils } from 'lucide-react';
+import { Package, Check, Loader2, BookOpen, Briefcase, Plane, ShoppingCart, Heart, Utensils, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
