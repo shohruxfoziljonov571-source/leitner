@@ -175,10 +175,14 @@ const AddWord: React.FC = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 h-11 bg-muted rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-4 mb-4 h-11 bg-muted rounded-xl p-1">
               <TabsTrigger value="list" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <BookOpen className="w-3.5 h-3.5" />
                 So'zlar
+              </TabsTrigger>
+              <TabsTrigger value="packs" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Package className="w-3.5 h-3.5" />
+                To'plam
               </TabsTrigger>
               <TabsTrigger value="manual" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <Plus className="w-3.5 h-3.5" />
