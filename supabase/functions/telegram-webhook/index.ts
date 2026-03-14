@@ -471,24 +471,39 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) return;
 
-  const cached = quizCache.get(chatId);
-  if (!cached || cached.expires < Date.now()) {
+  // Read quiz state from DB instead of in-memory cache
+  const { data: session } = await supabase
+    .from("quiz_sessions")
+    .select("current_word_id, user_language_id")
+    .eq("telegram_chat_id", chatId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!session || !session.current_word_id) {
     await sendMessage(token, chatId, "⏰ Quiz vaqti tugadi. Qaytadan boshlang.", {
       inline_keyboard: [[{ text: "🎯 Qayta boshlash", callback_data: "quiz", style: "success" }]]
     });
     return;
   }
 
-  const selectedAnswer = cached.options[optionIndex];
-  const correctAnswer = cached.correctAnswer;
+  const wordId = session.current_word_id;
+  const langId = session.user_language_id;
 
-  // Get user's language
-  const { data: userLang } = await supabase
-    .from("user_languages")
-    .select("id")
-    .eq("user_id", profile.userId)
-    .limit(1)
+  // Get the word to find correct answer
+  const { data: quizWord } = await supabase
+    .from("words")
+    .select("original_word, translated_word, box_number, times_correct, times_reviewed, times_incorrect")
+    .eq("id", wordId)
     .maybeSingle();
+
+  if (!quizWord) {
+    await sendMessage(token, chatId, "⏰ Quiz vaqti tugadi. Qaytadan boshlang.", {
+      inline_keyboard: [[{ text: "🎯 Qayta boshlash", callback_data: "quiz", style: "success" }]]
+    });
+    return;
+  }
+
+  const correctAnswer = quizWord.translated_word;
 
   if (!userLang) return;
 
