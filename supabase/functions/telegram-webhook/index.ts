@@ -632,7 +632,11 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 }
 
 async function handleQuizStop(supabase: any, token: string, chatId: number, messageId?: number) {
-  quizCache.delete(chatId);
+  // Deactivate quiz session in DB
+  await supabase
+    .from("quiz_sessions")
+    .update({ is_active: false, current_word_id: null })
+    .eq("telegram_chat_id", chatId);
   
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
