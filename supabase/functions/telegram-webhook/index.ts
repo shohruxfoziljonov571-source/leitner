@@ -12,9 +12,7 @@ const WEBAPP_URL = "https://leitner.lovable.app";
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-// Quiz session cache
-const quizCache = new Map<number, { wordId: string; correctAnswer: string; options: string[]; expires: number }>();
-const QUIZ_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+// Quiz state is persisted in quiz_sessions table (not in-memory, since edge functions are serverless)
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
