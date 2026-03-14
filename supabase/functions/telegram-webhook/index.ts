@@ -429,13 +429,17 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number, me
     ...wrongWords.map((w: any) => ({ text: w.translated_word, isCorrect: false }))
   ].sort(() => Math.random() - 0.5);
 
-  // Cache the quiz for verification
-  quizCache.set(chatId, {
-    wordId: targetWord.id,
-    correctAnswer: targetWord.translated_word,
-    options: options.map(o => o.text),
-    expires: Date.now() + QUIZ_CACHE_TTL,
-  });
+  // Persist quiz state in DB (survives serverless cold starts)
+  await supabase
+    .from("quiz_sessions")
+    .upsert({
+      telegram_chat_id: chatId,
+      user_id: profile.userId,
+      user_language_id: userLang.id,
+      current_word_id: targetWord.id,
+      is_active: true,
+      last_activity: new Date().toISOString(),
+    }, { onConflict: "telegram_chat_id" });
 
   const boxStars = "⭐".repeat(targetWord.box_number) + "☆".repeat(5 - targetWord.box_number);
 
