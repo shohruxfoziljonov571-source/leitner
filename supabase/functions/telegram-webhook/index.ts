@@ -496,11 +496,13 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   let xpEarned = 0;
 
   // Update word stats
+  const today = new Date().toISOString().split('T')[0];
+
   if (isCorrect) {
     // Move to next box (max 5)
     const { data: word } = await supabase
       .from("words")
-      .select("box_number")
+      .select("box_number, times_correct, times_reviewed")
       .eq("id", cached.wordId)
       .maybeSingle();
 
@@ -516,118 +518,114 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       .from("words")
       .update({
         box_number: newBox,
-        times_correct: supabase.rpc("increment"),
-        times_reviewed: supabase.rpc("increment"),
+        times_correct: (word?.times_correct || 0) + 1,
+        times_reviewed: (word?.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: nextReview.toISOString(),
       })
       .eq("id", cached.wordId);
 
-    // Update user stats with XP
+    // Update user stats via RPC
     xpEarned = XP_PER_CORRECT;
-    const { data: currentStats } = await supabase
-      .from("user_stats")
-      .select("xp, level")
-      .eq("user_id", profile.userId)
-      .eq("user_language_id", userLang.id)
-      .maybeSingle();
+    const isLearned = newBox >= 5 ? 1 : 0;
 
-    const currentXp = currentStats?.xp || 0;
-    const newXp = currentXp + xpEarned;
-    // Progressive leveling: level = floor((75 + sqrt(5625 + 300*xp)) / 150)
-    const newLevel = Math.floor((75 + Math.sqrt(5625 + 300 * newXp)) / 150);
+    await supabase.rpc("increment_review_stats", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_reviewed: 1,
+      p_correct: 1,
+      p_learned: isLearned,
+      p_date: today,
+    });
 
-    await supabase
-      .from("user_stats")
-      .update({
-        today_reviewed: (currentStats?.today_reviewed || 0) + 1,
-        today_correct: (currentStats?.today_correct || 0) + 1,
-        xp: newXp,
-        level: newLevel,
-      })
-      .eq("user_id", profile.userId)
-      .eq("user_language_id", userLang.id);
+    await supabase.rpc("increment_user_xp", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_amount: xpEarned,
+    });
 
-    // Update daily stats
-    const today = new Date().toISOString().split('T')[0];
-    await supabase
-      .from("daily_stats")
-      .upsert({
-        user_id: profile.userId,
-        user_language_id: userLang.id,
-        date: today,
-        words_reviewed: 1,
-        words_correct: 1,
-        xp_earned: xpEarned,
-      }, { 
-        onConflict: "user_id,user_language_id,date",
-        ignoreDuplicates: false 
-      });
+    // Update daily stats via RPC
+    await supabase.rpc("increment_daily_words", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_date: today,
+      p_reviewed: 1,
+      p_correct: 1,
+    });
+
+    await supabase.rpc("increment_daily_xp", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_date: today,
+      p_xp: xpEarned,
+    });
 
     // Update weekly challenge if participating
     const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
     if (challengeId) {
-      await supabase
+      const { data: participant } = await supabase
         .from("weekly_challenge_participants")
-        .update({
-          xp_earned: supabase.rpc("increment", { amount: xpEarned }),
-          words_reviewed: supabase.rpc("increment"),
-          words_correct: supabase.rpc("increment"),
-        })
+        .select("xp_earned, words_reviewed, words_correct")
         .eq("challenge_id", challengeId)
-        .eq("user_id", profile.userId);
+        .eq("user_id", profile.userId)
+        .maybeSingle();
+
+      if (participant) {
+        await supabase
+          .from("weekly_challenge_participants")
+          .update({
+            xp_earned: (participant.xp_earned || 0) + xpEarned,
+            words_reviewed: (participant.words_reviewed || 0) + 1,
+            words_correct: (participant.words_correct || 0) + 1,
+          })
+          .eq("challenge_id", challengeId)
+          .eq("user_id", profile.userId);
+      }
     }
 
   } else {
     // Move to box 1
     xpEarned = XP_PER_INCORRECT;
+
+    const { data: word } = await supabase
+      .from("words")
+      .select("times_incorrect, times_reviewed")
+      .eq("id", cached.wordId)
+      .maybeSingle();
+
     await supabase
       .from("words")
       .update({
         box_number: 1,
-        times_incorrect: supabase.rpc("increment"),
-        times_reviewed: supabase.rpc("increment"),
+        times_incorrect: (word?.times_incorrect || 0) + 1,
+        times_reviewed: (word?.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: new Date().toISOString(),
       })
       .eq("id", cached.wordId);
 
-    const { data: currentStats } = await supabase
-      .from("user_stats")
-      .select("xp, level, today_reviewed")
-      .eq("user_id", profile.userId)
-      .eq("user_language_id", userLang.id)
-      .maybeSingle();
+    await supabase.rpc("increment_review_stats", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_reviewed: 1,
+      p_correct: 0,
+      p_learned: 0,
+      p_date: today,
+    });
 
-    const currentXp = currentStats?.xp || 0;
-    const newXp = currentXp + xpEarned;
-    const newLevel = Math.floor((75 + Math.sqrt(5625 + 300 * newXp)) / 150);
+    await supabase.rpc("increment_user_xp", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_amount: xpEarned,
+    });
 
-    await supabase
-      .from("user_stats")
-      .update({
-        today_reviewed: (currentStats?.today_reviewed || 0) + 1,
-        xp: newXp,
-        level: newLevel,
-      })
-      .eq("user_id", profile.userId)
-      .eq("user_language_id", userLang.id);
-
-    // Update daily stats
-    const today = new Date().toISOString().split('T')[0];
-    await supabase
-      .from("daily_stats")
-      .upsert({
-        user_id: profile.userId,
-        user_language_id: userLang.id,
-        date: today,
-        words_reviewed: 1,
-        words_correct: 0,
-        xp_earned: xpEarned,
-      }, { 
-        onConflict: "user_id,user_language_id,date",
-        ignoreDuplicates: false 
-      });
+    await supabase.rpc("increment_daily_words", {
+      p_user_id: profile.userId,
+      p_language_id: userLang.id,
+      p_date: today,
+      p_reviewed: 1,
+      p_correct: 0,
+    });
   }
 
   // Clear quiz cache
