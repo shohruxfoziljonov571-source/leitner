@@ -505,7 +505,7 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 
   const correctAnswer = quizWord.translated_word;
 
-  if (!userLang) return;
+  
 
   // XP values
   const XP_PER_CORRECT = 10;
