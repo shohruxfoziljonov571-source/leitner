@@ -516,18 +516,10 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   const today = new Date().toISOString().split('T')[0];
 
   if (isCorrect) {
-    // Move to next box (max 5)
-    const { data: word } = await supabase
-      .from("words")
-      .select("box_number, times_correct, times_reviewed")
-      .eq("id", cached.wordId)
-      .maybeSingle();
-
-    const currentBox = word?.box_number || 1;
+    const currentBox = quizWord.box_number || 1;
     const newBox = Math.min(currentBox + 1, 5);
     
-    // Calculate next review time based on box
-    const reviewIntervals = [1, 3, 7, 14, 30]; // days
+    const reviewIntervals = [1, 3, 7, 14, 30];
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + reviewIntervals[newBox - 1]);
 
@@ -535,47 +527,32 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       .from("words")
       .update({
         box_number: newBox,
-        times_correct: (word?.times_correct || 0) + 1,
-        times_reviewed: (word?.times_reviewed || 0) + 1,
+        times_correct: (quizWord.times_correct || 0) + 1,
+        times_reviewed: (quizWord.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: nextReview.toISOString(),
       })
-      .eq("id", cached.wordId);
+      .eq("id", wordId);
 
-    // Update user stats via RPC
     xpEarned = XP_PER_CORRECT;
     const isLearned = newBox >= 5 ? 1 : 0;
 
-    await supabase.rpc("increment_review_stats", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_reviewed: 1,
-      p_correct: 1,
-      p_learned: isLearned,
-      p_date: today,
-    });
-
-    await supabase.rpc("increment_user_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_amount: xpEarned,
-    });
-
-    // Update daily stats via RPC
-    await supabase.rpc("increment_daily_words", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_reviewed: 1,
-      p_correct: 1,
-    });
-
-    await supabase.rpc("increment_daily_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_xp: xpEarned,
-    });
+    // Fire RPCs in parallel for speed
+    await Promise.all([
+      supabase.rpc("increment_review_stats", {
+        p_user_id: profile.userId, p_language_id: langId,
+        p_reviewed: 1, p_correct: 1, p_learned: isLearned, p_date: today,
+      }),
+      supabase.rpc("increment_user_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_amount: xpEarned,
+      }),
+      supabase.rpc("increment_daily_words", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_reviewed: 1, p_correct: 1,
+      }),
+      supabase.rpc("increment_daily_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_xp: xpEarned,
+      }),
+    ]);
 
     // Update weekly challenge if participating
     const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
@@ -601,54 +578,41 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
     }
 
   } else {
-    // Move to box 1
     xpEarned = XP_PER_INCORRECT;
-
-    const { data: word } = await supabase
-      .from("words")
-      .select("times_incorrect, times_reviewed")
-      .eq("id", cached.wordId)
-      .maybeSingle();
 
     await supabase
       .from("words")
       .update({
         box_number: 1,
-        times_incorrect: (word?.times_incorrect || 0) + 1,
-        times_reviewed: (word?.times_reviewed || 0) + 1,
+        times_incorrect: (quizWord.times_incorrect || 0) + 1,
+        times_reviewed: (quizWord.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: new Date().toISOString(),
       })
-      .eq("id", cached.wordId);
+      .eq("id", wordId);
 
-    await supabase.rpc("increment_review_stats", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_reviewed: 1,
-      p_correct: 0,
-      p_learned: 0,
-      p_date: today,
-    });
-
-    await supabase.rpc("increment_user_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_amount: xpEarned,
-    });
-
-    await supabase.rpc("increment_daily_words", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_reviewed: 1,
-      p_correct: 0,
-    });
+    await Promise.all([
+      supabase.rpc("increment_review_stats", {
+        p_user_id: profile.userId, p_language_id: langId,
+        p_reviewed: 1, p_correct: 0, p_learned: 0, p_date: today,
+      }),
+      supabase.rpc("increment_user_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_amount: xpEarned,
+      }),
+      supabase.rpc("increment_daily_words", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_reviewed: 1, p_correct: 0,
+      }),
+    ]);
   }
 
-  // Clear quiz cache
-  quizCache.delete(chatId);
+  // Clear quiz session in DB
+  await supabase
+    .from("quiz_sessions")
+    .update({ current_word_id: null })
+    .eq("telegram_chat_id", chatId);
 
-  // Edit message to show result with XP earned
+  // Get selected answer text from button (reconstruct from callback)
+  // Since we now have the word from DB, we show the correct answer
   const resultMessage = isCorrect
     ? `✅ <b>To'g'ri!</b>  +${xpEarned} XP 💎\n` +
       `━━━━━━━━━━━━━━━━━━\n\n` +
@@ -656,7 +620,6 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       `Zo'r! Davom eting! 🔥`
     : `❌ <b>Noto'g'ri!</b>\n` +
       `━━━━━━━━━━━━━━━━━━\n\n` +
-      `Siz: <s>${selectedAnswer}</s>\n` +
       `✅ To'g'ri: <b>${correctAnswer}</b>\n\n` +
       `💡 Bu so'z Box 1 ga qaytdi`;
 
