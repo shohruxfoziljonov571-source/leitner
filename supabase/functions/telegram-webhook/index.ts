@@ -12,9 +12,7 @@ const WEBAPP_URL = "https://leitner.lovable.app";
 const profileCache = new Map<number, { userId: string; fullName: string; expires: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-// Quiz session cache
-const quizCache = new Map<number, { wordId: string; correctAnswer: string; options: string[]; expires: number }>();
-const QUIZ_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+// Quiz state is persisted in quiz_sessions table (not in-memory, since edge functions are serverless)
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -431,13 +429,17 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number, me
     ...wrongWords.map((w: any) => ({ text: w.translated_word, isCorrect: false }))
   ].sort(() => Math.random() - 0.5);
 
-  // Cache the quiz for verification
-  quizCache.set(chatId, {
-    wordId: targetWord.id,
-    correctAnswer: targetWord.translated_word,
-    options: options.map(o => o.text),
-    expires: Date.now() + QUIZ_CACHE_TTL,
-  });
+  // Persist quiz state in DB (survives serverless cold starts)
+  await supabase
+    .from("quiz_sessions")
+    .upsert({
+      telegram_chat_id: chatId,
+      user_id: profile.userId,
+      user_language_id: userLang.id,
+      current_word_id: targetWord.id,
+      is_active: true,
+      last_activity: new Date().toISOString(),
+    }, { onConflict: "telegram_chat_id" });
 
   const boxStars = "⭐".repeat(targetWord.box_number) + "☆".repeat(5 - targetWord.box_number);
 
@@ -469,26 +471,41 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) return;
 
-  const cached = quizCache.get(chatId);
-  if (!cached || cached.expires < Date.now()) {
+  // Read quiz state from DB instead of in-memory cache
+  const { data: session } = await supabase
+    .from("quiz_sessions")
+    .select("current_word_id, user_language_id")
+    .eq("telegram_chat_id", chatId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!session || !session.current_word_id) {
     await sendMessage(token, chatId, "⏰ Quiz vaqti tugadi. Qaytadan boshlang.", {
       inline_keyboard: [[{ text: "🎯 Qayta boshlash", callback_data: "quiz", style: "success" }]]
     });
     return;
   }
 
-  const selectedAnswer = cached.options[optionIndex];
-  const correctAnswer = cached.correctAnswer;
+  const wordId = session.current_word_id;
+  const langId = session.user_language_id;
 
-  // Get user's language
-  const { data: userLang } = await supabase
-    .from("user_languages")
-    .select("id")
-    .eq("user_id", profile.userId)
-    .limit(1)
+  // Get the word to find correct answer
+  const { data: quizWord } = await supabase
+    .from("words")
+    .select("original_word, translated_word, box_number, times_correct, times_reviewed, times_incorrect")
+    .eq("id", wordId)
     .maybeSingle();
 
-  if (!userLang) return;
+  if (!quizWord) {
+    await sendMessage(token, chatId, "⏰ Quiz vaqti tugadi. Qaytadan boshlang.", {
+      inline_keyboard: [[{ text: "🎯 Qayta boshlash", callback_data: "quiz", style: "success" }]]
+    });
+    return;
+  }
+
+  const correctAnswer = quizWord.translated_word;
+
+  
 
   // XP values
   const XP_PER_CORRECT = 10;
@@ -499,18 +516,10 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
   const today = new Date().toISOString().split('T')[0];
 
   if (isCorrect) {
-    // Move to next box (max 5)
-    const { data: word } = await supabase
-      .from("words")
-      .select("box_number, times_correct, times_reviewed")
-      .eq("id", cached.wordId)
-      .maybeSingle();
-
-    const currentBox = word?.box_number || 1;
+    const currentBox = quizWord.box_number || 1;
     const newBox = Math.min(currentBox + 1, 5);
     
-    // Calculate next review time based on box
-    const reviewIntervals = [1, 3, 7, 14, 30]; // days
+    const reviewIntervals = [1, 3, 7, 14, 30];
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + reviewIntervals[newBox - 1]);
 
@@ -518,47 +527,32 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       .from("words")
       .update({
         box_number: newBox,
-        times_correct: (word?.times_correct || 0) + 1,
-        times_reviewed: (word?.times_reviewed || 0) + 1,
+        times_correct: (quizWord.times_correct || 0) + 1,
+        times_reviewed: (quizWord.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: nextReview.toISOString(),
       })
-      .eq("id", cached.wordId);
+      .eq("id", wordId);
 
-    // Update user stats via RPC
     xpEarned = XP_PER_CORRECT;
     const isLearned = newBox >= 5 ? 1 : 0;
 
-    await supabase.rpc("increment_review_stats", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_reviewed: 1,
-      p_correct: 1,
-      p_learned: isLearned,
-      p_date: today,
-    });
-
-    await supabase.rpc("increment_user_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_amount: xpEarned,
-    });
-
-    // Update daily stats via RPC
-    await supabase.rpc("increment_daily_words", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_reviewed: 1,
-      p_correct: 1,
-    });
-
-    await supabase.rpc("increment_daily_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_xp: xpEarned,
-    });
+    // Fire RPCs in parallel for speed
+    await Promise.all([
+      supabase.rpc("increment_review_stats", {
+        p_user_id: profile.userId, p_language_id: langId,
+        p_reviewed: 1, p_correct: 1, p_learned: isLearned, p_date: today,
+      }),
+      supabase.rpc("increment_user_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_amount: xpEarned,
+      }),
+      supabase.rpc("increment_daily_words", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_reviewed: 1, p_correct: 1,
+      }),
+      supabase.rpc("increment_daily_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_xp: xpEarned,
+      }),
+    ]);
 
     // Update weekly challenge if participating
     const { data: challengeId } = await supabase.rpc("get_or_create_weekly_challenge");
@@ -584,54 +578,41 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
     }
 
   } else {
-    // Move to box 1
     xpEarned = XP_PER_INCORRECT;
-
-    const { data: word } = await supabase
-      .from("words")
-      .select("times_incorrect, times_reviewed")
-      .eq("id", cached.wordId)
-      .maybeSingle();
 
     await supabase
       .from("words")
       .update({
         box_number: 1,
-        times_incorrect: (word?.times_incorrect || 0) + 1,
-        times_reviewed: (word?.times_reviewed || 0) + 1,
+        times_incorrect: (quizWord.times_incorrect || 0) + 1,
+        times_reviewed: (quizWord.times_reviewed || 0) + 1,
         last_reviewed: new Date().toISOString(),
         next_review_time: new Date().toISOString(),
       })
-      .eq("id", cached.wordId);
+      .eq("id", wordId);
 
-    await supabase.rpc("increment_review_stats", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_reviewed: 1,
-      p_correct: 0,
-      p_learned: 0,
-      p_date: today,
-    });
-
-    await supabase.rpc("increment_user_xp", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_amount: xpEarned,
-    });
-
-    await supabase.rpc("increment_daily_words", {
-      p_user_id: profile.userId,
-      p_language_id: userLang.id,
-      p_date: today,
-      p_reviewed: 1,
-      p_correct: 0,
-    });
+    await Promise.all([
+      supabase.rpc("increment_review_stats", {
+        p_user_id: profile.userId, p_language_id: langId,
+        p_reviewed: 1, p_correct: 0, p_learned: 0, p_date: today,
+      }),
+      supabase.rpc("increment_user_xp", {
+        p_user_id: profile.userId, p_language_id: langId, p_amount: xpEarned,
+      }),
+      supabase.rpc("increment_daily_words", {
+        p_user_id: profile.userId, p_language_id: langId, p_date: today, p_reviewed: 1, p_correct: 0,
+      }),
+    ]);
   }
 
-  // Clear quiz cache
-  quizCache.delete(chatId);
+  // Clear quiz session in DB
+  await supabase
+    .from("quiz_sessions")
+    .update({ current_word_id: null })
+    .eq("telegram_chat_id", chatId);
 
-  // Edit message to show result with XP earned
+  // Get selected answer text from button (reconstruct from callback)
+  // Since we now have the word from DB, we show the correct answer
   const resultMessage = isCorrect
     ? `✅ <b>To'g'ri!</b>  +${xpEarned} XP 💎\n` +
       `━━━━━━━━━━━━━━━━━━\n\n` +
@@ -639,7 +620,6 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
       `Zo'r! Davom eting! 🔥`
     : `❌ <b>Noto'g'ri!</b>\n` +
       `━━━━━━━━━━━━━━━━━━\n\n` +
-      `Siz: <s>${selectedAnswer}</s>\n` +
       `✅ To'g'ri: <b>${correctAnswer}</b>\n\n` +
       `💡 Bu so'z Box 1 ga qaytdi`;
 
@@ -652,7 +632,11 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
 }
 
 async function handleQuizStop(supabase: any, token: string, chatId: number, messageId?: number) {
-  quizCache.delete(chatId);
+  // Deactivate quiz session in DB
+  await supabase
+    .from("quiz_sessions")
+    .update({ is_active: false, current_word_id: null })
+    .eq("telegram_chat_id", chatId);
   
   const profile = await getCachedProfile(supabase, chatId);
   if (!profile) {
