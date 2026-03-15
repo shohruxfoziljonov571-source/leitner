@@ -5,7 +5,7 @@ import {
   Users, BookOpen, TrendingUp, Calendar, 
   BarChart3, MessageSquare, Link2, Shield, Trophy, Send,
   Award, Clock, HeadphonesIcon, Crown, FileAudio, Book, DollarSign, Filter, Sparkles,
-  ChevronRight, LayoutDashboard
+  ChevronRight, LayoutDashboard, Eye
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +26,7 @@ import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
 import OnboardingWizard from '@/components/admin/OnboardingWizard';
 import ChannelManager from '@/components/admin/ChannelManager';
 import ReferralManager from '@/components/admin/ReferralManager';
+import MetaPixelManager from '@/components/admin/MetaPixelManager';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -83,6 +84,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'channels', label: 'Kanallar', icon: MessageSquare },
       { id: 'referrals', label: 'Referrallar', icon: Link2 },
       { id: 'funnel', label: 'Funnel', icon: Filter },
+      { id: 'pixel', label: 'Meta Pixel', icon: Eye },
     ],
   },
   {
@@ -285,6 +287,7 @@ const Admin = () => {
       case 'channels': return <ChannelManager channels={channels} addChannel={addChannel} toggleChannel={toggleChannel} deleteChannel={deleteChannel} />;
       case 'referrals': return <ReferralManager referrals={referrals} addReferral={addReferral} toggleReferral={toggleReferral} deleteReferral={deleteReferral} />;
       case 'funnel': return <FunnelAnalytics />;
+      case 'pixel': return <MetaPixelManager />;
       case 'setup': return <OnboardingWizard />;
       case 'stats': return <AdvancedStatistics />;
       default: return <AnalyticsDashboard stats={stats} dailyStats={dailyStats} />;
