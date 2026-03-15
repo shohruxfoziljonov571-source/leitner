@@ -287,6 +287,7 @@ const Admin = () => {
       case 'channels': return <ChannelManager channels={channels} addChannel={addChannel} toggleChannel={toggleChannel} deleteChannel={deleteChannel} />;
       case 'referrals': return <ReferralManager referrals={referrals} addReferral={addReferral} toggleReferral={toggleReferral} deleteReferral={deleteReferral} />;
       case 'funnel': return <FunnelAnalytics />;
+      case 'pixel': return <MetaPixelManager />;
       case 'setup': return <OnboardingWizard />;
       case 'stats': return <AdvancedStatistics />;
       default: return <AnalyticsDashboard stats={stats} dailyStats={dailyStats} />;
