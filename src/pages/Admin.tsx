@@ -84,6 +84,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'channels', label: 'Kanallar', icon: MessageSquare },
       { id: 'referrals', label: 'Referrallar', icon: Link2 },
       { id: 'funnel', label: 'Funnel', icon: Filter },
+      { id: 'pixel', label: 'Meta Pixel', icon: Eye },
     ],
   },
   {
