@@ -26,6 +26,7 @@ import FunnelAnalytics from '@/components/admin/FunnelAnalytics';
 import OnboardingWizard from '@/components/admin/OnboardingWizard';
 import ChannelManager from '@/components/admin/ChannelManager';
 import ReferralManager from '@/components/admin/ReferralManager';
+import MetaPixelManager from '@/components/admin/MetaPixelManager';
 import { 
   ResponsiveContainer, 
   AreaChart, 
