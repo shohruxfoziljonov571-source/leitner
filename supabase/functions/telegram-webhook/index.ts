@@ -430,16 +430,38 @@ async function sendQuizQuestion(supabase: any, token: string, chatId: number, me
   ].sort(() => Math.random() - 0.5);
 
   // Persist quiz state in DB (survives serverless cold starts)
-  await supabase
+  // First try update, then insert if not exists (more reliable than upsert with non-PK conflict)
+  const { data: existingSession } = await supabase
     .from("quiz_sessions")
-    .upsert({
-      telegram_chat_id: chatId,
-      user_id: profile.userId,
-      user_language_id: userLang.id,
-      current_word_id: targetWord.id,
-      is_active: true,
-      last_activity: new Date().toISOString(),
-    }, { onConflict: "telegram_chat_id" });
+    .select("id")
+    .eq("telegram_chat_id", chatId)
+    .maybeSingle();
+
+  if (existingSession) {
+    const { error: updateErr } = await supabase
+      .from("quiz_sessions")
+      .update({
+        user_id: profile.userId,
+        user_language_id: userLang.id,
+        current_word_id: targetWord.id,
+        is_active: true,
+        last_activity: new Date().toISOString(),
+      })
+      .eq("id", existingSession.id);
+    if (updateErr) console.error("Quiz session update error:", updateErr);
+  } else {
+    const { error: insertErr } = await supabase
+      .from("quiz_sessions")
+      .insert({
+        telegram_chat_id: chatId,
+        user_id: profile.userId,
+        user_language_id: userLang.id,
+        current_word_id: targetWord.id,
+        is_active: true,
+        last_activity: new Date().toISOString(),
+      });
+    if (insertErr) console.error("Quiz session insert error:", insertErr);
+  }
 
   const boxStars = "⭐".repeat(targetWord.box_number) + "☆".repeat(5 - targetWord.box_number);
 
@@ -605,11 +627,12 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
     ]);
   }
 
-  // Clear quiz session in DB
+  // Mark current word as answered (keep session active for next question)
   await supabase
     .from("quiz_sessions")
-    .update({ current_word_id: null })
-    .eq("telegram_chat_id", chatId);
+    .update({ current_word_id: null, last_activity: new Date().toISOString() })
+    .eq("telegram_chat_id", chatId)
+    .eq("is_active", true);
 
   // Get selected answer text from button (reconstruct from callback)
   // Since we now have the word from DB, we show the correct answer
