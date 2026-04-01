@@ -627,11 +627,12 @@ async function handleQuizAnswer(supabase: any, token: string, chatId: number, me
     ]);
   }
 
-  // Clear quiz session in DB
+  // Mark current word as answered (keep session active for next question)
   await supabase
     .from("quiz_sessions")
-    .update({ current_word_id: null })
-    .eq("telegram_chat_id", chatId);
+    .update({ current_word_id: null, last_activity: new Date().toISOString() })
+    .eq("telegram_chat_id", chatId)
+    .eq("is_active", true);
 
   // Get selected answer text from button (reconstruct from callback)
   // Since we now have the word from DB, we show the correct answer
