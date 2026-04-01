@@ -190,8 +190,8 @@ async function handleCallbackQuery(supabase: any, token: string, callbackQuery: 
     return;
   }
 
-  // Handle quiz answer
-  if (data.startsWith("quiz_")) {
+  // Handle quiz answer buttons only (avoid matching quiz_next / quiz_stop)
+  if (/^quiz_\d+_[01]$/.test(data)) {
     await handleQuizAnswer(supabase, token, chatId, messageId, data);
     return;
   }
