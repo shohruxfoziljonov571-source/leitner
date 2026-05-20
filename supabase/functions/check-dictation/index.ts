@@ -12,7 +12,45 @@ serve(async (req) => {
   }
 
   try {
-    const { submittedText, originalText, dictationId, userId } = await req.json();
+    // ===== Server-side auth + premium check =====
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authedClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: claimsData, error: claimsError } = await authedClient.auth.getClaims(
+      authHeader.replace("Bearer ", "")
+    );
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const authedUserId = claimsData.claims.sub as string;
+
+    // Premium gating: dictation is a Premium feature
+    const { data: isPremium } = await authedClient.rpc("is_user_premium", {
+      p_user_id: authedUserId,
+    });
+    if (!isPremium) {
+      return new Response(
+        JSON.stringify({ error: "Diktant — Premium funksiyasi. Iltimos, Premium obuna oling." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { submittedText, originalText, dictationId } = await req.json();
+    const userId = authedUserId; // Always use authenticated user, ignore client-provided id
 
     if (!submittedText || !originalText) {
       return new Response(
