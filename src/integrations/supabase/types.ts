@@ -1603,6 +1603,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_admin_dashboard_stats: { Args: never; Returns: Json }
       get_box_counts: {
         Args: { p_language_id: string; p_user_id: string }
         Returns: Json
@@ -1685,6 +1686,7 @@ export type Database = {
         Args: { p_amount: number; p_language_id: string; p_user_id: string }
         Returns: Json
       }
+      is_user_premium: { Args: { p_user_id: string }; Returns: boolean }
       process_challenge_winners: {
         Args: { p_challenge_id: string }
         Returns: undefined
